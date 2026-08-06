@@ -192,14 +192,14 @@ docker compose up -d --build
 **En la Pi** (parte del Portainer Stack `rudatrak`):
 
 ```bash
-docker build --no-cache -t carga-poi:latest ~/traccar-web/tools/carga-poi/
+docker build --no-cache -t carga-poi:latest /app/RudaTrak/traccar-web/tools/carga-poi/
 docker rm -f rudatrak-carga-poi
 docker run -d --name rudatrak-carga-poi --network npm_proxy-network -p 3007:3007 \
-  -v /data/compose/traccar/traccar-poi/general.kml:/data/kml/general.kml \
+  -v /data/compose/rudatrak/trak-poi/general.kml:/data/kml/general.kml \
   --restart unless-stopped carga-poi:latest
 ```
 
-El KML se monta desde `/data/compose/traccar/traccar-poi/general.kml`. La URL pública es `https://nuevo-poi.rudatrak.com` (proxied via Nginx Proxy Manager → `carga-poi:3007`).
+El KML se monta desde `/data/compose/rudatrak/trak-poi/general.kml`. La URL pública es `https://nuevo-poi.rudatrak.com` (proxied via Nginx Proxy Manager → `carga-poi:3007`).
 
 ### Gotchas
 

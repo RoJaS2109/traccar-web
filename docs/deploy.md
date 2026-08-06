@@ -29,14 +29,14 @@ ssh -T git@github.com
 ```bash
 cd ~
 git clone --recurse-submodules git@github.com:RoJaS2109/traccar.git RudaTrak
-cd ~/RudaTrak/traccar-web
+cd /app/RudaTrak/traccar-web
 ```
 
 ### 2. Configurar contraseña de Portainer
 
 ```bash
-echo "tu-password" > ~/RudaTrak/traccar-web/.portainer_pass
-chmod 600 ~/RudaTrak/traccar-web/.portainer_pass
+echo "tu-password" > /app/RudaTrak/traccar-web/.portainer_pass
+chmod 600 /app/RudaTrak/traccar-web/.portainer_pass
 ```
 
 ### 3. Build inicial
@@ -48,7 +48,7 @@ chmod 600 ~/RudaTrak/traccar-web/.portainer_pass
 Esto ejecuta:
 1. `git pull` + `npm install` + `npm run build`
 2. `docker build -t rudatrak:latest .` (Dockerfile multi-stage: compila y parchea el backend)
-3. Copia de KMLs a `/data/compose/traccar/traccar-poi/`
+3. Copia de KMLs a `/data/compose/rudatrak/trak-poi/`
 4. `docker build -t agente-ia:latest ./tools/agente-ia`
 5. `docker build -t carga-poi:latest ./tools/carga-poi`
 6. **Portainer API** → autentica, busca el stack `rudatrak` y lo redeploya
@@ -81,7 +81,7 @@ En `http://localhost:81`:
 
 ```bash
 # En la Pi
-cd ~/RudaTrak/traccar-web && ./deploy.sh
+cd /app/RudaTrak/traccar-web && ./deploy.sh
 ```
 
 O desde la PC:
@@ -89,7 +89,7 @@ O desde la PC:
 ```bash
 cd /mnt/Datos/app/RudaTrak/traccar/traccar-web
 git add . && git commit -m "cambios" && git push
-ssh pi@raspi "cd ~/RudaTrak/traccar-web && ./deploy.sh"
+ssh pi@raspi "cd /app/RudaTrak/traccar-web && ./deploy.sh"
 ```
 
 ## Actualizar solo el frontend
@@ -97,7 +97,7 @@ ssh pi@raspi "cd ~/RudaTrak/traccar-web && ./deploy.sh"
 Si solo cambió código del frontend (sin cambios en Docker):
 
 ```bash
-cd ~/RudaTrak/traccar-web
+cd /app/RudaTrak/traccar-web
 git pull && npm install && npm run build
 docker build -t rudatrak:latest .
 ./deploy.sh   # usa Portainer API para redeploy
@@ -106,9 +106,9 @@ docker build -t rudatrak:latest .
 ## Actualizar solo los KMLs
 
 ```bash
-cd ~/RudaTrak/traccar-web
+cd /app/RudaTrak/traccar-web
 git pull
-sudo cp data/*.kml /data/compose/traccar/traccar-poi/
+sudo cp data/*.kml /data/compose/rudatrak/trak-poi/
 ```
 
 ## Rollback
@@ -180,7 +180,7 @@ docker rm rudatrak-traccar rudatrak-carga-poi carga-poi 2>/dev/null
 
 ```bash
 # 1. Verificar que el build sea reciente
-ls -la ~/RudaTrak/traccar-web/build/index.html
+ls -la /app/RudaTrak/traccar-web/build/index.html
 
 # 2. Verificar que la imagen se reconstruyó
 docker images rudatrak --format '{{.CreatedAt}}'

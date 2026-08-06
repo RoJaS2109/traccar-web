@@ -56,21 +56,22 @@
 ┌─────────────────────────────────────────────────┐
 │           Stack: rudatrak (Portainer)            │
 │                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
-│  │ rudatrak-traccar │  │ rudatrak-carga-poi│  │rudatrak-agente-ia│    │
-│  │                  │  │                  │  │                  │     │
-│  │ Traccar +        │  │ Node.js/Express  │  │ Agente IA        │     │
-│  │ Frontend         │  │ API REST         │  │ Escaladas        │     │
-│  │ Puerto: 8082     │  │ Puerto: 3007     │  │ Puerto: 3008     │     │
-│  └──────┬───────────┘  └──────┬───────────┘  └──────┬───────────┘     │
-│         │                     │                     │                  │
-│         ▼                     ▼                     ▼                  │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
-│  │ /data/compose/   │  │ general.kml      │  │ Redis            │     │
-│  │  traccar-data/   │  │ (bind mount)     │  │ (interno)        │     │
-│  │  traccar-poi/    │  │                  │  │                  │     │
-│  │  traccar-logs/   │  │                  │  │                  │     │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+│  │ rudatrak-traccar │  │rudatrak-agente-ia│  │rudatrak-carga-poi│  │ rudatrak-redis   │  │ rudatrak-ollama  │    │
+│  │                  │  │                  │  │                  │  │                  │  │                  │     │
+│  │ Traccar +        │  │ Agente IA        │  │ Node.js/Express  │  │ Redis 7 Alpine   │  │ Ollama           │     │
+│  │ Frontend         │  │ Escaladas        │  │ API REST         │  │ Cache/Estado     │  │ Modelos LLM      │     │
+│  │ Puerto: 8082     │  │ Puerto: 3008     │  │ Puerto: 3007     │  │ Puerto: 6379     │  │ Puerto: 11434    │     │
+│  └──────┬───────────┘  └──────┬───────────┘  └──────┬───────────┘  └──────┬───────────┘  └──────┬───────────┘     │
+│         │                     │                     │                     │                     │                  │
+│         ▼                     ▼                     ▼                     ▼                     ▼                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+│  │ /data/compose/   │  │ agente-ia-logs/  │  │ general.kml      │  │ redis-data/      │  │ ollama/          │     │
+│  │  rudatrak/       │  │                  │  │ (bind mount)     │  │                  │  │                  │     │
+│  │  trak-data/      │  │                  │  │                  │  │                  │  │                  │     │
+│  │  trak-poi/       │  │                  │  │                  │  │                  │  │                  │     │
+│  │  trak-logs/      │  │                  │  │                  │  │                  │  │                  │     │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -78,9 +79,9 @@
 
 | Ruta | Contenido | Montado en |
 |------|-----------|------------|
-| `/data/compose/traccar/traccar-data/` | Base de datos H2 | `/opt/traccar/data` |
-| `/data/compose/traccar/traccar-poi/` | Archivos KML | `/opt/traccar/web/poi` |
-| `/data/compose/traccar/traccar-logs/` | Logs del servidor | `/opt/traccar/logs` |
+| `/data/compose/rudatrak/trak-data/` | Base de datos H2 | `/opt/traccar/data` |
+| `/data/compose/rudatrak/trak-poi/` | Archivos KML | `/opt/traccar/web/poi` |
+| `/data/compose/rudatrak/trak-logs/` | Logs del servidor | `/opt/traccar/logs` |
 
 ## Imágenes Docker
 
@@ -96,7 +97,7 @@
 
 | Red | Contenedores | Propósito |
 |-----|-------------|-----------|
-| `npm_proxy-network` | NPM, rudatrak-traccar, rudatrak-carga-poi | Comunicación interna |
+| `npm_proxy-network` | NPM, rudatrak-traccar, rudatrak-agente-ia, rudatrak-carga-poi, rudatrak-redis, rudatrak-ollama | Comunicación interna |
 
 ## Repositorios
 
