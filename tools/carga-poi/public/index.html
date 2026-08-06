@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargar POI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+  .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: relative; transition: box-shadow .3s, border-color .3s; border: 2px solid transparent; }
+  .container.modo-eliminar { border-color: #c62828; box-shadow: 0 0 0 4px rgba(198,40,40,0.12), 0 2px 10px rgba(0,0,0,0.1); }
+
+  /* Toggle de eliminación */
+  .delete-toggle { position: absolute; top: 18px; right: 22px; display: flex; align-items: center; gap: 8px; z-index: 2; }
+  .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 26px; }
+  .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+  input:checked + .slider { background-color: #c62828; }
+  input:checked + .slider:before { transform: translateX(20px); }
+  .delete-toggle-text { font-size: 12px; font-weight: 700; color: #888; user-select: none; }
+  .modo-eliminar .delete-toggle-text { color: #c62828; }
+
+  /* Banner de proximidad */
+  #nearbyBanner { display:none; background:#fff3e0; border:1px solid #ff9800; border-radius:8px; padding:14px 16px; margin-bottom:20px; font-size:14px; animation: slideDown 0.3s ease; }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+  #nearbyBanner .history { max-height:150px; overflow-y:auto; background:#fff; padding:8px; border-radius:6px; border:1px solid #ffe0b2; margin-top:8px; font-size:12px; color:#666; line-height:1.5; }
+
+  /* Modo actualización */
+  .container.modo-actualizar { border-color: #e65100; box-shadow: 0 0 0 4px rgba(230,81,0,0.12), 0 2px 10px rgba(0,0,0,0.1); }
+  .modo-actualizar #btnSubmit, button.update-btn { background: #e65100; }
+  .modo-actualizar #btnSubmit:hover, button.update-btn:hover { background: #bf360c; }
+
+  /* Selector de búsqueda en modo eliminar */
+  #deleteSearchMethod { display:none; margin-bottom:15px; }
+  #deleteSearchMethod label { font-weight:400; }
+  #deleteSearchMethod input[type="radio"] { width:auto; margin:0; }
+
+  /* Checkbox en modo actualización */
+  #replaceCheckRow { display:none; align-items:center; gap:8px; margin-bottom:18px; font-size:13px; color:#e65100; }
+  #replaceCheckRow input[type="checkbox"] { width:auto; margin:0; accent-color: #e65100; }
+
+  h1 { font-size: 22px; margin-bottom: 5px; padding-right: 110px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 25px; }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 5px; color: #555; }
+  label .opt { font-weight: 400; color: #aaa; font-size: 12px; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; font-family: inherit; transition: border-color .2s, background .2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #4a90d9; box-shadow: 0 0 0 3px rgba(74,144,217,0.1); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Campos deshabilitados en modo eliminación */
+  .modo-eliminar input:disabled, .modo-eliminar select:disabled, .modo-eliminar textarea:disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; border-color: #e0e0e0; }
+  .modo-eliminar #nombreHint { color: #c62828; }
+
+  button { width: 100%; padding: 12px; background: #4a90d9; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background .2s; }
+  button:hover { background: #357abd; }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  button.danger { background: #c62828; }
+  button.danger:hover { background: #b71c1c; }
+  button.danger:disabled { background: #aaa; }
+
+  .msg { margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 14px; display: none; }
+  .msg.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .msg.error { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .msg ul { margin: 5px 0 0 18px; }
+  .preview { margin-top: 5px; font-size: 12px; color: #999; }
+
+  /* Sección de confirmación de eliminación */
+  #deleteConfirm { display: none; margin-top: 20px; padding: 18px; border: 2px dashed #c62828; border-radius: 10px; background: #fff5f5; }
+  #deleteConfirm h3 { color: #c62828; margin-bottom: 10px; font-size: 16px; }
+  #poiPreview { font-size: 13px; color: #555; margin-bottom: 15px; line-height: 1.6; }
+  #poiPreview strong { color: #333; }
+  #poiPreview .desc { max-height: 100px; overflow-y: auto; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #eee; margin-top: 5px; font-size: 12px; }
+  #confirmar { border-color: #c62828; }
+  #confirmar:focus { border-color: #c62828; box-shadow: 0 0 0 3px rgba(198,40,40,0.15); }
+</style>
+</head>
+<body>
+<div class="container" id="container">
+
+  <!-- Toggle modo eliminación (esquina superior derecha) -->
+  <div class="delete-toggle">
+    <label class="switch">
+      <input type="checkbox" id="modoEliminar">
+      <span class="slider"></span>
+    </label>
+    <span class="delete-toggle-text">🗑️ Eliminar</span>
+  </div>
+
+  <h1 id="formTitle">📍 Cargar nuevo POI</h1>
+  <p class="sub" id="formSub">Agregá un nuevo punto al mapa.</p>
+
+  <!-- Banner de proximidad (se muestra al detectar un POI cercano) -->
+  <div id="nearbyBanner">
+    <span id="nearbyBannerText"></span>
+    <div id="nearbyBannerHistory" style="display:none;">
+      <strong style="font-size:12px;">Historial de entradas:</strong>
+      <div class="history" id="nearbyBannerHistoryContent"></div>
+    </div>
+    <a href="#" id="nearbyCreateNew" style="color:#e65100; font-weight:600; font-size:13px; margin-top:6px; display:inline-block;">+ Crear nuevo de todas formas</a>
+  </div>
+
+  <form id="poiForm">
+    <div class="field">
+      <label for="nombre">Nombre del lugar * <span class="opt" id="nombreHint"></span></label>
+      <input type="text" id="nombre" placeholder="Ej: Playón natural frente al lago" required autofocus>
+    </div>
+
+    <div class="field">
+      <label for="localidad">Localidad <span class="opt">(opcional)</span></label>
+      <input type="text" id="localidad" placeholder="Ej: San Martin de los Andes">
+    </div>
+
+    <div class="field">
+      <label for="coordenadas">Coordenadas * <span class="opt">formato: -40.159597, -71.360944</span></label>
+      <input type="text" id="coordenadas" placeholder="-40.159597, -71.360944" required>
+    </div>
+    <div class="preview" id="coordPreview"></div>
+
+    <div class="field">
+      <label for="categoria">Categoria *</label>
+      <select id="categoria" required>
+        <option value="">Selecciona una categoria...</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="autor">Autor *</label>
+      <input type="text" id="autor" placeholder="Tu nombre">
+    </div>
+
+    <div class="field">
+      <label for="comentario">Comentario *</label>
+      <textarea id="comentario" placeholder="Describi el lugar, servicios, tu experiencia..." required></textarea>
+    </div>
+
+    <!-- Checkbox de reemplazo (solo visible en modo actualizar) -->
+    <div id="replaceCheckRow">
+      <input type="checkbox" id="reemplazarUltima">
+      <label for="reemplazarUltima" style="margin:0; cursor:pointer;">Corregir el último comentario (reemplaza en vez de agregar)</label>
+    </div>
+
+    <button type="submit" id="btnSubmit">Agregar POI</button>
+  </form>
+
+  <!-- Selector de método de búsqueda en modo eliminar (oculto por defecto) -->
+  <div id="deleteSearchMethod">
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+      <input type="radio" name="deleteSearchBy" value="name" checked> Buscar por nombre exacto
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-top:4px;">
+      <input type="radio" name="deleteSearchBy" value="coords"> Buscar por coordenadas (más cercano)
+    </label>
+  </div>
+
+  <!-- Sección de confirmación de eliminación (oculta por defecto) -->
+  <div id="deleteConfirm">
+
+    <h3>⚠️ ¿Estás seguro?</h3>
+    <div id="poiPreview"></div>
+    <div class="field">
+      <label for="confirmar">Escribe <strong>ELIMINAR</strong> para confirmar</label>
+      <input type="text" id="confirmar" placeholder="ELIMINAR" autocomplete="off">
+    </div>
+    <button id="btnDelete" class="danger" disabled>⚠️ Eliminar POI definitivamente</button>
+  </div>
+
+  <div id="msg" class="msg"></div>
+</div>
+
+<script>
+// ── Estado ──────────────────────────────────────────────
+const MODE = {
+  AGREGAR: 'agregar',
+  ACTUALIZAR: 'actualizar',
+  ELIMINAR: 'eliminar'
+};
+let formMode = MODE.AGREGAR;
+let poiActualizar = null;     // { nombreActual } para el PUT
+let poiEncontrado = null;     // datos del POI a eliminar (tras búsqueda exitosa)
+let ignorarProximidad = false; // flag para "Crear nuevo de todas formas"
+
+// ── Cargar categorías ──────────────────────────────────
+fetch('/api/categorias')
+  .then(r => r.json())
+  .then(cats => {
+    const select = document.getElementById('categoria');
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.label;
+      select.appendChild(opt);
+    });
+  })
+  .catch(() => {
+    showMsg('error', 'No se pudo conectar al servidor. ¿Está corriendo?');
+  });
+
+// ── Preview de nombre ──────────────────────────────────
+function updatePreview() {
+  const nombre = document.getElementById('nombre').value.trim();
+  const localidad = document.getElementById('localidad').value.trim();
+  const coords = document.getElementById('coordenadas').value.trim().replace(/[\[\]()]/g, '');
+  const parts = coords.split(/[\s,]+/).filter(p => p !== '');
+  const preview = document.getElementById('coordPreview');
+  if (nombre && parts.length >= 2) {
+    const lat = parseFloat(parts[0]).toFixed(6);
+    const lon = parseFloat(parts[1]).toFixed(6);
+    preview.textContent = localidad
+      ? `Nombre: "${nombre}, ${localidad} ${lat}, ${lon}"`
+      : `Nombre: "${nombre} ${lat}, ${lon}"`;
+  } else {
+    preview.textContent = '';
+  }
+}
+['nombre','localidad','coordenadas'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePreview);
+});
+
+// ── Utilidades ─────────────────────────────────────────
+function showMsg(type, html) {
+  const msg = document.getElementById('msg');
+  msg.className = 'msg ' + type;
+  msg.innerHTML = html;
+}
+
+function clearMsg() {
+  document.getElementById('msg').className = 'msg';
+}
+
+// ── Resetear sección de confirmación de eliminación ────
+function resetDeleteConfirm() {
+  poiEncontrado = null;
+  document.getElementById('deleteConfirm').style.display = 'none';
+  document.getElementById('poiPreview').innerHTML = '';
+  document.getElementById('confirmar').value = '';
+  document.getElementById('btnDelete').disabled = true;
+}
+
+// ── Funciones de modo actualizar ───────────────────────
+function entrarModoActualizar(poi) {
+  formMode = MODE.ACTUALIZAR;
+  poiActualizar = { nombreActual: poi.nombreCompleto };
+  ignorarProximidad = false;
+
+  const container = document.getElementById('container');
+  container.classList.add('modo-actualizar');
+  container.classList.remove('modo-eliminar');
+
+  // Título y subtítulo
+  document.getElementById('formTitle').textContent = 'Actualizar POI existente';
+  document.getElementById('formSub').textContent =
+    `Se encontró un POI a ${poi.distancia} metros. Editá los campos y guardá los cambios.`;
+
+  // Mostrar banner con historial
+  const banner = document.getElementById('nearbyBanner');
+  banner.style.display = 'block';
+  document.getElementById('nearbyBannerText').innerHTML =
+    `⚠️ Se encontró <strong>"${poi.nombreCompleto}"</strong> a <strong>${poi.distancia} metros</strong>.`;
+
+  // Mostrar historial completo si existe
+  if (poi.descripcionCompleta) {
+    const histLimpio = poi.descripcionCompleta
+      .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .trim();
+    document.getElementById('nearbyBannerHistory').style.display = 'block';
+    document.getElementById('nearbyBannerHistoryContent').textContent = histLimpio;
+  } else {
+    document.getElementById('nearbyBannerHistory').style.display = 'none';
+  }
+
+  // Precargar campos
+  document.getElementById('nombre').value = poi.nombre || '';
+  document.getElementById('localidad').value = poi.localidad || '';
+  document.getElementById('coordenadas').value = `${poi.lat}, ${poi.lon}`;
+  // Autor se oculta en modo actualizar (el usuario edita el texto completo)
+  document.getElementById('autor').value = '';
+  document.getElementById('autor').disabled = true;
+  document.getElementById('autor').closest('.field').style.display = 'none';
+  // Cargar TODOS los comentarios en el textarea
+  document.getElementById('comentario').value = poi.ultimoComentario || '';
+  if (poi.categoriaId) {
+    document.getElementById('categoria').value = poi.categoriaId;
+  }
+
+  // Ocultar checkbox (ya no se usa)
+  document.getElementById('replaceCheckRow').style.display = 'none';
+
+  // Cambiar botón
+  const btn = document.getElementById('btnSubmit');
+  btn.textContent = 'Actualizar POI';
+  btn.classList.add('update-btn');
+  btn.classList.remove('danger');
+
+  // Asegurar que el toggle eliminar esté apagado
+  document.getElementById('modoEliminar').checked = false;
+
+  // Habilitar todos los campos
+  ['localidad','coordenadas','categoria','autor','comentario'].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+  document.getElementById('nombreHint').textContent = '';
+
+  clearMsg();
+  resetDeleteConfirm();
+  updatePreview();
+}
+
+function salirModoActualizar(mantenerDatos) {
+  formMode = MODE.AGREGAR;
+  poiActualizar = null;
+  ignorarProximidad = mantenerDatos;
+
+  const container = document.getElementById('container');
+  container.classList.remove('modo-actualizar');
+
+  document.getElementById('formTitle').textContent = '📍 Cargar nuevo POI';
+  document.getElementById('formSub').textContent = 'Agregá un nuevo punto al mapa.';
+  document.getElementById('nearbyBanner').style.display = 'none';
+  document.getElementById('replaceCheckRow').style.display = 'none';
+  // Restaurar campo autor
+  document.getElementById('autor').disabled = false;
+  document.getElementById('autor').closest('.field').style.display = '';
+  document.getElementById('btnSubmit').textContent = 'Agregar POI';
+  document.getElementById('btnSubmit').classList.remove('update-btn');
+
+  if (!mantenerDatos) {
+    ['nombre','localidad','coordenadas','autor','comentario'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('categoria').value = '';
+    document.getElementById('coordPreview').textContent = '';
+  }
+
+  clearMsg();
+}
+
+// Link "Crear nuevo de todas formas"
+document.getElementById('nearbyCreateNew').addEventListener('click', function(e) {
+  e.preventDefault();
+  salirModoActualizar(true);
+});
+
+// ── Detección de proximidad al salir del campo coordenadas ──
+document.getElementById('coordenadas').addEventListener('blur', async function() {
+  if (formMode === MODE.ELIMINAR || ignorarProximidad) return;
+
+  const coordRaw = this.value.trim().replace(/[\[\]()]/g, '');
+  const parts = coordRaw.split(/[\s,]+/).filter(p => p !== '');
+  if (parts.length < 2) return;
+
+  const lat = parseFloat(parts[0]);
+  const lon = parseFloat(parts[1]);
+  if (isNaN(lat) || isNaN(lon)) return;
+
+  try {
+    const res = await fetch(`/api/poi/nearby?lat=${lat}&lon=${lon}&radius=30`);
+    const json = await res.json();
+
+    if (json.ok && json.masCercano) {
+      entrarModoActualizar(json.masCercano);
+    }
+  } catch (err) {
+    console.error('Error verificando proximidad:', err);
+  }
+});
+
+// ── Radio de búsqueda en modo eliminar ────────────────
+document.querySelectorAll('input[name="deleteSearchBy"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    const byCoords = (this.value === 'coords');
+    document.getElementById('nombre').disabled = byCoords;
+    document.getElementById('coordenadas').disabled = !byCoords;
+    if (byCoords) {
+      document.getElementById('nombre').value = '';
+      document.getElementById('coordenadas').focus();
+    } else {
+      document.getElementById('coordenadas').value = '';
+      document.getElementById('nombre').focus();
+    }
+    resetDeleteConfirm();
+    clearMsg();
+  });
+});
+
+// ── Activar / desactivar modo eliminación ──────────────
+document.getElementById('modoEliminar').addEventListener('change', function() {
+  const activando = this.checked;
+  const container = document.getElementById('container');
+  const fields = ['localidad','autor','comentario'];
+  const btn = document.getElementById('btnSubmit');
+  const nombreInput = document.getElementById('nombre');
+  const nombreHint = document.getElementById('nombreHint');
+  const deleteSearchMethod = document.getElementById('deleteSearchMethod');
+
+  if (activando) {
+    // Salir de modo actualizar si estábamos en él
+    if (formMode === MODE.ACTUALIZAR) {
+      container.classList.remove('modo-actualizar');
+      document.getElementById('nearbyBanner').style.display = 'none';
+      document.getElementById('replaceCheckRow').style.display = 'none';
+      btn.classList.remove('update-btn');
+    }
+
+    formMode = MODE.ELIMINAR;
+    container.classList.add('modo-eliminar');
+    document.getElementById('formTitle').textContent = '⚠️ Eliminar POI';
+    document.getElementById('formSub').textContent = 'Buscá un punto por nombre o coordenadas para eliminarlo.';
+    nombreHint.textContent = '(nombre completo y exacto)';
+    nombreInput.placeholder = 'Playón natural frente al lago -40.159597, -71.360944';
+
+    // Mostrar selector de método de búsqueda
+    deleteSearchMethod.style.display = 'block';
+
+    // Por default: buscar por nombre → deshabilitar coordenadas
+    document.querySelector('input[name="deleteSearchBy"][value="name"]').checked = true;
+    document.getElementById('nombre').disabled = false;
+    document.getElementById('coordenadas').disabled = true;
+    document.getElementById('categoria').disabled = true;
+    fields.forEach(id => { document.getElementById(id).disabled = true; });
+
+    // Limpiar campos del modo anterior
+    ['nombre','localidad','coordenadas','autor','comentario'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('categoria').value = '';
+    document.getElementById('coordPreview').textContent = '';
+
+    btn.textContent = '🔍 Buscar POI';
+    btn.classList.add('danger');
+    btn.classList.remove('update-btn');
+    nombreInput.focus();
+    clearMsg();
+    resetDeleteConfirm();
+  } else {
+    // Volver a modo normal
+    formMode = MODE.AGREGAR;
+    poiActualizar = null;
+    ignorarProximidad = false;
+    container.classList.remove('modo-eliminar', 'modo-actualizar');
+    document.getElementById('formTitle').textContent = '📍 Cargar nuevo POI';
+    document.getElementById('formSub').textContent = 'Agregá un nuevo punto al mapa.';
+    nombreHint.textContent = '';
+    nombreInput.placeholder = 'Ej: Playón natural frente al lago';
+    deleteSearchMethod.style.display = 'none';
+    document.getElementById('nearbyBanner').style.display = 'none';
+    document.getElementById('replaceCheckRow').style.display = 'none';
+    // Restaurar campo autor
+    document.getElementById('autor').disabled = false;
+    document.getElementById('autor').closest('.field').style.display = '';
+
+    fields.forEach(id => { document.getElementById(id).disabled = false; });
+    document.getElementById('nombre').disabled = false;
+    document.getElementById('coordenadas').disabled = false;
+    document.getElementById('categoria').disabled = false;
+
+    ['nombre','localidad','coordenadas','autor','comentario'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('categoria').value = '';
+    document.getElementById('coordPreview').textContent = '';
+
+    btn.textContent = 'Agregar POI';
+    btn.classList.remove('danger', 'update-btn');
+    clearMsg();
+    resetDeleteConfirm();
+  }
+});
+
+// ── Habilitar botón eliminar solo si escribe ELIMINAR ──
+document.getElementById('confirmar').addEventListener('input', function() {
+  document.getElementById('btnDelete').disabled = (this.value !== 'ELIMINAR');
+});
+
+// ── Acción de eliminar ─────────────────────────────────
+document.getElementById('btnDelete').addEventListener('click', async function() {
+  if (!poiEncontrado) return;
+
+  this.disabled = true;
+  this.textContent = 'Eliminando...';
+
+  try {
+    const res = await fetch('/api/poi', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: poiEncontrado.nombre })
+    });
+    const json = await res.json();
+
+    if (json.ok) {
+      showMsg('success', `✅ <strong>POI eliminado:</strong> ${poiEncontrado.nombre}`);
+
+      // Limpiar y desactivar modo eliminación
+      document.getElementById('modoEliminar').checked = false;
+      document.getElementById('modoEliminar').dispatchEvent(new Event('change'));
+      document.getElementById('nombre').value = '';
+    } else {
+      showMsg('error', 'Error: ' + json.error);
+    }
+  } catch (err) {
+    showMsg('error', 'Error de conexión: ' + err.message);
+  } finally {
+    this.disabled = false;
+    this.textContent = '⚠️ Eliminar POI definitivamente';
+  }
+});
+
+// ── Submit del formulario (3 modos: agregar / actualizar / eliminar) ──
+document.getElementById('poiForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubmit');
+
+  // ── Modo ELIMINAR: buscar POI ────────────────────────
+  if (formMode === MODE.ELIMINAR) {
+    const searchBy = document.querySelector('input[name="deleteSearchBy"]:checked').value;
+
+    if (searchBy === 'coords') {
+      // Buscar por coordenadas
+      const coordRaw = document.getElementById('coordenadas').value.trim().replace(/[\[\]()]/g, '');
+      const parts = coordRaw.split(/[\s,]+/).filter(p => p !== '');
+      if (parts.length < 2) {
+        showMsg('error', 'Ingresá coordenadas válidas (formato: lat, lon).');
+        return;
+      }
+      const lat = parseFloat(parts[0]);
+      const lon = parseFloat(parts[1]);
+      if (isNaN(lat) || isNaN(lon)) {
+        showMsg('error', 'Coordenadas inválidas.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+      clearMsg();
+      resetDeleteConfirm();
+
+      try {
+        const res = await fetch(`/api/poi/nearby?lat=${lat}&lon=${lon}&radius=30`);
+        const json = await res.json();
+
+        if (json.ok && json.masCercano) {
+          const p = json.masCercano;
+          poiEncontrado = {
+            nombre: p.nombreCompleto,
+            categoria: p.categoriaLabel,
+            lat: p.lat,
+            lon: p.lon,
+            descripcion: p.ultimoComentario || ''
+          };
+          const preview = document.getElementById('poiPreview');
+          preview.innerHTML =
+            `<strong>Nombre:</strong> ${p.nombreCompleto}<br>` +
+            `<strong>Categoría:</strong> ${p.categoriaLabel}<br>` +
+            `<strong>Coordenadas:</strong> ${p.lat}, ${p.lon}<br>` +
+            `<strong>Distancia:</strong> ${p.distancia} metros<br>` +
+            (p.ultimoComentario ? `<div class="desc">${p.ultimoComentario}</div>` : '');
+          document.getElementById('deleteConfirm').style.display = 'block';
+          document.getElementById('confirmar').focus();
+          showMsg('success', '✅ Punto encontrado. Escribí <strong>ELIMINAR</strong> abajo y confirmá.');
+        } else if (json.ok && !json.masCercano) {
+          showMsg('error', 'No se encontró ningún POI a menos de 30 metros de esas coordenadas.');
+        } else {
+          showMsg('error', 'Error: ' + (json.error || 'No se pudo buscar.'));
+        }
+      } catch (err) {
+        showMsg('error', 'Error de conexión: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Buscar POI';
+      }
+      return;
+    }
+
+    // Buscar por nombre exacto (flujo original)
+    const nombre = document.getElementById('nombre').value.trim();
+    if (!nombre) {
+      showMsg('error', 'Escribí el nombre exacto del punto a eliminar.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Buscando...';
+    clearMsg();
+    resetDeleteConfirm();
+
+    try {
+      const res = await fetch('/api/poi/search?name=' + encodeURIComponent(nombre));
+      const json = await res.json();
+
+      if (json.ok) {
+        poiEncontrado = json.poi;
+        const preview = document.getElementById('poiPreview');
+        const descCorta = (json.poi.descripcion || '').slice(0, 500)
+          + ((json.poi.descripcion || '').length > 500 ? '...' : '');
+        preview.innerHTML =
+          `<strong>Nombre:</strong> ${json.poi.nombre}<br>` +
+          `<strong>Categoría:</strong> ${json.poi.categoria}<br>` +
+          `<strong>Coordenadas:</strong> ${json.poi.lat}, ${json.poi.lon}<br>` +
+          (descCorta ? `<div class="desc">${descCorta}</div>` : '');
+        document.getElementById('deleteConfirm').style.display = 'block';
+        document.getElementById('confirmar').focus();
+        showMsg('success', '✅ Punto encontrado. Escribí <strong>ELIMINAR</strong> abajo y confirmá.');
+      } else {
+        showMsg('error', '❌ ' + json.error);
+      }
+    } catch (err) {
+      showMsg('error', 'Error de conexión: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Buscar POI';
+    }
+    return;
+  }
+
+  // ── Modo ACTUALIZAR ──────────────────────────────────
+  if (formMode === MODE.ACTUALIZAR) {
+    btn.disabled = true;
+    btn.textContent = 'Actualizando...';
+    clearMsg();
+
+    const data = {
+      nombreActual: poiActualizar.nombreActual,
+      nombre: document.getElementById('nombre').value.trim(),
+      localidad: document.getElementById('localidad').value.trim(),
+      coordenadas: document.getElementById('coordenadas').value.trim(),
+      categoria: document.getElementById('categoria').value,
+      comentario: document.getElementById('comentario').value.trim()
+    };
+
+    try {
+      const res = await fetch('/api/poi', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        showMsg('success', `✅ <strong>POI actualizado:</strong> ${json.poi.nombre}<br>
+                 ${json.poi.lat}, ${json.poi.lon} &middot; ${json.poi.categoria}`);
+        salirModoActualizar(false);
+        document.getElementById('nombre').focus();
+      } else {
+        if (json.errores) {
+          showMsg('error', '<strong>Errores:</strong><ul>' + json.errores.map(er => `<li>${er}</li>`).join('') + '</ul>');
+        } else {
+          showMsg('error', 'Error: ' + json.error);
+        }
+      }
+    } catch (err) {
+      showMsg('error', 'Error de conexión: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Actualizar POI';
+    }
+    return;
+  }
+
+  // ── Modo AGREGAR ─────────────────────────────────────
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  clearMsg();
+
+  const data = {
+    nombre: document.getElementById('nombre').value.trim(),
+    localidad: document.getElementById('localidad').value.trim(),
+    coordenadas: document.getElementById('coordenadas').value.trim(),
+    categoria: document.getElementById('categoria').value,
+    autor: document.getElementById('autor').value.trim(),
+    comentario: document.getElementById('comentario').value.trim()
+  };
+
+  try {
+    const res = await fetch('/api/poi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+
+    if (json.ok) {
+      showMsg('success', `<strong>POI agregado:</strong> ${json.poi.nombre}<br>
+               ${json.poi.lat}, ${json.poi.lon} &middot; ${json.poi.categoria}`);
+      document.getElementById('comentario').value = '';
+      document.getElementById('comentario').focus();
+    } else {
+      if (json.errores) {
+        showMsg('error', '<strong>Errores:</strong><ul>' + json.errores.map(er => `<li>${er}</li>`).join('') + '</ul>');
+      } else {
+        showMsg('error', 'Error: ' + json.error);
+      }
+    }
+  } catch (err) {
+    showMsg('error', 'Error de conexión: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Agregar POI';
+  }
+});
+</script>
+</body>
+</html>
