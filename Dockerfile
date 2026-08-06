@@ -15,10 +15,7 @@ RUN javac -cp "original.jar:lib/*" -d /build/classes \
         /build/src/org/traccar/protocol/RinhoProtocol.java \
         /build/src/org/traccar/protocol/RinhoProtocolDecoder.java && \
     cp original.jar patched.jar && \
-    jar uf patched.jar -C /build/classes org/traccar/web/OverrideTextFilter.class && \
-    jar uf patched.jar -C /build/classes org/traccar/protocol/TaipProtocolDecoder.class && \
-    jar uf patched.jar -C /build/classes org/traccar/protocol/RinhoProtocol.class && \
-    jar uf patched.jar -C /build/classes org/traccar/protocol/RinhoProtocolDecoder.class
+    jar uf patched.jar -C /build/classes org/
 
 # ── Stage 2: Imagen final ──
 FROM traccar/traccar:latest
