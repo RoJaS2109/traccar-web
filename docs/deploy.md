@@ -49,33 +49,37 @@ Esto ejecuta:
 1. `git pull` + `npm install` + `npm run build`
 2. `docker build -t rudatrak:latest .` (Dockerfile multi-stage: compila y parchea el backend)
 3. Copia de KMLs a `/data/compose/rudatrak/trak-poi/`
-4. `docker build -t agente-ia:latest ./tools/agente-ia`
-5. `docker build -t carga-poi:latest ./tools/carga-poi`
-6. **Portainer API** → autentica, busca el stack `rudatrak` y lo redeploya
+4. `docker build -t carga-poi:latest ./tools/carga-poi`
+5. `docker build -t agente-ia:latest ./tools/agente-ia`
+6. `docker compose up -d` (redeploy del stack)
 
-### 4. Crear stack en Portainer
+### 4. Primer inicio del stack
 
-1. Entrar a `http://localhost:9000`
-2. **Stacks → Add Stack**
-3. Nombre: `rudatrak`
-4. Build method: **Web Editor**
-5. Pegar el contenido de `docker-compose.yml`
-6. **Deploy the stack**
-
-> **Importante:** El stack DEBE llamarse `rudatrak`. El deploy.sh lo busca por ese nombre.
+```bash
+cd /app/RudaTrak/traccar
+docker compose up -d
+```
 
 ### 5. Configurar Nginx Proxy Manager
 
 En `http://localhost:81`:
 
+- **Proxy Host:** `mh.rudatrak.com` → `http://rudatrak-traccar:8082`
 - **Proxy Host:** `gps.rudatrak.com` → `http://rudatrak-traccar:8082`
-- **SSL:** Let's Encrypt
-- **WebSocket support:** Activado (para `/api/socket`)
+- **Proxy Host:** `nuevo-poi.rudatrak.com` → `http://rudatrak-carga-poi:3007`
+- **SSL:** Let's Encrypt (para todos)
+- **WebSocket support:** Activado para `mh.rudatrak.com` (para `/api/socket`)
 
 ### 6. Configurar DNS en Cloudflare
 
-- `gps.rudatrak.com` → IP de la Raspberry Pi
-- Proxy status: DNS only o Proxied
+| Subdominio | IP | Proxy | Uso |
+|-----------|----|-------|-----|
+| `mh.rudatrak.com` | IP de la Pi | Proxied (naranja) | UI de Traccar |
+| `gps.rudatrak.com` | IP de la Pi | Proxied (naranja) | API REST + WebSocket |
+| `nuevo-poi.rudatrak.com` | IP de la Pi | Proxied (naranja) | Herramienta carga-poi |
+| `taip.rudatrak.com` | IP de la Pi | **DNS only (gris)** | GPS Rinho Spider (UDP 5031) |
+
+> **Importante:** `taip.rudatrak.com` debe estar en **gris** (DNS only) porque Cloudflare no proxy UDP. El dispositivo Rinho envía datagramas UDP directamente al puerto 5031 de la Pi.
 
 ## Despliegues posteriores
 
