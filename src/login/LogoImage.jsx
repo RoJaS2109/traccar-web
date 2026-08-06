@@ -1,20 +1,20 @@
 import { useTheme, useMediaQuery } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
-import Logo from '../resources/images/logo.svg?react';
+import defaultLogo from '../resources/images/logo.png';
 
 const useStyles = makeStyles()((theme) => ({
   image: {
     alignSelf: 'center',
-    maxWidth: '240px',
-    maxHeight: '120px',
+    maxWidth: '420px',
+    maxHeight: '210px',
     width: 'auto',
     height: 'auto',
     margin: theme.spacing(2),
   },
 }));
 
-const LogoImage = ({ color }) => {
+const LogoImage = () => {
   const theme = useTheme();
   const { classes } = useStyles();
 
@@ -29,7 +29,7 @@ const LogoImage = ({ color }) => {
     }
     return <img className={classes.image} src={logo} alt="" />;
   }
-  return <Logo className={classes.image} style={{ color }} />;
+  return <img className={classes.image} src={defaultLogo} alt="" />;
 };
 
 export default LogoImage;

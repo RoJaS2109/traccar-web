@@ -24,6 +24,7 @@ maplibregl.addProtocol('pmtiles', new Protocol().tile);
 export const map = new maplibregl.Map({
   container: element,
   attributionControl: false,
+  localIdeographFontFamily: 'sans-serif',
 });
 
 let ready = false;

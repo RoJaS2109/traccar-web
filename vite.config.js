@@ -6,10 +6,24 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig(() => ({
   server: {
-    port: 3000,
+    port: 3001,
     proxy: {
-      '/api/socket': 'ws://localhost:8082',
-      '/api': 'http://localhost:8082',
+      '/api/socket': {
+        target: 'wss://gps.rudatrak.com',
+        ws: true,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', () => {});
+        },
+      },
+      '/api': {
+        target: 'https://gps.rudatrak.com',
+        changeOrigin: true,
+      },
+      '/poi': {
+        target: 'https://gps.rudatrak.com',
+        changeOrigin: true,
+      },
     },
   },
   build: {
@@ -22,7 +36,7 @@ export default defineConfig(() => ({
     VitePWA({
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       workbox: {
-        navigateFallbackDenylist: [/^\/api/],
+        navigateFallbackDenylist: [/^\/api/, /^\/poi/],
         globPatterns: ['**/*.{js,css,html,woff,woff2,mp3}'],
       },
       manifest: {

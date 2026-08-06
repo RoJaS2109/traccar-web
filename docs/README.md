@@ -24,12 +24,13 @@ gps.rudatrak.com (Cloudflare)
     │
     ▼
 Raspberry Pi (Docker)
-    ├── rudatrak-traccar  ← Traccar + frontend + backend personalizados
+    ├── rudatrak-traccar   ← Traccar + frontend + backend personalizados
+    ├── rudatrak-agente-ia ← Agente IA para escaladas inteligentes
     ├── rudatrak-carga-poi ← API para agregar/eliminar POIs
     └── npm-www-1          ← Nginx (otros sitios)
 ```
 
 **Repositorios:**
-- Backend: `git@github.com:RoJaS2109/rudatrak-backend.git` (fork privado de Traccar)
-- Frontend: `git@github.com:RoJaS2109/rudatrak-web.git` (privado)
-- Deploy Key: `raspi-rudatrak` con write access en ambos
+- Backend: `git@github.com:RoJaS2109/traccar` (fork privado de Traccar)
+- Frontend: `git@github.com:RoJaS2109/traccar-web` (submódulo)
+- Deploy Key: `HP-Victus` con write access en ambos

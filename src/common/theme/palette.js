@@ -1,4 +1,4 @@
-import { grey, green, indigo } from '@mui/material/colors';
+import { grey, indigo } from '@mui/material/colors';
 
 const validatedColor = (color) => (/^#([0-9A-Fa-f]{3}){1,2}$/.test(color) ? color : null);
 
@@ -13,7 +13,7 @@ export default (server, darkMode) => ({
   },
   secondary: {
     main:
-      validatedColor(server?.attributes?.colorSecondary) || (darkMode ? green[200] : green[800]),
+      validatedColor(server?.attributes?.colorSecondary) || (darkMode ? indigo[100] : indigo[700]),
   },
   neutral: {
     main: grey[500],

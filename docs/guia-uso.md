@@ -3,7 +3,7 @@
 ## Acceso
 
 - **URL producción:** `https://mh.rudatrak.com`
-- **Herramienta POIs:** `http://raspi:3007` (solo red local)
+- **Herramienta POIs:** `https://nuevo-poi.rudatrak.com`
 
 ## Mapa principal
 
@@ -54,7 +54,7 @@ Disponibles desde el menú lateral:
 
 ### Agregar/Eliminar POIs
 
-Usar la herramienta `carga-poi` desde la red local: `http://raspi:3007`
+Usar la herramienta `carga-poi` desde `https://nuevo-poi.rudatrak.com`
 
 **Agregar:**
 1. Completá nombre, coordenadas, categoría, autor y comentario

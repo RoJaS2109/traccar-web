@@ -11,12 +11,12 @@
 
 ```bash
 # 1. Generar clave SSH en la Pi
-ssh-keygen -t ed25519 -C "raspi-rudatrak"
+ssh-keygen -t ed25519 -C "HP-Victus"
 cat ~/.ssh/id_ed25519.pub
 
 # 2. Agregar el output como Deploy Key en GitHub:
-#    https://github.com/RoJaS2109/rudatrak-backend/settings/keys  ✅ Allow write access
-#    https://github.com/RoJaS2109/rudatrak-web/settings/keys    ✅ Allow write access
+#    https://github.com/RoJaS2109/traccar/settings/keys      ✅ Allow write access
+#    https://github.com/RoJaS2109/traccar-web/settings/keys   ✅ Allow write access
 
 # 3. Probar conexión
 ssh -T git@github.com
@@ -28,15 +28,15 @@ ssh -T git@github.com
 
 ```bash
 cd ~
-git clone git@github.com:RoJaS2109/rudatrak-web.git rudatrak-web
-cd rudatrak-web
+git clone --recurse-submodules git@github.com:RoJaS2109/traccar.git RudaTrak
+cd ~/RudaTrak/traccar-web
 ```
 
 ### 2. Configurar contraseña de Portainer
 
 ```bash
-echo "tu-password" > ~/rudatrak-web/.portainer_pass
-chmod 600 ~/rudatrak-web/.portainer_pass
+echo "tu-password" > ~/RudaTrak/traccar-web/.portainer_pass
+chmod 600 ~/RudaTrak/traccar-web/.portainer_pass
 ```
 
 ### 3. Build inicial
@@ -48,9 +48,10 @@ chmod 600 ~/rudatrak-web/.portainer_pass
 Esto ejecuta:
 1. `git pull` + `npm install` + `npm run build`
 2. `docker build -t rudatrak:latest .` (Dockerfile multi-stage: compila y parchea el backend)
-3. Copia de KMLs a `/data/compose/63/traccar-poi/`
-4. `docker build -t carga-poi:latest ./tools/carga-poi`
-5. **Portainer API** → autentica, busca el stack `rudatrak` y lo redeploya
+3. Copia de KMLs a `/data/compose/traccar/traccar-poi/`
+4. `docker build -t agente-ia:latest ./tools/agente-ia`
+5. `docker build -t carga-poi:latest ./tools/carga-poi`
+6. **Portainer API** → autentica, busca el stack `rudatrak` y lo redeploya
 
 ### 4. Crear stack en Portainer
 
@@ -80,15 +81,15 @@ En `http://localhost:81`:
 
 ```bash
 # En la Pi
-cd ~/rudatrak-web && ./deploy.sh
+cd ~/RudaTrak/traccar-web && ./deploy.sh
 ```
 
 O desde la PC:
 
 ```bash
-cd /mnt/Datos/app/rudatrak/frontend
+cd /mnt/Datos/app/RudaTrak/traccar/traccar-web
 git add . && git commit -m "cambios" && git push
-ssh pi@raspi "cd ~/rudatrak-web && ./deploy.sh"
+ssh pi@raspi "cd ~/RudaTrak/traccar-web && ./deploy.sh"
 ```
 
 ## Actualizar solo el frontend
@@ -96,7 +97,7 @@ ssh pi@raspi "cd ~/rudatrak-web && ./deploy.sh"
 Si solo cambió código del frontend (sin cambios en Docker):
 
 ```bash
-cd ~/rudatrak-web
+cd ~/RudaTrak/traccar-web
 git pull && npm install && npm run build
 docker build -t rudatrak:latest .
 ./deploy.sh   # usa Portainer API para redeploy
@@ -105,9 +106,9 @@ docker build -t rudatrak:latest .
 ## Actualizar solo los KMLs
 
 ```bash
-cd ~/rudatrak-web
+cd ~/RudaTrak/traccar-web
 git pull
-sudo cp data/*.kml /data/compose/63/traccar-poi/
+sudo cp data/*.kml /data/compose/traccar/traccar-poi/
 ```
 
 ## Rollback
@@ -179,7 +180,7 @@ docker rm rudatrak-traccar rudatrak-carga-poi carga-poi 2>/dev/null
 
 ```bash
 # 1. Verificar que el build sea reciente
-ls -la ~/rudatrak-web/build/index.html
+ls -la ~/RudaTrak/traccar-web/build/index.html
 
 # 2. Verificar que la imagen se reconstruyó
 docker images rudatrak --format '{{.CreatedAt}}'

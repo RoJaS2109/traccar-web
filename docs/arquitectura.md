@@ -56,21 +56,21 @@
 ┌─────────────────────────────────────────────────┐
 │           Stack: rudatrak (Portainer)            │
 │                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐     │
-│  │ rudatrak-traccar │  │ rudatrak-carga-poi│    │
-│  │                  │  │                  │     │
-│  │ Traccar +        │  │ Node.js/Express  │     │
-│  │ Frontend         │  │ API REST         │     │
-│  │ Puerto: 8082     │  │ Puerto: 3007     │     │
-│  └──────┬───────────┘  └──────┬───────────┘     │
-│         │                     │                  │
-│         ▼                     ▼                  │
-│  ┌──────────────────┐  ┌──────────────────┐     │
-│  │ /data/compose/63 │  │ general.kml      │     │
-│  │  traccar-data/   │  │ (bind mount)     │     │
-│  │  traccar-poi/    │  │                  │     │
-│  │  traccar-logs/   │  │                  │     │
-│  └──────────────────┘  └──────────────────┘     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+│  │ rudatrak-traccar │  │ rudatrak-carga-poi│  │rudatrak-agente-ia│    │
+│  │                  │  │                  │  │                  │     │
+│  │ Traccar +        │  │ Node.js/Express  │  │ Agente IA        │     │
+│  │ Frontend         │  │ API REST         │  │ Escaladas        │     │
+│  │ Puerto: 8082     │  │ Puerto: 3007     │  │ Puerto: 3008     │     │
+│  └──────┬───────────┘  └──────┬───────────┘  └──────┬───────────┘     │
+│         │                     │                     │                  │
+│         ▼                     ▼                     ▼                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+│  │ /data/compose/   │  │ general.kml      │  │ Redis            │     │
+│  │  traccar-data/   │  │ (bind mount)     │  │ (interno)        │     │
+│  │  traccar-poi/    │  │                  │  │                  │     │
+│  │  traccar-logs/   │  │                  │  │                  │     │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -78,15 +78,16 @@
 
 | Ruta | Contenido | Montado en |
 |------|-----------|------------|
-| `/data/compose/63/traccar-data/` | Base de datos H2 | `/opt/traccar/data` |
-| `/data/compose/63/traccar-poi/` | Archivos KML | `/opt/traccar/web/poi` |
-| `/data/compose/63/traccar-logs/` | Logs del servidor | `/opt/traccar/logs` |
+| `/data/compose/traccar/traccar-data/` | Base de datos H2 | `/opt/traccar/data` |
+| `/data/compose/traccar/traccar-poi/` | Archivos KML | `/opt/traccar/web/poi` |
+| `/data/compose/traccar/traccar-logs/` | Logs del servidor | `/opt/traccar/logs` |
 
 ## Imágenes Docker
 
 | Imagen | Origen | Actualización |
 |--------|--------|---------------|
 | `rudatrak:latest` | Build local (`Dockerfile` multi-stage) | `./deploy.sh` |
+| `agente-ia:latest` | Build local (`tools/agente-ia/Dockerfile`) | `./deploy.sh` |
 | `carga-poi:latest` | Build local (`tools/carga-poi/Dockerfile`) | `./deploy.sh` |
 | `traccar/traccar:latest` | Docker Hub (base de `rudatrak`) | `docker pull` |
 | `eclipse-temurin:21-jdk` | Docker Hub (solo stage builder) | Una sola vez |
@@ -100,36 +101,37 @@
 ## Repositorios
 
 ```
-/mnt/Datos/app/rudatrak/
-├── backend/                      # Traccar Server (Java) — fork privado
-│   └── src/.../OverrideTextFilter.java  # Branding: defaults RudaTrak
-└── frontend/                     # React SPA (rudatrak-web)
-    ├── src/                      # Frontend React
-    │   ├── map/main/PoiMap.js    # Capa de POIs (5 subcapas, ver abajo)
-    │   ├── map/core/MapView.jsx  # Singleton del mapa (localIdeographFontFamily)
-    │   ├── UpdateController.jsx  # Service Worker updates (PWA)
-    │   ├── login/                # Páginas de login
-    │   ├── common/theme/         # Tema MUI (paleta, colores)
-    │   └── ...
-    ├── docker/                   # Fuentes Java para build multi-stage
-    │   └── org/traccar/web/OverrideTextFilter.java
-    ├── public/icons/             # Íconos de categorías (31 archivos)
-    ├── public/pwa-*.png          # Íconos PWA (64, 192, 512 px)
-    ├── data/                     # Archivos KML fuente
-    ├── tools/carga-poi/          # Servidor Node.js para gestión de POIs
-    ├── Dockerfile                # Multi-stage: compila + parchea backend
-    ├── docker-compose.yml        # Stack de Portainer
-    ├── deploy.sh                 # Script de build y deploy (Portainer API)
-    ├── vite.config.js            # Vite + PWA plugin (manifest, workbox)
-    ├── .portainer_pass           # Contraseña de Portainer (en la Pi, no en git)
-    └── docs/                     # Documentación
+/mnt/Datos/app/RudaTrak/
+└── traccar/                      # Traccar Server (Java 21, Gradle) — fork privado
+    ├── src/                      # Código Java del backend
+    │   └── .../OverrideTextFilter.java  # Branding: defaults RudaTrak
+    └── traccar-web/              # React SPA (submódulo git)
+        ├── src/                  # Frontend React
+        │   ├── map/main/PoiMap.js    # Capa de POIs (5 subcapas, ver abajo)
+        │   ├── map/core/MapView.jsx  # Singleton del mapa (localIdeographFontFamily)
+        │   ├── UpdateController.jsx  # Service Worker updates (PWA)
+        │   ├── login/            # Páginas de login
+        │   ├── common/theme/     # Tema MUI (paleta, colores)
+        │   └── ...
+        ├── docker/               # Fuentes Java para build multi-stage
+        │   └── org/traccar/web/OverrideTextFilter.java
+        ├── public/icons/         # Íconos de categorías (31 archivos)
+        ├── public/pwa-*.png      # Íconos PWA (64, 192, 512 px)
+        ├── data/                 # Archivos KML fuente
+        ├── tools/                # Herramientas auxiliares
+        │   ├── carga-poi/        # Servidor Node.js para gestión de POIs
+        │   └── agente-ia/        # Agente IA para escaladas inteligentes
+        ├── Dockerfile            # Multi-stage: compila + parchea backend
+        ├── deploy.sh             # Script de build y deploy (Portainer API)
+        ├── vite.config.js        # Vite + PWA plugin (manifest, workbox)
+        └── docs/                 # Documentación
 ```
 
 **URLs SSH:**
-- Backend: `git@github.com:RoJaS2109/rudatrak-backend.git` (fork privado de traccar/traccar)
-- Frontend: `git@github.com:RoJaS2109/rudatrak-web.git`
+- Backend: `git@github.com:RoJaS2109/traccar` (fork privado de traccar/traccar)
+- Frontend: `git@github.com:RoJaS2109/traccar-web` (submódulo)
 
-Ambos usan Deploy Key `raspi-rudatrak` configurada en GitHub con write access.
+Ambos usan Deploy Key `HP-Victus` configurada en GitHub con write access.
 
 ## PWA (Progressive Web App)
 

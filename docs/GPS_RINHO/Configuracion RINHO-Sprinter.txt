@@ -1,0 +1,441 @@
+// =============================================================================
+// VER VIDEOS DE:
+// https://www.youtube.com/@debugsoftware298
+// https://www.traccar.org/source-code/
+// Video de Whatsapp y Traccar 
+// https://www.youtube.com/watch?v=PCPWaYDyJgI
+// https://www.youtube.com/watch?v=eTdLhCB1VWE
+// Este ultimo con: Script y Traccar.xml en la descripción
+// =============================================================================
+// PLANTILLA MAESTRA DE CONFIGURACIÓN CON COMANDOS DE VERIFICACIÓN - RINHO SPIDER
+// VEHÍCULO: Mercedes-Benz Sprinter 313 (2011) - Motor OM611 (Argentina)
+// ENTORNO: Travesía Sudamérica / Patagonia / Caminos de Ripio y Tierra
+// PLATAFORMA: RUDATRAK.COM (Puerto 5031 UDP)
+// =============================================================================
+
+// =============================================================================
+// CONFIGURACIONES INICIALES BÁSICAS
+// =============================================================================
+// 1. ID DEL EQUIPO
+// -----------------------------------------------------------------------------
+// >QID<  // Consultar ID actual
+//>RID1234;ID=1234;*7B<  // ✓ ID configurado
+// -----------------------------------------------------------------------------
+// Configurar ID alfanumérico (Patentes)
+//>SID123-ABC< // ✓ Patente Moto Vehiculos 123-ABC
+>SIDKJA-169< // ✓ Patente Vehiculos vieja ABC-123
+//>SIDAB123CD< // ✓ Patente Vehiculos nueva AB123CD
+// -----------------------------------------------------------------------------
+// Esquemas de Nomenclatura
+// Define un esquema consistente para facilitar la gestión de tu flota.
+// Por flotas
+//>SIDFL01V01<  // Flota 01, Vehículo 01
+//>SIDFL01V02<  // Flota 01, Vehículo 02
+//>SIDFL02V01<  // Flota 02, Vehículo 01
+// Por región
+//>SIDBSAS001<  // Buenos Aires 001
+//>SIDCBA002<   // Córdoba 002
+//>SIDMDZ003<   // Mendoza 003
+// Por cliente
+//>SIDCLI123<   // Cliente 123
+// -----------------------------------------------------------------------------
+// 2. CONFIGURACIÓN DE LAS ENTRADAS Y SALIDAS (CXXP)
+// -----------------------------------------------------------------------------
+>SCXXP00000000000000<   // Pin3 ACT=Sal SOSTENIDA (sin límite de tiempo, sin blink)
+//>SCXXP01000000000000< // Pin4 ACT=Sal | Analógica · Contador · 1-Wire
+//>SCXXP02000000000000<   //Pin5 ACT=Sal | Si no se activa es ENTRADA 00
+// -----------------------------------------------------------------------------
+// 3. CONFIGURACIÓN WHITE LIST
+// -----------------------------------------------------------------------------
+// Solo se aceptarán comando / SMS de telefonos habilitados (en SM0 a SM4)
+>SCXSMW1< // 0 = Deshabilitado, 1 = Habilitado
+// VERIFICAR COMO FUNCIONA QPW PARA TELEFONOS NO LISTADOS
+// -----------------------------------------------------------------------------
+// 4. DEFINIR TELÉFONOS DE DESTINO
+// -----------------------------------------------------------------------------
+>SSM0+542916450976<    // Tel 1 - Ej. Central de Monitoreo, Dueño
+>SSM1+542915043585<    // Tel 2 - Ej. Gerente, Conyuge
+//>SSM2+54291xxxxxxx<    // Tel 3 - Ej. Supervisor-1, Hijo
+//>SSM3+5411xxxxxxxx<    // Tel 4 - Ej. Supervisor-2, Padre
+//>SSM4+54xxxxxxxxxx<    // Tel 5 - Ej. Hermano
+// -----------------------------------------------------------------------------
+// 5. CONFIGURACIÓN REINTENTOS DE ENVÍO DE SMS
+// -----------------------------------------------------------------------------
+// aa=03       → 3 reintentos
+// bbbbb=06000 → 60 segundos entre intentos (6000 centésimas)
+>SCXSMS0306000<
+
+// =============================================================================
+// BLOQUE 1: COMUNICACIONES, REDES Y DIRECCIONAMIENTO DE SERVIDOR
+// =============================================================================
+// 1. Configuración de la red WiFi primaria (Antena Starlink a bordo de la Sprinter)
+// REEMPLAZAR "Tu_SSID" y "Password" por tus datos reales.
+// --> VERIFICAR CONFIGURACIÓN WIFI: >QAPWxx< Ej: >QAPW00<
+>SAPW00BVNET-CBAF1,23CBAF9B<  // Starlink con DHCP
+//>SAPW00BVNET-CBAF1,23CBAF9B,192.168.1.10,255.255.255.0,192.168.1.1< //IP Fija
+//>SAPW00BVNET-9857,FF1175A8<  // Red del Vecino con DHCP
+
+// =============================================================================
+// 2. Apuntamiento hacia tu servidor mediante protocolo eficiente UDP
+// REEMPLAZAR por tu IP pública o dominio real.
+// --> VERIFICAR IP Y PUERTO: >QIP0<
+// -----------------------------------------------------------------------------
+// --- PRINCIPAL ---
+//>SIP0190.9.1.151/5031<  // con IP SERVIDOR PUBLICA Estática (OJO NO DINÁMICA)
+>SIP0"taip.rudatrak.com",5031<  // Resuelve DNS automáticamente
+// -----------------------------------------------------------------------------
+// --- ALTERNATIVO ---
+//>SIP0190.9.1.151/5031<  // con IP SERVIDOR PUBLICA Estática (OJO NO DINÁMICA)
+>SIP1"taip.rudatrak.com",5031<  // Resuelve DNS automáticamente
+// -----------------------------------------------------------------------------
+// --- CONFIGURACIÓN DE PROTOCOLO IP ---
+// MAIN: UDP, BACK: UDP, Ventana: 9 (Default)
+>SCXIPPP9<
+
+// =============================================================================
+// 3. Activación del modo de reporte unificado e inteligente para conmutación WiFi
+// --> VERIFICAR MODO DE CONEXIÓN ACTUAL: >QCXWIF<
+//>SCXWIF0,0,0< // Desactiva modo
+>SCXWIF1,0,1< // Modo Cliente + envío automático
+
+// =============================================================================
+// 4. Configuración del APN de respaldo para datos móviles (GPRS)
+// --- CONFIGURACIÓN CELULAR ---
+// SCOP automático
+>SCOP0<
+// --> VERIFICAR APN CONFIGURADO: >QCXAPN<
+//>SCXAPNinternet.ctimovil.com.ar,,<  // CLARO
+>SCXAPNinternet.gprs.unifon.com.ar,wap,wap< // MOVISTAR
+//>SCXAPNgprs.personal.com,,< // PERSONAL
+
+// =============================================================================
+// BLOQUE 2: CONFIGURACIÓN DE REPORTES
+// =============================================================================
+// --- CONFIGURACIÓN DE TIMERS ---
+// --> VERIFICAR TIEMPOS DE REPORTE: >QTDxx<
+>STD00E00007< // TD00: Timer con IGN encendido - 7 segundos
+>STD01E01800< // TD01: Timer sin IGN (detenido) - 1800 segundos (1/2 hora)
+// -----------------------------------------------------------------------------
+// --- CONFIGURACIÓN DE ÁNGULO/RADIAL ---
+>SDC00*018< // Cambio de rumbo: 18 grados (dispara reporte y reinicia timers)
+ 
+// =============================================================================
+// BLOQUE 3: CALIBRACIÓN DE GPS, ACELERÓMETRO E INCLINÓMETRO
+// =============================================================================
+// 1. Calibración del GPS
+// --> VERIFICAR CALIBRACIÓN: >QCXCQ<
+// a	Fix mínimo	2 o 3
+// b	PDOP máximo	00-50
+// c	Cantidad de satélites mínima	03-24
+// Default: a=3, 3D (más preciso), b=10 (PDOP máximo: 10) c=03 Mínimo 3 satélites
+>SCXCQ31004<
+// -----------------------------------------------------------------------------
+// 2. Calibración inicial del acelerómetro interno (CXAC)
+// Umbral dinámico según estado del vehículo según RL
+// COLISIÓN: umbrales MVT en ejes X/Y (longitudinal/lateral) a 3.0G
+// --> VERIFICAR CALIBRACIÓN: >QCXAC<
+// --> VERIFICAR EJES EN TIEMPO REAL: >QACELEROMETER<
+//>SCXAC001<  // 0.063G
+//>SCXAC008<  // 0,5G
+>SCXAC016<  // 1G
+//>SCXAC020<  // 1.26G
+// -----------------------------------------------------------------------------
+// 3. DETECTOR DE IMPACTOS (HM, tipos 5/6/7 - puros de acelerómetro) ---
+// magnitude=8000mg (8G, máximo del firmware) | min_speed=0 (sin restricción)
+// hysteresis=10% | time_window=100ms (filtra baches puntuales) | cooldown=45s
+>SHM05E,5,8000,0,10,100,45<   // Impacto lateral (costado izq/der)
+>SHM06E,6,8000,0,10,100,45<   // Impacto frontal
+>SHM07E,7,8000,0,10,100,45<   // Impacto posterior
+// -----------------------------------------------------------------------------
+// 4. MONITOR DE INCLINACIÓN / VUELCO (TK) ---
+// Manual (no atado a IGN automático), 5s estabilización, 2s confirmación, 20°
+>STKE,0,05,02,20.0<
+// -----------------------------------------------------------------------------
+// 5. Definición del PARKING
+// --> VERIFICAR CALIBRACIÓN: >QPK<
+>SPKE01500015<  // radio 150m y el tiempo de 15seg de tolerancia
+
+// =============================================================================
+// BLOQUE 4: CONTROL DE MÓDULOS
+// =============================================================================
+// --> VERIFICAR CONFIGURACIÓN: >QSSxxxPWR<
+// Encender/Apagar GPS
+>SSSGPSPWR11<     // Encender GPS
+//>SSSGPSPWR00<     // Apagar GPS
+// -----------------------------------------------------------------------------
+// Encender/Apagar Celular
+//>SSSCELPWR11<     // Encender módulo celular
+>SSSCELPWR00<     // Apagar módulo celular
+// -----------------------------------------------------------------------------
+// Encender/Apagar WiFi
+>SSSWIFPWR11<     // Encender WiFi
+//>SSSWIFPWR00<     // Apagar WiFi
+// -----------------------------------------------------------------------------
+// Fuentes de Alimentación:
+// Interna
+>SSSINTPWR11<     // Encender fuente interna 3.3V
+//>SSSINTPWR00<     // Apagar fuente interna 3.3V
+// Externa
+>SSSVIOPWR11<     // Encender fuente externa 3.3V
+//>SSSVIOPWR00<     // Apagar fuente externa 3.3V
+
+// =============================================================================
+// BLOQUE 5: CALIBRACIÓN DE TELEMETRÍA (CAN BUS Y ECU) Y CORTE SEGURO DE MOTOR
+// =============================================================================
+// 1. Activación del puerto CAN en modo OBD-II para lectura pasiva del utilitario MB
+// Configura la velocidad estándar de diagnóstico para el lector inductivo.
+// 0=Deshabilitado, 1=Habilitado
+// 125K, 250K, 500K, etc. → Velocidad Kbaud
+// J1939, OBD2, etc. → Protocolo
+>SCXCAN0,500K,OBD2<
+// -----------------------------------------------------------------------------
+// 2. Lectura de RPM Y Temperatura de Refrigerante desde la ECU
+// --> VERIFICAR VALORES EN VIVO DE LA ECU (RPM >QECU00< | TEMP >QECU06<)
+// -----------------------------------------------------------------------------
+// Para probar con valores simulados
+//>SECU00,1850<   // Setear RPM = 1850
+//>SECU02,72<     // Setear Combustible = 72%
+//>SECU04,15230<  // Setear Odolitro = 15230 L
+//>SECU06,89<     // Setear Temperatura = 89°C
+//>SECU07,420<    // Setear Presión aceite = 420 kPa
+// -----------------------------------------------------------------------------
+// Para verificar después de conectar el cable OBD al puerto de la Sprinter con el motor encendido:
+// >QECU00<    → RPM
+// >QECU00%d<  // >RECU00 1500... (RPM con formato entero)
+// >QECU06<    → temperatura motor  
+// >QECU06%.1f:2:-40<  // >RECU06 85.0... Temperatura con valor por defecto
+// >QECU05<    → velocidad del vehículo
+// >QECU07<    → presión de aceite
+// >QECU11<    → VIN/código de chasis
+// -----------------------------------------------------------------------------
+// 3. CORTE DE MOTOR SEGURO (ANTI-ACCIDENTES EN RUTA), sI desde la plataforma SERVIDOR o por SMS envías el comando >SGCA< de bloqueo remoto 
+>SGCE<     // Habilitar sistema con valores predeterminados
+//>SGCE,0,30,5,300<     // V. Libiano: relé 0, paso 30ms, intervalo 5s, máx 5min
+//>SGCE,1,20,5,300<     // Camión: relé 1, paso 20ms, intervalo 5s, máx 5min
+//>SGCA<     // ACTIVAR corte gradual
+//>SGCS<     // DETENER el corte (pausa)
+//>SGCD<     // Deshabilitar sistema completamente
+//>SGCR<     // Reiniciar secuencia desde el inicio
+//>QGC<      // Consultar estado actual
+
+// =============================================================================
+// BLOQUE 6: MONITOREO AVANZADO DE BATERÍA PRINCIPAL (SISTEMA 12V)
+// CONFIGURACIÓN DE RANGOS ANALÓGICOS (AN06 - ENTRADA INTERNA DE ALIMENTACIÓN)
+// =============================================================================
+// 1. Configuración de Rangos de Voltaje (Formato: +MinVolt+MaxVolt+DebounceDeseado)
+// Debounce configurado en 050 (5 segundos de tolerancia para ignorar la caída del arranque)
+// --> VERIFICAR VOLTAJE DE BATERÍA EN VIVO: >QAN06<
+>SAR0006+0550+1050050<   // AR00: Batería Baja (Rango de 5.50V a 10.50V)
+>SAR0106+1100+9999050<   // AR01: Batería Normal/OK (Rango de 11.00V a 99.99V)
+>SAR0206+0000+0500050<   // AR02: Desconexión total / Sabotaje de línea (de 0V a 5V)
+
+// =============================================================================
+// BLOQUE 7: GEOCERCAS INTERNAS (CRUCES FRONTERIZOS PATAGÓNICOS Y TIERRA DEL FUEGO)
+// Radio de protección establecido en 2500 metros (2.5 km) debido a zonas remotas
+// --> VERIFICAR COORDENADAS GUARDADAS EN GEOCERCAS INTERNAS: >QWPXX<
+// =============================================================================
+// GEO 0: Paso Cristo Redentor (Mendoza 🇦🇷 ↔ Valparaíso 🇨🇱) - Eje Central Asfaltado
+>SWP00E-3284261-07012081325000000000<
+
+// GEO 1: Paso Pehuenche (Mendoza/Malargüe 🇦🇷 ↔ Maule 🇨🇱) - Alternativa Asfaltada Sur
+>SWP01E-3597993-07039982825000000000<
+       
+// GEO 2: Paso Mamuil Malal / Tromen (Neuquén 🇦🇷 ↔ Araucanía 🇨🇱) - Tramo de Ripio / Bosque
+>SWP02E-3957887-07145221825000000000<
+
+// GEO 3: Paso Carirriñe (Neuquén 🇦🇷 ↔ Los Ríos 🇨🇱) - Ripio de Montaña / Conexión Termas
+>SWP03E-3977465-07169944225000000000<
+
+// GEO 4: Paso Integración Austral (Santa Cruz 🇦🇷 ↔ Magallanes 🇨🇱) - Cruce Obligatorio a Ferry
+>SWP04E-5213908-06951938425000000000<
+
+// GEO 5: Paso San Sebastián (Tierra del Fuego 🇨🇱 ↔ Tierra del Fuego 🇦🇷) - Reingreso Insular
+>SWP05E-5332286-06865278825000000000<
+
+// =============================================================================
+// BLOQUE 8: MOTOR DE REGLAS LÓGICAS AVANZADAS (MOTOR RL)
+// =============================================================================
+//>QRL**< // --> VERIFICAR TODAS LAS REGLAS
+//>QRLxx< // --> VERIFICAR REGLA ESPECÍFICAS (Ejemplo: >QRL01<)
+//>QIO< // --> VERIFICAR ESTADO EN VIVO DE ENTRADAS DIGITALES
+>SRL**D<  // BORRAR TODAS LAS REGLAS EXISTENTES
+
+// =============================================================================
+// MODO PARKING AUTOMÁTICO, ANTI-REMOLQUE y/o ROBO
+// -----------------------------------------------------------------------------
+// REGLA 00: Al apagar el vehículo (Flanco negativo en la ignición ING)
+// Acción: {SPKA} Captura la coordenada actual como el centro. {SCXGPS1} Enciende el GPS en modo permanente, {GCQ04H} reporta al servidor.
+//>SRL00E;TRG=IN07-;ACC={SPKA}{SCXGPS1}<
+>SRL00E;TRG=IGN-;ACC={SPKA}{SCXGPS1}{GCQ04H}<
+// -----------------------------------------------------------------------------
+// REGLA 01: Si se detecta remolque (Señal PK00 pasa a positivo) y el vehículo sigue apagado (IN07!)
+// Acción: {STX...} Envía el texto de debug. {GCQ78H} Transmite la alerta hexadecimal 78 a SERVIDOR con prioridad Alta.
+// {SCXGPS0} Apaga el GPS posteriormente si el equipo entra en resguardo de energía tras el reporte.
+>SRL01E;TRG=PK00+;CND=IN07!;ACC={GCQ78H}{STX ALERTA ROBO / ACARREO ;@TRM;@SM0}< // Envia reporte al SERVIDOR y SMS a Móvil en SM0
+//>SRL01E;TRG=PK00+;CND=IN07!;ACC={STX ALERTA ROBO / ACARREO ;@SM0}<
+// =============================================================================
+// ALARMA DE INTRUSIÓN SIMPLIFICADA Y ANTI ROBO O SABOTAJE (UNA SOLA ENTRADA)
+// -----------------------------------------------------------------------------
+// ENTRADAS:
+//   IN00 - Puertas y Capot unificados (Abierta = Flanco +, Cerrada = Flanco -)
+//   IGN- - Bandera del sistema: Reemplaza a IN06 para actuar como "Sistema Armado"
+// SALIDAS:
+//   XP00 - Sirena (1 = Sonando)
+// TIMERS:
+//   TD03 - Temporizador de sirena (180 segundos)
+// LÓGICA RPN ADAPTADA:
+//   IN01       = Puerta abierta (Estado 1 / Sin masa)
+//   IN01!      = Puertas cerradas (Estado 0 / A masa)
+//   IGN-       = Vehículo apagado / Alarma en modo armada
+// -----------------------------------------------------------------------------
+// --- CONFIGURACIÓN INICIAL ---r
+// -----------------------------------------------------------------------------
+// Timer de 3 minutos para apagar la sirena (arranca deshabilitado)
+>STD03D00180<
+// -----------------------------------------------------------------------------
+// --- LOGGING (Reportes a plataforma SERVIDOR) ---
+>SRL40E;TRG=IN00-;ACC={GCR13L}< // Evento 13: Una puerta o capot se abre (Flanco +)
+>SRL41E;TRG=IN00+;ACC={GCR14L}< // Evento 14: Todas las puertas cierradas (Flanco -)
+// -----------------------------------------------------------------------------
+// --- LÓGICA PRINCIPAL ---
+// REGLA 42: Detección de intrusión
+// Condición: (IN00 abierta) AND (IGN- vehículo apagado) AND (XP00! sirena apagada)
+// Operación RPN estricta RINHO: IN00 IGN- & XP00! &
+// Acción: Enciende sirena (XP00=1) y envía alerta de intrusión (GCR19L)
+>SRL42E;TRG=TT*;CND=IN00!IGN!&XP00!&;ACC={SSSXP0011}{GCR19L}<
+// REGLA 43: Inicio de countdown cuando se cierran las puertas en plena alarma
+// Trigger: En el instante exacto en que la entrada pasa a cerrado (IN00-)
+// Condición: Que la sirena esté actualmente sonando (XP00)
+// Acción: Inicia/Resetea contador de 3 min (TD03) y reporta evento 20
+>SRL43E;TRG=IN00+;CND=XP00;ACC={STD03R00180}{GCR20L}<
+// REGLA 44: Cancelar countdown si vuelven a abrir una puerta durante la alarma
+// Trigger: En el instante exacto en que la entrada pasa a abierto de nuevo (IN00+)
+// Condición: Que la sirena esté actualmente sonando (XP00)
+// Acción: Cancela el temporizador (TD03) para que no se apague y reporta evento 21
+>SRL44E;TRG=IN00-;CND=XP00;ACC={STD03C}{GCR21L}<
+// REGLA 45: Apagado de sirena por cumplimiento de tiempo (Timeout de 3 minutos)
+// Trigger: Cuando el temporizador 3 llega a su fin (TD03+)
+// Acción: Cancela contador, apaga la sirena (XP00=0) y reporta evento 22
+>SRL45E;TRG=TD03+;ACC={STD03C}{SSSXP0000}{SSSU0100}{GCR22L}<
+>SRL46E;TRG=IGN-;ACC={SCXAC001}<   // ING OFF → sensibilidad anti-robo (0.063G)
+>SRL47E;TRG=IGN+;ACC={SCXAC016}<   // ING ON → sensibilidad normal ripio (1G)
+>SRL48E;TRG=AC+;CND=IGN!;ACC={GCQ04H}{STX MOV. SOSPECHOSO ;@SM0}{SSSU0111}<
+>SRL49E;TRG=U01+;CND=XP00!;ACC={SSSXP0011}{STD03R00180}<
+// =============================================================================
+// REPORTES PERIÓDICOS BÁSICOS
+// -----------------------------------------------------------------------------
+// RL02: AL DAR CONTACTO DESHABILITAR PARKING Y REPORTA AL SERVIDOR
+>SRL02E;TRG=IGN+;ACC={SPKD}{GCQ03H}<
+// -----------------------------------------------------------------------------
+// RL03: REPORTE AL APAGAR EL MOTOR (IGN OFF) *** REPITE LA RL00 ***
+//>SRL03E;TRG=IGN-;ACC={GCQ04H}<
+// -----------------------------------------------------------------------------
+// RL04: REPORTE PERIODICO CON IGN ON (según TD00)
+>SRL04E;TRG=TD00+;CND=IGN;ACC={GCQ00L}<
+// -----------------------------------------------------------------------------
+// RL05: REPORTE PERIODICO CON IGNICION OFF (según TD01)
+//>SRL05E;TRG=TD01+;CND=IGN!;ACC={GCQ01M}<  // LA CUBRE RL0 + RL1
+// -----------------------------------------------------------------------------
+// RL06: REPORTE POR CAMBIO DE RUMBO (18°)
+>SRL06E;TRG=DC00+;ACC={GCQ02M}{STD00R}{STD01R}<
+ 
+// =============================================================================
+// DISPARADORES DE EVENTOS DE TELEMETRÍA DE BATERÍA (CÓDIGOS SERVIDOR)
+// -----------------------------------------------------------------------------
+// RL07: Batería Baja → Genera y transmite Evento tipo 03 a plataforma
+>SRL07E;TRG=AR00+;ACC={GCQ03H}<
+// -----------------------------------------------------------------------------
+// RL08: Batería OK → Genera y transmite Evento tipo 14 a plataforma
+>SRL08E;TRG=AR01+;ACC={GCQ14H}<
+// -----------------------------------------------------------------------------
+// RL09: Desconexión total (Sabotaje) → Transmite Evento tipo 04 (Alerta SOS)
+>SRL09E;TRG=AR02+;ACC={GCQ04H}<
+// -----------------------------------------------------------------------------
+// REGLA 10: SOBRE-TEMPERATURA DE MOTOR (CORREGIDO PARA FIRMWARE RINHO)
+// Trigger (TRG): Ciclo continuo de reloj (TT*) para evaluar la temperatura en cada ciclo.
+// Condición (CND): Temperatura de refrigerante (ECT) mayor a 98 grados. En RPN se escribe: ECT 98 >
+// Acción (ACC): {GCR02H} Genera y transmite de forma inmediata (Prioridad Alta 'H') el reporte hacia SERVIDOR usando el evento estándar 02 (Alerta mecánica).
+//>SRL10E;TRG=TT*;CND=ECT 98 ;ACC={GCR02H}< 
+//>SRL10E;TRG=AR03+;ACC={GCR02H}<
+
+// =============================================================================
+// DETECCIÓN DE AISLAMIENTO TOTAL (SIN RED MÓVIL NI WIFI - CORREGIDO)
+// -----------------------------------------------------------------------------
+// Trigger (TRG): Ciclo continuo de reloj (TT*) para evaluar las antenas todo el tiempo.
+// Condición (CND): Red celular caída (NET 0 ==) AND WiFi fuera de rango (WIF 0 ==) -> RPN: NET 0 == WIF 0 == &
+// Acción (ACC): Modifica las variables internas de tiempo a través de los ejecutables de sistema.
+// Cuando cae el celular y no hay WiFi → cambiar timers (solo si no estaba ya en modo sin red)
+// Cuando cae el celular Y no hay WiFi Y flag apagada
+>SRL11E;TRG=CEL-;CND=WIF!UV00!&;ACC={STD00E00060}{STD01E03600}{SSSU0011}<
+// Cuando cae el WiFi Y no hay celular Y flag apagada
+>SRL12E;TRG=WIF-;CND=CEL!UV00!&;ACC={STD00E00060}{STD01E03600}{SSSU0011}<
+// Cuando vuelve el celular Y flag activa → restaurar
+>SRL13E;TRG=CEL+;CND=UV00;ACC={STD00E00007}{STD01E01800}{SSSU0000}<
+// Cuando vuelve el WiFi Y flag activa → restaurar
+>SRL14E;TRG=WIF+;CND=UV00;ACC={STD00E00007}{STD01E01800}{SSSU0000}<
+// -----------------------------------------------------------------------------
+// REGLA 15: MODO SUEÑO PROFUNDO CON REPORTE TRAS SABOTAJE (AHORRO EXTREMO)
+// SI la batería principal está desconectada (AR02)
+// ENTONCES apaga módulos de alta energía y despierta para actualizar posición.
+// Esto estira la autonomía de la batería interna
+// Trigger (TRG): AR02+
+// Acción (ACC): {SKO++7200111100} Le ordena al Spider apagarse inmediatamente en modo ultra ahorro y fija un temporizador de hardware para despertar obligatoriamente a los 7200 segundos (2 horas).
+// Configuración previa: habilitar modo KO++ con despertar cada 7200s
+// GPS y celular encendidos al despertar, CPU apagado en sleep
+//>SKO++aaaabcdefg<
+// aaaa=7200 (despertar cada 7200s)
+// b=1 (despertar por movimiento también)
+// c=1 (despertar por entradas digitales)
+// d=1 (modem celular encendido al despertar)
+// e=1 (GPS encendido al despertar)
+// f=0 (fuente interna apagada en sleep)
+// g=0 (fuente externa 3.3V apagada en sleep)
+// =============================================================================
+// OJO ESTA REGLA DUERME AL EQUIPO SI ESTA SIN BATERIA Y SE PROGRAMA EN EL BANCO
+// SI SE HACE FUERA DEL VEHÍCUO HABILITARLA A LO ÚLTIMO
+// =============================================================================
+>SRL15D;TRG=AR02+;ACC={GCQ04H}{SKO++7200111100}< 
+// =============================================================================
+// =============================================================================
+
+// =============================================================================
+// BLOQUE 9: PREVISIÓN Y RESERVA PARA FUTUROS SENSORES DE FLUIDOS
+// (Para activar una opción en el futuro, remueve las barras '//' de esas líneas)
+// =============================================================================
+// OPCIÓN A: MEDICIÓN DE COMBUSTIBLE (ANALOG 1 - CABLE AMARILLO) ---
+//>SCXAN1,1<  // Activa la Entrada Analógica 1 en modo lectura de Voltaje/Resistencia --> VER CONFIG: >QCXAN1<
+//>SRL16E,AN1<15,TX=1< // Regla preventiva.
+// -----------------------------------------------------------------------------
+// OPCIÓN B: PRESIÓN DE ACEITE MECÁNICA (ANALOG 2 - CABLE VERDE O NARANJA) ---
+//>SCXAN2,1<  // Activa la Entrada Analógica 2 para leer sensores de presión resistivos --> VER CONFIG: >QCXAN2<
+//>SRL17E,RPM>700&AN2<1.2,OUT1=1;TX=1< // Protección, Corte total.
+// -----------------------------------------------------------------------------
+// OPCIÓN C: REPORTES DE NIVEL POR DIAGNÓSTICO CAN BUS (ECU ORIGINAL MB) ---
+//>SECU08,1< // Activa el escaneo automático de códigos de error de fluidos en tablero (DTC) --> VER CONFIG: >QECU08<
+//>SRL18E,CAN_FLUID_WARN=1,TX=1< // ALERTA por falta de aceite o refrigerante.
+
+// =============================================================================
+// BLOQUE 10: DETECCIÓN DE IMPACTO GRAVE Y VUELCO (RIESGO DE VIDA)
+// -----------------------------------------------------------------------------
+// Criterio: alertar solo ante eventos con probable riesgo de vida para
+// ocupantes, no ante baches, ripio o choques leves. Umbrales llevados al
+// máximo permitido por firmware (8000mg = 8G, techo configurable de HM),
+// que es el límite superior de la zona "lesión leve/moderada sin riesgo
+// de vida" según referencia biomecánica. El vehículo sigue reportando
+// posición normalmente ante cualquier evento por debajo del umbral.
+// =============================================================================
+// 1. ARMADO / RESET DEL MONITOR DE INCLINACIÓN (con cada arranque) ---
+>SRL50E;TRG=IGN+;ACC={STKE}<
+>SRL51E;TRG=IGN+;ACC={STKR}<
+// -----------------------------------------------------------------------------
+// 2. ALERTAS DE IMPACTO GRAVE (SMS a Dueño y Cónyuge) ---
+>SRL52E;TRG=HM05+;ACC={GCQ04H}{STX ALERTA POSIBLE CHOQUE GRAVE LATERAL ;@SM0;@SM1}<
+>SRL53E;TRG=HM06+;ACC={GCQ04H}{STX ALERTA POSIBLE CHOQUE GRAVE FRONTAL ;@SM0;@SM1}<
+>SRL54E;TRG=HM07+;ACC={GCQ04H}{STX ALERTA POSIBLE CHOQUE GRAVE TRASERO ;@SM0;@SM1}<
+// -----------------------------------------------------------------------------
+// 3. ALERTA DE VUELCO (SMS a Dueño, Cónyuge, Supervisor-1, Supervisor-2) ---
+>SRL55E;TRG=TK00+;ACC={GCQ04H}{STX ALERTA POSIBLE VUELCO ;@SM0;@SM1}< //;@SM2;@SM3}<
+
+// =============================================================================
+// FIN DE CONFIGURACION
+// =============================================================================

@@ -23,15 +23,15 @@ El dev server hace proxy de `/api` y `/poi` al servidor de producción (configur
 ssh pi@raspi
 
 # Pull y deploy completo
-cd ~/rudatrak-web && ./deploy.sh
+cd ~/RudaTrak/traccar-web && ./deploy.sh
 ```
 
 O desde tu PC en un solo paso:
 
 ```bash
-cd /mnt/Datos/app/rudatrak/frontend
+cd /mnt/Datos/app/RudaTrak/traccar/traccar-web
 git add . && git commit -m "..." && git push
-ssh pi@raspi "cd ~/rudatrak-web && ./deploy.sh"
+ssh pi@raspi "cd ~/RudaTrak/traccar-web && ./deploy.sh"
 ```
 
 ## Docker
@@ -50,8 +50,9 @@ docker logs -f rudatrak-carga-poi
 docker restart rudatrak-traccar
 
 # Reconstruir imágenes manualmente
-docker build -t rudatrak:latest ~/rudatrak-web
-docker build -t carga-poi:latest ~/rudatrak-web/tools/carga-poi
+docker build -t rudatrak:latest ~/RudaTrak/traccar-web
+docker build -t agente-ia:latest ~/RudaTrak/traccar-web/tools/agente-ia
+docker build -t carga-poi:latest ~/RudaTrak/traccar-web/tools/carga-poi
 
 # Ver imágenes locales
 docker images | grep -E "rudatrak|carga-poi"
@@ -94,17 +95,17 @@ grep -c '<Placemark>' data/general.kml
 grep '<name>' data/general.kml | grep -i "busqueda"
 
 # Rebuild y redeploy de carga-poi (en la Pi)
-docker build --no-cache -t carga-poi:latest ~/rudatrak-web/tools/carga-poi/
+docker build --no-cache -t carga-poi:latest ~/RudaTrak/traccar-web/tools/carga-poi/
 docker rm -f rudatrak-carga-poi
 docker run -d --name rudatrak-carga-poi --network npm_proxy-network -p 3007:3007 \
-  -v /data/compose/63/traccar-poi/general.kml:/data/kml/general.kml \
+  -v /data/compose/traccar/traccar-poi/general.kml:/data/kml/general.kml \
   --restart unless-stopped carga-poi:latest
 
 # Logs de carga-poi
 docker logs -f rudatrak-carga-poi
 
 # Ver últimos cambios en el KML
-tail -50 /data/compose/63/traccar-poi/general.kml
+tail -50 /data/compose/traccar/traccar-poi/general.kml
 
 # Forzar actualización en el mapa
 # (recargar la página con Ctrl+Shift+R)
@@ -177,7 +178,7 @@ docker inspect rudatrak-traccar --format '{{.Config.Image}}'
 docker images rudatrak --format '{{.CreatedAt}}'
 
 # 5. Reconstruir y redeploy (vía Portainer API)
-cd ~/rudatrak-web && ./deploy.sh
+cd ~/RudaTrak/traccar-web && ./deploy.sh
 
 # 6. Si el contenedor no se recrea, forzar manualmente
 docker stop rudatrak-traccar && docker rm rudatrak-traccar
@@ -192,12 +193,12 @@ El error `WebSocket connection to 'wss://.../api/socket' failed: 405` es normal 
 
 ```bash
 # Backup de la DB H2
-sudo cp /data/compose/63/traccar-data/database.mv.db \
-        /data/compose/63/traccar-data/database.mv.db.bak
+sudo cp /data/compose/traccar/traccar-data/database.mv.db \
+        /data/compose/traccar/traccar-data/database.mv.db.bak
 
 # Restaurar
 docker stop rudatrak-traccar
-sudo cp /data/compose/63/traccar-data/database.mv.db.bak \
-        /data/compose/63/traccar-data/database.mv.db
+sudo cp /data/compose/traccar/traccar-data/database.mv.db.bak \
+        /data/compose/traccar/traccar-data/database.mv.db
 docker start rudatrak-traccar
 ```
