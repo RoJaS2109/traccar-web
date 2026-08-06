@@ -1,0 +1,10 @@
+services:
+  carga-poi:
+    image: carga-poi:latest
+    pull_policy: never
+    container_name: carga-poi
+    ports:
+      - "3007:3007"
+    volumes:
+      - /data/compose/63/traccar-poi/general.kml:/data/kml/general.kml
+    restart: unless-stopped
