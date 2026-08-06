@@ -1,0 +1,5 @@
+# Imagen Vanilla = Traccar original + frontend RudaTrak (sin parches Java)
+# Para testing — no incluye RinhoProtocol ni OverrideTextFilter
+FROM traccar/traccar:latest
+COPY build/ /opt/traccar/web/
+RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
