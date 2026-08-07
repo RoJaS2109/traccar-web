@@ -1,17 +1,23 @@
 # Imagen Rudatrak = Traccar + frontend + backend personalizados
 # Multi-stage: compila el parche del backend sin requerir JDK en el host
 
-# ── Stage 1: Compilar clase Java modificada ──
+# ── Stage 1: Compilar clases Java personalizadas ──
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 # Copiar el JAR original y las dependencias de la imagen base
 COPY --from=traccar/traccar:latest /opt/traccar/tracker-server.jar /build/original.jar
 COPY --from=traccar/traccar:latest /opt/traccar/lib /build/lib
-# Copiar el fuente modificado (branding RudaTrak)
+# Copiar los fuentes personalizados (branding + protocolo Rinho)
 COPY docker/ /build/src/
-RUN javac -cp "original.jar:lib/*" -d /build/classes /build/src/org/traccar/web/OverrideTextFilter.java && \
+# Compilar todas las clases custom y parchear el JAR
+RUN javac -cp "original.jar:lib/*" -d /build/classes \
+        /build/src/org/traccar/web/OverrideTextFilter.java \
+        /build/src/org/traccar/protocol/RinhoProtocol.java \
+        /build/src/org/traccar/protocol/RinhoProtocolDecoder.java \
+        /build/src/org/traccar/protocol/RinhoProtocolEncoder.java && \
     cp original.jar patched.jar && \
-    jar uf patched.jar -C /build/classes org/
+    jar uf patched.jar -C /build/classes org/ && \
+    jar uf patched.jar -C /build/src META-INF/
 
 # ── Stage 2: Imagen final ──
 FROM traccar/traccar:latest
