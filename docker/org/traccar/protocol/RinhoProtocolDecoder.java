@@ -710,27 +710,29 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
 
         String sentence = (String) msg;
 
-        // Extraer contenido entre '>' y '<'
+        // Buscar delimitadores '>' y '<'
         int start = sentence.indexOf('>');
-        if (start != -1) {
-            sentence = sentence.substring(start + 1);
-        }
-
         int endIdx = sentence.lastIndexOf('<');
-        if (endIdx > 0) {
-            sentence = sentence.substring(0, endIdx);
+        if (start < 0 || endIdx <= start) {
+            return null;
         }
 
-        // Validar checksum si está presente (*XX al final)
+        // Validar checksum ANTES de quitar '>' (el checksum lo incluye)
         int checksumIdx = sentence.lastIndexOf('*');
-        if (checksumIdx > 0) {
-            String expectedChecksum = sentence.substring(checksumIdx + 1);
-            String partial = sentence.substring(0, checksumIdx + 1); // incluye '*'
+        if (checksumIdx > start && checksumIdx < endIdx) {
+            String expectedChecksum = sentence.substring(checksumIdx + 1, endIdx);
+            String partial = sentence.substring(start, checksumIdx + 1); // '>' hasta '*' inclusive
             String computed = calculateChecksum(partial);
             if (!computed.equalsIgnoreCase(expectedChecksum)) {
                 return null; // checksum mismatch, descartar
             }
-            sentence = sentence.substring(0, checksumIdx);
+        }
+
+        // Extraer contenido limpio (sin '>', '<', ni '*XX')
+        if (checksumIdx > start) {
+            sentence = sentence.substring(start + 1, checksumIdx);
+        } else {
+            sentence = sentence.substring(start + 1, endIdx);
         }
 
         // Extraer device ID
