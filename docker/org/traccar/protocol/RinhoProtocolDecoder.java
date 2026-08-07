@@ -710,11 +710,14 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
 
         String sentence = (String) msg;
 
-        // Buscar delimitadores '>' y '<'
+        // Buscar delimitador '>'. El '<' es opcional (UDP puede no tenerlo)
         int start = sentence.indexOf('>');
-        int endIdx = sentence.lastIndexOf('<');
-        if (start < 0 || endIdx <= start) {
+        if (start < 0) {
             return null;
+        }
+        int endIdx = sentence.lastIndexOf('<');
+        if (endIdx <= start) {
+            endIdx = sentence.length(); // no hay '<', usar fin del string
         }
 
         // Validar checksum ANTES de quitar '>' (el checksum lo incluye)
