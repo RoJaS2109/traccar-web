@@ -703,6 +703,46 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         return position;
     }
 
+    // ── Decodificar RIO (Reporte de I/O) ────────────────────────
+    private Position decodeRIO(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        // Formato: RIO;KEYVAL;KEYVAL;...;ID=XXXX
+        String[] parts = sentence.split(";");
+        for (String part : parts) {
+            if (part.startsWith("IGN")) {
+                position.set(Position.KEY_IGNITION, part.charAt(3) == '1');
+            } else if (part.startsWith("IN")) {
+                int inputs = 0;
+                String bits = part.substring(2);
+                for (int i = 0; i < bits.length(); i++) {
+                    if (bits.charAt(i) == '1') {
+                        inputs |= (1 << (bits.length() - 1 - i));
+                    }
+                }
+                position.set(Position.KEY_INPUT, inputs);
+            } else if (part.startsWith("XP")) {
+                position.set(Position.KEY_OUTPUT, Integer.parseInt(part.substring(2)));
+            } else if (part.startsWith("VBU")) {
+                int vbu = Integer.parseInt(part.substring(3));
+                position.set(Position.KEY_BATTERY, vbu / 100.0);
+            } else if (part.startsWith("V") && !part.startsWith("VBU")) {
+                double voltage = Integer.parseInt(part.substring(1)) / 10.0;
+                position.set(Position.KEY_POWER, voltage);
+            }
+        }
+
+        return position;
+    }
+
     // ── Punto de entrada principal ─────────────────────────────
     @Override
     protected Object decode(Channel channel, SocketAddress remoteAddress, Object msg)
@@ -764,6 +804,11 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
                 || sentence.startsWith("RIMEI") || sentence.startsWith("RTAG")
                 || sentence.startsWith("RCXHWI")) {
             return decodeInventory(channel, remoteAddress, sentence, deviceId, msgNum, msgNumHex);
+        }
+
+        // RIO: Reporte de I/O (sin posición GPS)
+        if (sentence.startsWith("RIO")) {
+            return decodeRIO(channel, remoteAddress, sentence, deviceId);
         }
 
         // Rutear por tipo de mensaje de posición
