@@ -9,11 +9,7 @@ COPY --from=traccar/traccar:latest /opt/traccar/tracker-server.jar /build/origin
 COPY --from=traccar/traccar:latest /opt/traccar/lib /build/lib
 # Copiar el fuente modificado (branding RudaTrak)
 COPY docker/ /build/src/
-RUN javac -cp "original.jar:lib/*" -d /build/classes \
-        /build/src/org/traccar/web/OverrideTextFilter.java \
-        /build/src/org/traccar/protocol/TaipProtocolDecoder.java \
-        /build/src/org/traccar/protocol/RinhoProtocol.java \
-        /build/src/org/traccar/protocol/RinhoProtocolDecoder.java && \
+RUN javac -cp "original.jar:lib/*" -d /build/classes /build/src/org/traccar/web/OverrideTextFilter.java && \
     cp original.jar patched.jar && \
     jar uf patched.jar -C /build/classes org/
 
