@@ -470,9 +470,9 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int eventCode = parser.nextHexInt(0);
         position.set(Position.KEY_EVENT, eventCode);
 
-        // Fecha y hora
-        int month = parser.nextInt(0);
+        // Fecha y hora (DD/MM/YY)
         int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
         int year = parser.nextInt(0);
         int hour = parser.nextInt(0);
         int minute = parser.nextInt(0);
@@ -519,9 +519,9 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int eventCode = parser.nextHexInt(0);
         position.set(Position.KEY_EVENT, eventCode);
 
-        // Fecha y hora
-        int month = parser.nextInt(0);
+        // Fecha y hora (DD/MM/YY)
         int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
         int year = parser.nextInt(0);
         int hour = parser.nextInt(0);
         int minute = parser.nextInt(0);
@@ -568,9 +568,9 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int eventCode = parser.nextHexInt(0);
         position.set(Position.KEY_EVENT, eventCode);
 
-        // Fecha y hora
-        int month = parser.nextInt(0);
+        // Fecha y hora (DD/MM/YY)
         int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
         int year = parser.nextInt(0);
         int hour = parser.nextInt(0);
         int minute = parser.nextInt(0);
@@ -617,9 +617,9 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int eventCode = parser.nextHexInt(0);
         position.set(Position.KEY_EVENT, eventCode);
 
-        // Fecha y hora
-        int month = parser.nextInt(0);
+        // Fecha y hora (DD/MM/YY)
         int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
         int year = parser.nextInt(0);
         int hour = parser.nextInt(0);
         int minute = parser.nextInt(0);
