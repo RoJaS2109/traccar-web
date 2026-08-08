@@ -410,20 +410,17 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             .compile();
 
     // ── RLC: Locator (Celda) ────────────────────────────────────
+    // Soporta dos formatos de RLC:
+    // - KJA-169: DEG_DEG (±DDMMMMM) igual que RCQ
+    // - Documentado: N/S DD.DDDD, E/W FFF.FFFF (obsoleto)
     private static final Pattern RLC_PATTERN = new PatternBuilder()
-            .text("LC")
+            .text("RLC")
             .number("(xx)")                              //  1  report number
             .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
             .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
-            .number("([-+\\w])(dddd.dddd)")              //  8-9 lat (N/S + grados)
-            .number("([-+\\w])(dddd.dddd)")              // 10-11 lon (E/W + grados)
-            .number("(ddd)")                             // 12 speed (always 000)
-            .number("(dd)")                              // 13 course/10
-            .number("(xxxxxx)")                          // 14 I/O status
-            .number("(xxxx)")                            // 15 event number
-            .number("(xx)")                              // 16 seconds since query
-            .number("(xxxx)")                            // 17 message number
-            .expression("(.*)")                          // 18 suffix
+            .number("([-+]dd)(ddddd)")                   //  8-9 lat DEG_DEG (7 dígitos)
+            .number("([-+]ddd)(ddddd)")                  // 10-11 lon DEG_DEG (8 dígitos)
+            .expression("(.*)")                          // 12 suffix: extra fields + ;ID=...
             .compile();
 
     // ── REQ: Reporte Extendido OBD-II ───────────────────────────
@@ -1634,7 +1631,6 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
     private Position decodeRLC(Channel channel, SocketAddress remoteAddress,
                                String sentence, String deviceId) throws Exception {
 
-        // RLC usa patrones de grados decimales (N/S DD.DDDD), no DEG_DEG
         Parser parser = new Parser(RLC_PATTERN, sentence);
         if (!parser.matches()) {
             return null;
@@ -1662,28 +1658,12 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
                 .setTime(hour, minute, second)
                 .getDate());
 
-        // Coordenadas en formato N/S DD.DDDD, E/W FFF.FFFF
-        String latHemi = parser.next();
-        double lat = parser.nextDouble(0);
-        String lonHemi = parser.next();
-        double lon = parser.nextDouble(0);
-
-        if ("S".equalsIgnoreCase(latHemi)) {
-            lat = -lat;
+        // Coordenadas DEG_DEG (mismo formato que RCQ)
+        if (parser.hasNext(4)) {
+            position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+            position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
         }
-        if ("W".equalsIgnoreCase(lonHemi)) {
-            lon = -lon;
-        }
-        position.setLatitude(lat);
-        position.setLongitude(lon);
-        position.setValid(lat != 0 || lon != 0);
-
-        parser.nextDouble(0); // speed (siempre 0)
-        parser.nextInt(0);    // course/10
-        position.set("ioStatus", parser.next());
-        position.set("eventNum", parser.nextInt(0));
-        position.set("secondsSinceQuery", parser.nextInt(0));
-        position.set("msgNum", parser.nextInt(0));
+        position.setValid(position.getLatitude() != 0 || position.getLongitude() != 0);
 
         return position;
     }
@@ -1789,8 +1769,8 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             return decodeRTY(channel, remoteAddress, sentence, deviceId);
         }
 
-        // LC/RLC: Locator por celda
-        if (sentence.startsWith("LC")) {
+        // RLC: Locator por celda
+        if (sentence.startsWith("RLC")) {
             return decodeRLC(channel, remoteAddress, sentence, deviceId);
         }
 
