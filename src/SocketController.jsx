@@ -35,6 +35,8 @@ const SocketController = () => {
 
   const socketRef = useRef();
   const reconnectTimeoutRef = useRef();
+  const lastMessageRef = useRef(0);
+  const keepaliveIntervalRef = useRef();
 
   const clearReconnectTimeout = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -90,7 +92,14 @@ const SocketController = () => {
     socketRef.current = socket;
 
     socket.onopen = () => {
+      lastMessageRef.current = Date.now();
       dispatch(sessionActions.updateSocket(true));
+    };
+
+    socket.onerror = () => {
+      if (socketRef.current === socket) {
+        socket.close();
+      }
     };
 
     socket.onclose = async (event) => {
@@ -122,6 +131,7 @@ const SocketController = () => {
     };
 
     socket.onmessage = (event) => {
+      lastMessageRef.current = Date.now();
       const data = JSON.parse(event.data);
       if (data.devices) {
         dispatch(devicesActions.update(data.devices));
@@ -190,12 +200,8 @@ const SocketController = () => {
       const socket = socketRef.current;
       if (!socket || socket.readyState === WebSocket.CLOSED) {
         connectSocket();
-      } else if (socket.readyState === WebSocket.OPEN) {
-        try {
-          socket.send('{}');
-        } catch {
-          // test connection
-        }
+      } else if (Date.now() - lastMessageRef.current > 120000) {
+        socket.close();
       }
     };
     const onVisibility = () => {
@@ -210,6 +216,24 @@ const SocketController = () => {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [authenticated, connectSocket]);
+
+  useEffect(() => {
+    if (!authenticated) return;
+    keepaliveIntervalRef.current = setInterval(() => {
+      if (
+        socketRef.current?.readyState === WebSocket.OPEN &&
+        Date.now() - lastMessageRef.current > 120000
+      ) {
+        socketRef.current.close();
+      }
+    }, 30000);
+    return () => {
+      if (keepaliveIntervalRef.current) {
+        clearInterval(keepaliveIntervalRef.current);
+        keepaliveIntervalRef.current = null;
+      }
+    };
+  }, [authenticated]);
 
   return (
     <>
