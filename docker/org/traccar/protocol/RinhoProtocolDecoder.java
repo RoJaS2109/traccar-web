@@ -22,6 +22,7 @@ import org.traccar.helper.BitUtil;
 import org.traccar.helper.DateBuilder;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
+import org.traccar.helper.UnitsConverter;
 import org.traccar.model.Position;
 import org.traccar.session.DeviceSession;
 
@@ -95,6 +96,30 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             .expression("([\\w])")                       // 24  gsm status
             .number("(dd)")                              // 25  gsm level
             .expression("(.*)")                          // 26  rest: ;TXT=... ;#... ;ID=...
+            .compile();
+
+    // ── RCW: Reporte Compacto (odómetro decimal, campos reorganizados)
+    // Ref: Rinho protocol docs — Reporte CW (G-Q-R)
+    private static final Pattern RCW_PATTERN = new PatternBuilder()
+            .text("RCW")
+            .number("(xx)")                              //  1  report number (hex)
+            .number("(dd)(dd)(dd)")                      //  2-4 day, month, year (DD/MM/YY)
+            .number("(dd)(dd)(dd)")                      //  5-7 hour, minute, second
+            .number("([-+]dd)(ddddd)")                   //  8-9 latitude DEG_DEG (7 dígitos)
+            .number("([-+]ddd)(ddddd)")                  // 10-11 longitude DEG_DEG (8 dígitos)
+            .number("(ddd)")                             // 12  course (grados)
+            .number("(ddd)")                             // 13  speed (km/h)
+            .expression("([\\w])")                       // 14  gps power
+            .number("(dd)")                              // 15  satellites
+            .number("(dddd)")                            // 16  gps age (decimal segundos)
+            .expression("([\\w])")                       // 17  gps fix mode
+            .number("(dd)")                              // 18  pdop
+            .expression("([\\w])")                       // 19  modem power
+            .expression("([\\w])")                       // 20  gsm registration
+            .number("(dd)")                              // 21  csq signal
+            .number("(dddddddddd)")                      // 22  odometer (decimal, metros)
+            .number("(xx)")                              // 23  IGN+IN (hex)
+            .expression("(.*)")                          // 24  suffix: ;ID=...
             .compile();
 
     // ── RER: Reporte Extendido (con CAN bus) ────────────────────
@@ -671,6 +696,75 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         return position;
     }
 
+    // ── Decodificar RCW (Reporte Compacto) ──────────────────────
+    private Position decodeRCW(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RCW_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        // Report number (hex)
+        position.set(Position.KEY_EVENT, parser.nextHexInt(0));
+
+        // Fecha y hora (DD/MM/YY)
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        // Coordenadas
+        position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+        position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+
+        // Course (grados) y speed (km/h → nudos)
+        position.setCourse(parser.nextDouble(0));
+        position.setSpeed(UnitsConverter.knotsFromKph(parser.nextDouble(0)));
+
+        // GPS
+        position.set(Position.KEY_GPS, parser.nextInt(0));
+        position.set(Position.KEY_SATELLITES, parser.nextInt(0));
+        position.set("gpsAge", parser.nextInt(0)); // segundos, decimal
+        position.set("gpsFix", parser.nextInt(0));
+
+        // PDOP
+        position.set(Position.KEY_PDOP, parser.nextInt(0));
+
+        // Modem / GSM
+        position.set("modemPower", parser.nextInt(0));
+        position.set("gsmReg", parser.nextInt(0));
+        position.set(Position.KEY_RSSI, parser.nextInt(0));
+
+        // Odómetro (metros, decimal)
+        position.set(Position.KEY_ODOMETER, parser.nextLong(0));
+
+        // IGN+IN flags (hex)
+        int io = parser.nextHexInt(0);
+        position.set(Position.KEY_IGNITION, BitUtil.check(io, 7));
+        position.set(Position.KEY_INPUT, io);
+
+        // Valid
+        position.setValid(position.getLatitude() != 0 && position.getLongitude() != 0);
+
+        return position;
+    }
+
     // ── Decodificar mensajes de inventario ──────────────────────
     private Position decodeInventory(Channel channel, SocketAddress remoteAddress,
                                      String sentence, String deviceId,
@@ -815,6 +909,8 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         Position position = null;
         if (sentence.startsWith("RCQ")) {
             position = decodeRCQ(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RCW")) {
+            position = decodeRCW(channel, remoteAddress, sentence, deviceId);
         } else if (sentence.startsWith("RER")) {
             position = decodeRER(channel, remoteAddress, sentence, deviceId);
         } else if (sentence.startsWith("REQ")) {
