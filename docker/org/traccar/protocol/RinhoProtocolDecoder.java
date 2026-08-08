@@ -491,13 +491,51 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
     }
 
     // ── Alarma Rinho → Traccar ─────────────────────────────────
+    // Basado en listado.txt (99 códigos de evento Rinho)
+    // Códigos RES./informativos/restauración → null (sin alarma)
     private String decodeAlarm(int eventCode) {
         return switch (eventCode) {
-            case 0x03 -> Position.ALARM_LOW_BATTERY;
-            case 0x04 -> Position.ALARM_SOS;
-            case 0x13 -> Position.ALARM_DOOR;
-            case 0x19 -> Position.ALARM_TAMPERING;
-            case 0x78 -> Position.ALARM_TOW;
+            case 0x01 -> Position.ALARM_VIBRATION;          // Vibración
+            case 0x02 -> Position.ALARM_BONNET;             // Capó Abierto
+            case 0x04, 0x06, 0x08, 0x10 -> Position.ALARM_DOOR; // Puertas abiertas
+            case 0x24 -> Position.ALARM_LOW_BATTERY;        // Batería Tracker Baja
+            case 0x25 -> Position.ALARM_GPS_ANTENNA_CUT;    // Corte Antena GPS
+            case 0x35 -> Position.ALARM_GEOFENCE_ENTER;     // Entrada Geocerca
+            case 0x36 -> Position.ALARM_GEOFENCE_EXIT;      // Salida Geocerca
+            case 0x37 -> Position.ALARM_GEOFENCE;           // Entrada Zona Restricta
+            case 0x40 -> Position.ALARM_FAULT;              // Consumo Anómalo
+            case 0x41 -> Position.ALARM_FAULT;              // SERVICE – Motor
+            case 0x42 -> Position.ALARM_FAULT;              // SERVICE – Transmisión
+            case 0x44 -> Position.ALARM_TEMPERATURE;        // Temp. Motor Baja
+            case 0x45 -> Position.ALARM_IDLE;               // Ralentí
+            case 0x46 -> Position.ALARM_FUEL_LEAK;          // Fuga Combustible
+            case 0x47 -> Position.ALARM_TEMPERATURE;        // Temp. Motor Alta
+            case 0x48 -> Position.ALARM_FAULT;              // Presión de Aceite Baja
+            case 0x49 -> Position.ALARM_HIGH_RPM;           // RPM Altas
+            case 0x50 -> Position.ALARM_FAULT;              // Fuga Refrigerante
+            case 0x60 -> Position.ALARM_UNLOCK;             // Desbloqueo
+            case 0x61 -> Position.ALARM_LOCK;               // Bloqueo
+            case 0x62 -> Position.ALARM_JAMMING;            // Inhibidor Señal
+            case 0x63 -> Position.ALARM_TAMPERING;          // Manipulación / Sabotaje
+            case 0x64 -> Position.ALARM_REMOVING;           // Remoción
+            case 0x65 -> Position.ALARM_TOW;                // Grúa / Remolque / Robo
+            case 0x70 -> Position.ALARM_LOW_SPEED;          // Baja Velocidad
+            case 0x71 -> Position.ALARM_LANE_CHANGE;        // Cambio Carril
+            case 0x72 -> Position.ALARM_ACCIDENT;           // Posible Accidente
+            case 0x73 -> Position.ALARM_ACCIDENT;           // Vuelco
+            case 0x74 -> Position.ALARM_OVERSPEED;          // Velocidad Anómala Agrícola
+            case 0x75 -> Position.ALARM_GENERAL;            // Desplazamiento Nocturno
+            case 0x76 -> Position.ALARM_ACCELERATION;       // Aceleración Brusca
+            case 0x77 -> Position.ALARM_OVERSPEED;          // Exceso Velocidad
+            case 0x78 -> Position.ALARM_BRAKING;            // Frenada Brusca
+            case 0x79 -> Position.ALARM_CORNERING;          // Curva Brusca
+            case 0x80 -> Position.ALARM_FATIGUE_DRIVING;    // Tiempo Conducción Crítico
+            case 0x81 -> Position.ALARM_FATIGUE_DRIVING;    // Fatiga Conductor
+            case 0x82 -> Position.ALARM_GENERAL;            // Conducción Nocturna
+            case 0x83 -> Position.ALARM_FALL_DOWN;          // Caída
+            case 0x90 -> Position.ALARM_FAULT;              // Presión de Aire Baja
+            case 0x91 -> Position.ALARM_FOOT_BRAKE;         // Freno de Pie
+            case 0x99 -> Position.ALARM_SOS;                // SOS
             default   -> null;
         };
     }
