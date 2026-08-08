@@ -771,7 +771,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -820,7 +820,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -869,7 +869,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -918,7 +918,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1135,7 +1135,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1175,7 +1175,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1188,7 +1188,8 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         position.setCourse(parser.nextDouble(0));
 
         String fixMode = parser.next();
-        position.set(Position.KEY_GPS, Integer.parseInt(parser.next(), 16)); // age hex
+        position.set("gpsFix", Integer.parseInt(fixMode));
+        position.set("gpsAge", Integer.parseInt(parser.next(), 16)); // age hex
         int inputs = parser.nextHexInt(0);
         position.set(Position.KEY_INPUT, inputs);
         position.set(Position.KEY_IGNITION, BitUtil.check(inputs, 7));
@@ -1238,7 +1239,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1365,7 +1366,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1416,7 +1417,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1467,7 +1468,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1540,7 +1541,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1591,7 +1592,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1657,7 +1658,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
