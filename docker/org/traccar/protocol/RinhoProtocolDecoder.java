@@ -490,22 +490,29 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         }
     }
 
-    // ── Alarma Rinho → Traccar ─────────────────────────────────
+    // ── Alarma Rinho → Traccar + descripción en español ──────────
     // Basado en listado.txt (99 códigos de evento Rinho)
-    // Códigos RES./informativos/restauración → null (sin alarma)
+    // Códigos informativos usan ALARM_GENERAL para aparecer en la UI
+    // RES. → null
     private String decodeAlarm(int eventCode) {
         return switch (eventCode) {
+            // Alarmas
             case 0x01 -> Position.ALARM_VIBRATION;          // Vibración
             case 0x02 -> Position.ALARM_BONNET;             // Capó Abierto
+            // 0x03 Capó Cerrado — informativo
             case 0x04, 0x06, 0x08, 0x10 -> Position.ALARM_DOOR; // Puertas abiertas
+            // 0x05,07,09,11 Puertas Cerradas — informativo
+            // 0x20-0x23 Reconexiones — informativo
             case 0x24 -> Position.ALARM_LOW_BATTERY;        // Batería Tracker Baja
             case 0x25 -> Position.ALARM_GPS_ANTENNA_CUT;    // Corte Antena GPS
+            // 0x26-0x28 Pérdidas conexión — informativo
             case 0x35 -> Position.ALARM_GEOFENCE_ENTER;     // Entrada Geocerca
             case 0x36 -> Position.ALARM_GEOFENCE_EXIT;      // Salida Geocerca
             case 0x37 -> Position.ALARM_GEOFENCE;           // Entrada Zona Restricta
             case 0x40 -> Position.ALARM_FAULT;              // Consumo Anómalo
             case 0x41 -> Position.ALARM_FAULT;              // SERVICE – Motor
             case 0x42 -> Position.ALARM_FAULT;              // SERVICE – Transmisión
+            // 0x43 Horas Motor Crítico — informativo
             case 0x44 -> Position.ALARM_TEMPERATURE;        // Temp. Motor Baja
             case 0x45 -> Position.ALARM_IDLE;               // Ralentí
             case 0x46 -> Position.ALARM_FUEL_LEAK;          // Fuga Combustible
@@ -536,6 +543,74 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             case 0x90 -> Position.ALARM_FAULT;              // Presión de Aire Baja
             case 0x91 -> Position.ALARM_FOOT_BRAKE;         // Freno de Pie
             case 0x99 -> Position.ALARM_SOS;                // SOS
+            // Informativos (aparecen como ALARM_GENERAL para ser visibles en UI)
+            case 0x03, 0x05, 0x07, 0x09, 0x11,
+                 0x20, 0x21, 0x22, 0x23,
+                 0x26, 0x27, 0x28, 0x43 -> Position.ALARM_GENERAL;
+            default   -> null;
+        };
+    }
+
+    // ── Descripción en español de cada código (listado.txt) ───
+    private String getEventDescription(int eventCode) {
+        return switch (eventCode) {
+            case 0x01 -> "Vibración";
+            case 0x02 -> "Capó Abierto";
+            case 0x03 -> "Capó Cerrado";
+            case 0x04 -> "Puerta Del. Izq. Abierta";
+            case 0x05 -> "Puerta Del. Izq. Cerrada";
+            case 0x06 -> "Puerta Del. Der. Abierta";
+            case 0x07 -> "Puerta Del. Der. Cerrada";
+            case 0x08 -> "Puerta Tras. Izq. Abierta";
+            case 0x09 -> "Puerta Tras. Izq. Cerrada";
+            case 0x10 -> "Puerta Tras. Der. Abierta";
+            case 0x11 -> "Puerta Tras. Der. Cerrada";
+            case 0x20 -> "Reconexión GPS";
+            case 0x21 -> "Reconexión GPRS";
+            case 0x22 -> "Pérdida Conec. WiFi";
+            case 0x23 -> "Reconexión WiFi";
+            case 0x24 -> "Batería Tracker – Baja";
+            case 0x25 -> "Corte Antena GPS";
+            case 0x26 -> "Tracker Offline";
+            case 0x27 -> "Pérdida Conec. GPS";
+            case 0x28 -> "Pérdida Conec. GPRS";
+            case 0x35 -> "Entrada Geocerca";
+            case 0x36 -> "Salida Geocerca";
+            case 0x37 -> "Entrada Zona Restricta";
+            case 0x40 -> "Consumo Anómalo";
+            case 0x41 -> "SERVICE – Motor";
+            case 0x42 -> "SERVICE – Transmisión";
+            case 0x43 -> "Horas Motor – Crítico";
+            case 0x44 -> "Temp. Motor – Baja";
+            case 0x45 -> "Ralentí";
+            case 0x46 -> "Fuga Combustible";
+            case 0x47 -> "Temp. Motor – Alta";
+            case 0x48 -> "Presión de Aceite – Baja";
+            case 0x49 -> "RPM – Altas";
+            case 0x50 -> "Fuga Refrigerante";
+            case 0x60 -> "Desbloqueo";
+            case 0x61 -> "Bloqueo";
+            case 0x62 -> "Inhibidor Señal";
+            case 0x63 -> "Manipulación / Sabotaje";
+            case 0x64 -> "Remoción";
+            case 0x65 -> "Grúa / Remolque / Robo";
+            case 0x70 -> "Baja Velocidad";
+            case 0x71 -> "Cambio Carril";
+            case 0x72 -> "Posible Accidente";
+            case 0x73 -> "Vuelco";
+            case 0x74 -> "Velocidad Anómala Agrícola";
+            case 0x75 -> "Desplazamiento Nocturno";
+            case 0x76 -> "Aceleración Brusca";
+            case 0x77 -> "Exceso Velocidad";
+            case 0x78 -> "Frenada Brusca";
+            case 0x79 -> "Curva Brusca";
+            case 0x80 -> "Tiempo Conducción – Crítico";
+            case 0x81 -> "Fatiga Conductor";
+            case 0x82 -> "Conducción Nocturna";
+            case 0x83 -> "Caída";
+            case 0x90 -> "Presión de Aire – Baja";
+            case 0x91 -> "Freno de Pie";
+            case 0x99 -> "SOS";
             default   -> null;
         };
     }
@@ -821,6 +896,10 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (alarm != null) {
             position.addAlarm(alarm);
         }
+        String desc = getEventDescription(eventCode);
+        if (desc != null) {
+            position.set("eventDescription", desc);
+        }
 
         return position;
     }
@@ -870,6 +949,10 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (alarm != null) {
             position.addAlarm(alarm);
         }
+        String desc = getEventDescription(eventCode);
+        if (desc != null) {
+            position.set("eventDescription", desc);
+        }
 
         return position;
     }
@@ -918,6 +1001,10 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         String alarm = decodeAlarm(eventCode);
         if (alarm != null) {
             position.addAlarm(alarm);
+        }
+        String desc = getEventDescription(eventCode);
+        if (desc != null) {
+            position.set("eventDescription", desc);
         }
 
         return position;
@@ -993,6 +1080,10 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         String alarm = decodeAlarm(eventCode);
         if (alarm != null) {
             position.addAlarm(alarm);
+        }
+        String desc = getEventDescription(eventCode);
+        if (desc != null) {
+            position.set("eventDescription", desc);
         }
 
         return position;
@@ -1180,6 +1271,10 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         String alarm = decodeAlarm(eventCode);
         if (alarm != null) {
             position.addAlarm(alarm);
+        }
+        String desc = getEventDescription(eventCode);
+        if (desc != null) {
+            position.set("eventDescription", desc);
         }
 
         return position;
