@@ -116,10 +116,11 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             .number("(dd)")                              // 18  pdop
             .expression("([\\w])")                       // 19  modem power
             .expression("([\\w])")                       // 20  gsm registration
-            .number("(dd)")                              // 21  csq signal
-            .number("(dddddddddd)")                      // 22  odometer (decimal, metros)
-            .number("(xx)")                              // 23  IGN+IN (hex)
-            .expression("(.*)")                          // 24  suffix: ;ID=...
+            .expression("([\\w])")                       // 21  network type (0=GSM, 1=GPRS, 2=EDGE, 3=WCDMA, 7=LTE)
+            .number("(dd)")                              // 22  csq signal (0-30, 99=sin señal)
+            .number("(dddddddddd)")                      // 23  odometer (decimal, metros)
+            .number("(xx)")                              // 24  IGN+IN (hex)
+            .expression("(.*)")                          // 25  suffix: ;ID=...
             .compile();
 
     // ── RER: Reporte Extendido (con CAN bus) ────────────────────
@@ -991,7 +992,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         int second = parser.nextInt(0);
 
         position.setTime(new DateBuilder()
-                .setDate(2000 + year, month - 1, day)
+                .setDate(2000 + year, month, day)
                 .setTime(hour, minute, second)
                 .getDate());
 
@@ -1015,6 +1016,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         // Modem / GSM
         position.set("modemPower", parser.nextInt(0));
         position.set("gsmReg", parser.nextInt(0));
+        position.set("networkType", parser.nextInt(0));
         position.set(Position.KEY_RSSI, parser.nextInt(0));
 
         // Odómetro (metros, decimal)
