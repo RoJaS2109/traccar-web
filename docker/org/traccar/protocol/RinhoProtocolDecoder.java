@@ -167,6 +167,264 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             .expression("(.*)")                          // 15  rest: ;#index;ID=xxx;*XX
             .compile();
 
+    // ── CQ variants: comparten estructura base con RCQ ────────────
+    // RCP = sin filtro GPS, RCT = +iButton, RCU = +chofer ICL,
+    // RCV = +2 temps, RBQ = +bat, RBR = +bat+temp, RBV = +bat+2temps,
+    // RHQ = +bat+horometro, RHR = +bat+horometro+temp, RHV = +bat+horometro+2temps
+    private static final Pattern RCP_PATTERN = new PatternBuilder()
+            .text("RCP")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RCT_PATTERN = new PatternBuilder()
+            .text("RCT")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RCU_PATTERN = new PatternBuilder()
+            .text("RCU")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RCV_PATTERN = new PatternBuilder()
+            .text("RCV")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RBQ_PATTERN = new PatternBuilder()
+            .text("RBQ")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RBR_PATTERN = new PatternBuilder()
+            .text("RBR")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RBV_PATTERN = new PatternBuilder()
+            .text("RBV")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RHQ_PATTERN = new PatternBuilder()
+            .text("RHQ")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RHR_PATTERN = new PatternBuilder()
+            .text("RHR")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    private static final Pattern RHV_PATTERN = new PatternBuilder()
+            .text("RHV")
+            .number("(xx)").number("(dd)(dd)(dd)").number("(dd)(dd)(dd)")
+            .number("([-+]dd)(ddddd)").number("([-+]ddd)(ddddd)")
+            .number("(ddd)").number("(ddd)").number("(xx)").number("(xx)")
+            .number("(ddd)").number("(xxxxxxxx)")
+            .expression("([\\w])").expression("([\\w])").number("(dd)").number("(dd)")
+            .number("(xxxx)").number("(d)").expression("([\\w])").number("(dd)")
+            .expression("(.*)").compile();
+
+    // ── RGP: General Position ───────────────────────────────────
+    // RGP[AAAAAA][BBBBBB][CCCCCCCC][DDDDDDDDD][EEE][FFF][G][HH][II][JJ][KK]
+    private static final Pattern RGP_PATTERN = new PatternBuilder()
+            .text("RGP")
+            .number("(dd)(dd)(dd)")                      //  1-3 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  4-6 time HHMMSS
+            .number("([-+]dd)(ddddd)")                   //  7-8 lat
+            .number("([-+]ddd)(ddddd)")                  //  9-10 lon
+            .number("(ddd)")                             // 11 speed (km/h)
+            .number("(ddd)")                             // 12 course
+            .expression("([\\w])")                       // 13 fix mode (2=2D, 3=3D)
+            .number("(xx)")                              // 14 gps age (hex)
+            .number("(xx)")                              // 15 inputs IGN+IN (hex)
+            .number("(xx)")                              // 16 report number
+            .number("(dd)")                              // 17 pdop
+            .expression("(.*)")                          // 18 suffix: ;#NNNN;ID=...
+            .compile();
+
+    // ── RCY: Standard con Altitud ───────────────────────────────
+    // RCY[AA][BBBBBB][CCCCCC][DDDDDDDD][EEEEEEEEE][FFF][GGG][HHHHH][I][J];D[PPPPPP];IGN[K];IN[LL];XP[MM];TXT=...
+    private static final Pattern RCY_PATTERN = new PatternBuilder()
+            .text("RCY")
+            .number("(xx)")                              //  1  report number
+            .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
+            .number("([-+]dd)(ddddd)")                   //  8-9 lat
+            .number("([-+]ddd)(ddddd)")                  // 10-11 lon
+            .number("(ddd)")                             // 12 speed (km/h)
+            .number("(ddd)")                             // 13 course
+            .number("([-+]?d{1,5})")                     // 14 altitude (metros, con signo)
+            .expression("([\\w])")                       // 15 gps status 1
+            .expression("([\\w])")                       // 16 gps status 2
+            .expression("(.*)")                          // 17 rest: ;DPPPPPP;IGNX;INXX;XPXX;TXT=...
+            .compile();
+
+    // ── RTX/RTY: Reportes de Texto ──────────────────────────────
+    private static final Pattern RTX_PATTERN = new PatternBuilder()
+            .text("RTX")
+            .expression("(.*)")                          //  1  text content
+            .compile();
+
+    private static final Pattern RTY_PATTERN = new PatternBuilder()
+            .text("RTY")
+            .expression("(.*)")                          //  1  text content
+            .compile();
+
+    // ── RAD/RAE: Reportes Analógicos ────────────────────────────
+    private static final Pattern RAD_PATTERN = new PatternBuilder()
+            .text("RAD")
+            .number("(xx)")                              //  1  report number
+            .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
+            .number("(dddd)")                            //  8  AIN00 (1/100 V)
+            .number("(dddd)")                            //  9  AIN01
+            .number("(dddd)")                            // 10  AIN02
+            .number("(dddd)")                            // 11  AIN03
+            .number("(dddd)")                            // 12  AIN04
+            .number("(dddd)")                            // 13  AIN05
+            .number("(dddd)")                            // 14  main battery
+            .number("(dddd)")                            // 15  backup battery
+            .expression("(.*)")                          // 16  suffix: ;#QQQQ;ID=...
+            .compile();
+
+    private static final Pattern RAE_PATTERN = new PatternBuilder()
+            .text("RAE")
+            .number("(xx)")                              //  1  report number
+            .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
+            .expression("([-+])").number("(dddd)")       //  8-9 AIN00 sign+value
+            .expression("([-+])").number("(dddd)")       // 10-11 AIN01
+            .expression("([-+])").number("(dddd)")       // 12-13 AIN02
+            .expression("([-+])").number("(dddd)")       // 14-15 AIN03
+            .expression("([-+])").number("(dddd)")       // 16-17 AIN04
+            .expression("([-+])").number("(dddd)")       // 18-19 AIN05
+            .expression("([-+])").number("(dddd)")       // 20-21 main battery
+            .expression("([-+])").number("(dddd)")       // 22-23 backup battery
+            .expression("(.*)")                          // 24  suffix
+            .compile();
+
+    // ── RIB: iButton + Temperatura ──────────────────────────────
+    private static final Pattern RIB_PATTERN = new PatternBuilder()
+            .text("RIB")
+            .number("(dd)(dd)(dd)")                      //  1-3 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  4-6 time HHMMSS
+            .number("([-+]dd)(ddddd)")                   //  7-8 lat
+            .number("([-+]ddd)(ddddd)")                  //  9-10 lon
+            .number("(ddd)")                             // 11 speed (km/h)
+            .number("(ddd)")                             // 12 course
+            .expression("([\\w])")                       // 13 fix mode
+            .number("(xx)")                              // 14 gps age (hex)
+            .number("(xx)")                              // 15 inputs IGN+IN (hex)
+            .number("(xx)")                              // 16 report number
+            .number("(dd)")                              // 17 pdop
+            .expression("(.*)")                          // 18 rest: ;iButton;sign+temp+age;...
+            .compile();
+
+    // ── RSC: Sensor de Combustible ──────────────────────────────
+    private static final Pattern RSC_PATTERN = new PatternBuilder()
+            .text("RSC")
+            .number("(xx)")                              //  1  report number
+            .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
+            .number("(d)")                               //  8  connected (0/1)
+            .number("(dddddddd)")                        //  9  total consumption (1/10 L)
+            .number("(dddd)")                            // 10  flow rate (1/10 L/h)
+            .number("(dddddddddd)")                      // 11  engine time (seconds)
+            .number("(dddd)")                            // 12  disconnections
+            .number("(ddd)")                             // 13  input temp (1/10 °C)
+            .number("(ddd)")                             // 14  return temp (1/10 °C)
+            .expression("(.*)")                          // 15  suffix
+            .compile();
+
+    // ── RMV: Movimiento / Accidentología ────────────────────────
+    private static final Pattern RMV_PATTERN = new PatternBuilder()
+            .text("RMV")
+            .number("(dd)(dd)(dd)")                      //  1-3 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  4-6 time HHMMSS
+            .number("(d{1,3})")                          //  7  milliseconds
+            .text(" X")
+            .expression("([-+])(dddd)")                  //  8-9 X peak max
+            .expression("([-+])(dddd)")                  // 10-11 X peak min
+            .expression("([-+])(dddd)")                  // 12-13 X avg
+            .text(" Y")
+            .expression("([-+])(dddd)")                  // 14-15 Y peak max
+            .expression("([-+])(dddd)")                  // 16-17 Y peak min
+            .expression("([-+])(dddd)")                  // 18-19 Y avg
+            .text(" Z")
+            .expression("([-+])(dddd)")                  // 20-21 Z peak max
+            .expression("([-+])(dddd)")                  // 22-23 Z peak min
+            .expression("([-+])(dddd)")                  // 24-25 Z avg
+            .number("(ddd)")                             // 26 course
+            .number("(ddd)")                             // 27 speed (km/h)
+            .number("(xx)")                              // 28 inputs
+            .number("(xx)")                              // 29 event number
+            .expression("(.*)")                          // 30 suffix
+            .compile();
+
+    // ── RLC: Locator (Celda) ────────────────────────────────────
+    private static final Pattern RLC_PATTERN = new PatternBuilder()
+            .text("LC")
+            .number("(xx)")                              //  1  report number
+            .number("(dd)(dd)(dd)")                      //  2-4 date DDMMAA
+            .number("(dd)(dd)(dd)")                      //  5-7 time HHMMSS
+            .number("([-+\\w])(dddd.dddd)")              //  8-9 lat (N/S + grados)
+            .number("([-+\\w])(dddd.dddd)")              // 10-11 lon (E/W + grados)
+            .number("(ddd)")                             // 12 speed (always 000)
+            .number("(dd)")                              // 13 course/10
+            .number("(xxxxxx)")                          // 14 I/O status
+            .number("(xxxx)")                            // 15 event number
+            .number("(xx)")                              // 16 seconds since query
+            .number("(xxxx)")                            // 17 message number
+            .expression("(.*)")                          // 18 suffix
+            .compile();
+
     // ── REQ: Reporte Extendido OBD-II ───────────────────────────
     // Misma estructura base que RCQ/RER pero con CAN bus OBD-II
     // (PIDs cortos: 2=RPM, 15=fuelLevel, B=odometer, etc.)
@@ -407,6 +665,14 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
                 case "CT" -> { // ;HHHHHHHHHHHHHHHH iButton
                     if (data.startsWith(";") && data.length() >= 17) {
                         position.set("ibutton", data.substring(1, 17));
+                    }
+                }
+                case "CU" -> { // T;HHHHHHHHHHHHHHHH session + iButton
+                    if (data.length() >= 1) {
+                        position.set("driverSession", data.charAt(0) == '1');
+                    }
+                    if (data.length() >= 18 && data.charAt(1) == ';') {
+                        position.set("ibutton", data.substring(2, 18));
                     }
                 }
                 case "BQ" -> { // VVV battery backup
@@ -837,7 +1103,608 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         return position;
     }
 
-    // ── Punto de entrada principal ─────────────────────────────
+    // ── Decodificar variantes CQ (RCP, RCT, RCU, RCV, RBQ, RBR, RBV, RHQ, RHR, RHV) ──
+    // Todas comparten la estructura base de RCQ + campos extras en el sufijo
+    private Position decodeCQVariant(Channel channel, SocketAddress remoteAddress,
+                                     String sentence, String deviceId,
+                                     Pattern pattern, String reportType) throws Exception {
+
+        Parser parser = new Parser(pattern, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        int eventCode = parser.nextHexInt(0);
+        position.set(Position.KEY_EVENT, eventCode);
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        parsePositionFields(parser, position);
+        parseSuffix(parser, position, reportType);
+
+        String alarm = decodeAlarm(eventCode);
+        if (alarm != null) {
+            position.addAlarm(alarm);
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RGP (General Position) ────────────────────
+    private Position decodeRGP(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RGP_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        if (parser.hasNext(4)) {
+            position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+            position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+        }
+
+        position.setSpeed(UnitsConverter.knotsFromKph(parser.nextDouble(0)));
+        position.setCourse(parser.nextDouble(0));
+
+        String fixMode = parser.next();
+        position.set(Position.KEY_GPS, Integer.parseInt(parser.next(), 16)); // age hex
+        int inputs = parser.nextHexInt(0);
+        position.set(Position.KEY_INPUT, inputs);
+        position.set(Position.KEY_IGNITION, BitUtil.check(inputs, 7));
+        position.set("reportNum", parser.nextHexInt(0));
+        position.set(Position.KEY_PDOP, parser.nextInt(0));
+
+        position.setValid("2".equals(fixMode) || "3".equals(fixMode));
+
+        // Sufijo: ;#NNNN;ID=...
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RCY (Standard con Altitud) ────────────────
+    private Position decodeRCY(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RCY_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        position.set(Position.KEY_EVENT, parser.nextHexInt(0));
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        if (parser.hasNext(4)) {
+            position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+            position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+        }
+
+        position.setSpeed(UnitsConverter.knotsFromKph(parser.nextDouble(0)));
+        position.setCourse(parser.nextDouble(0));
+        position.setAltitude(parser.nextDouble(0));
+
+        String gpsStatus1 = parser.next();
+        String gpsStatus2 = parser.next();
+        position.setValid("1".equals(gpsStatus1) && "2".equals(gpsStatus2));
+
+        // Sufijo: ;DPPPPPP;IGNX;INXX;XPXX;TXT=...;#QQQQ;ID=...
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("D") && part.length() >= 7) {
+                    try {
+                        position.set("gpsAge", Integer.parseInt(part.substring(1), 16));
+                    } catch (NumberFormatException ignored) { }
+                } else if (part.startsWith("IGN")) {
+                    position.set(Position.KEY_IGNITION, part.length() > 3 && part.charAt(3) == '1');
+                } else if (part.startsWith("IN") && part.length() >= 4) {
+                    try {
+                        position.set(Position.KEY_INPUT, Integer.parseInt(part.substring(2), 16));
+                    } catch (NumberFormatException ignored) { }
+                } else if (part.startsWith("XP") && part.length() >= 4) {
+                    try {
+                        position.set(Position.KEY_OUTPUT, Integer.parseInt(part.substring(2), 16));
+                    } catch (NumberFormatException ignored) { }
+                } else if (part.startsWith("TXT=")) {
+                    position.set("txt", part.substring(4));
+                } else if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RTX/RTY (Reportes de Texto) ───────────────
+    private Position decodeRTX(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        // RTX<texto>;#NNNN;ID=XXXX;*CC
+        String[] parts = sentence.split(";");
+        for (String part : parts) {
+            if (part.startsWith("RTX")) {
+                position.set("txt", part.substring(3));
+            } else if (part.startsWith("#")) {
+                position.set("msgNum", part.substring(1));
+            }
+        }
+
+        return position;
+    }
+
+    private Position decodeRTY(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        // RTY<texto>;ID=XXXX;*CC
+        String[] parts = sentence.split(";");
+        for (String part : parts) {
+            if (part.startsWith("RTY")) {
+                // Decodificar caracteres escapados: \3E → >, \3C → <, \3B → ;, \5C → \
+                String txt = part.substring(3)
+                        .replace("\\3E", ">")
+                        .replace("\\3C", "<")
+                        .replace("\\3B", ";")
+                        .replace("\\5C", "\\");
+                position.set("txt", txt);
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RAD (Analógico) ───────────────────────────
+    private Position decodeRAD(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RAD_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        position.set("reportNum", parser.nextHexInt(0));
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        // 8 canales analógicos (1/100 V)
+        String[] analogLabels = {"ain00", "ain01", "ain02", "ain03", "ain04", "ain05", "power", "battery"};
+        for (String label : analogLabels) {
+            position.set(label, parser.nextDouble(0) / 100.0);
+        }
+
+        // Sufijo: ;#QQQQ;ID=...
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RAE (Analógico con Signo) ─────────────────
+    private Position decodeRAE(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RAE_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        position.set("reportNum", parser.nextHexInt(0));
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        // 8 canales con signo
+        String[] analogLabels = {"ain00", "ain01", "ain02", "ain03", "ain04", "ain05", "power", "battery"};
+        for (String label : analogLabels) {
+            String sign = parser.next();
+            double value = parser.nextDouble(0) / 100.0;
+            position.set(label, "-".equals(sign) ? -value : value);
+        }
+
+        // Sufijo
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RIB (iButton + Temperatura) ───────────────
+    private Position decodeRIB(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RIB_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        if (parser.hasNext(4)) {
+            position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+            position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.DEG_DEG));
+        }
+
+        position.setSpeed(UnitsConverter.knotsFromKph(parser.nextDouble(0)));
+        position.setCourse(parser.nextDouble(0));
+
+        String fixMode = parser.next();
+        position.set("gpsAge", parser.nextHexInt(0));
+        int inputs = parser.nextHexInt(0);
+        position.set(Position.KEY_INPUT, inputs);
+        position.set(Position.KEY_IGNITION, BitUtil.check(inputs, 7));
+        position.set("reportNum", parser.nextHexInt(0));
+        position.set(Position.KEY_PDOP, parser.nextInt(0));
+
+        position.setValid("2".equals(fixMode) || "3".equals(fixMode));
+
+        // Sufijo: ;iButton16chars;sign+temp4+age2
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            int partIdx = 0;
+            if (parts.length > 0 && !parts[0].startsWith("#")
+                    && !parts[0].startsWith("ID=") && parts[0].length() >= 16) {
+                position.set("ibutton", parts[0].substring(0, 16));
+                partIdx = 1;
+            }
+            for (; partIdx < parts.length; partIdx++) {
+                String part = parts[partIdx];
+                if (part.length() >= 7 && (part.charAt(0) == '+' || part.charAt(0) == '-')) {
+                    position.set("temp1", parseSignedTemp(part.substring(0, 5)));
+                    position.set("temp1Age", Integer.parseInt(part.substring(5, 7), 16));
+                } else if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RSC (Sensor Combustible) ──────────────────
+    private Position decodeRSC(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RSC_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        position.set("reportNum", parser.nextHexInt(0));
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        position.set("sensorConnected", parser.nextInt(0) == 1);
+        position.set("fuelTotal", parser.nextDouble(0) / 10.0);       // 1/10 L → L
+        position.set("fuelFlow", parser.nextDouble(0) / 10.0);        // 1/10 L/h → L/h
+        position.set(Position.KEY_HOURS, parser.nextLong(0) * 1000L); // seconds → ms
+        position.set("disconnections", parser.nextInt(0));
+        position.set("fuelTempIn", parser.nextDouble(0) / 10.0);      // 1/10 °C → °C
+        position.set("fuelTempOut", parser.nextDouble(0) / 10.0);     // 1/10 °C → °C
+
+        // Sufijo: ;#QQQQ;ID=...
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    // ── Decodificar RMV (Movimiento / Accidentología) ─────────
+    private Position decodeRMV(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        Parser parser = new Parser(RMV_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        position.set("milliseconds", parser.nextInt(0));
+
+        // Acelerómetro XYZ: peak max, peak min, avg
+        for (char axis : new char[]{'X', 'Y', 'Z'}) {
+            position.set("accel" + axis + "Max", parseSignedVal(parser.next(), parser.nextDouble(0)));
+            position.set("accel" + axis + "Min", parseSignedVal(parser.next(), parser.nextDouble(0)));
+            position.set("accel" + axis + "Avg", parseSignedVal(parser.next(), parser.nextDouble(0)));
+        }
+
+        position.setCourse(parser.nextDouble(0));
+        position.setSpeed(UnitsConverter.knotsFromKph(parser.nextDouble(0)));
+        int inputs = parser.nextHexInt(0);
+        position.set(Position.KEY_INPUT, inputs);
+        position.set(Position.KEY_IGNITION, BitUtil.check(inputs, 7));
+        position.set(Position.KEY_EVENT, parser.nextHexInt(0));
+
+        // Sufijo
+        String suffix = parser.next();
+        if (suffix != null) {
+            String[] parts = suffix.split(";");
+            for (String part : parts) {
+                if (part.startsWith("#")) {
+                    position.set("msgNum", part.substring(1));
+                }
+            }
+        }
+
+        return position;
+    }
+
+    private double parseSignedVal(String sign, double value) {
+        return "-".equals(sign) ? -value : value;
+    }
+
+    // ── Decodificar RLC (Locator / Celda) ─────────────────────
+    private Position decodeRLC(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        // RLC usa patrones de grados decimales (N/S DD.DDDD), no DEG_DEG
+        Parser parser = new Parser(RLC_PATTERN, sentence);
+        if (!parser.matches()) {
+            return null;
+        }
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        position.set("reportNum", parser.nextHexInt(0));
+
+        int day = parser.nextInt(0);
+        int month = parser.nextInt(0);
+        int year = parser.nextInt(0);
+        int hour = parser.nextInt(0);
+        int minute = parser.nextInt(0);
+        int second = parser.nextInt(0);
+
+        position.setTime(new DateBuilder()
+                .setDate(2000 + year, month - 1, day)
+                .setTime(hour, minute, second)
+                .getDate());
+
+        // Coordenadas en formato N/S DD.DDDD, E/W FFF.FFFF
+        String latHemi = parser.next();
+        double lat = parser.nextDouble(0);
+        String lonHemi = parser.next();
+        double lon = parser.nextDouble(0);
+
+        if ("S".equalsIgnoreCase(latHemi)) {
+            lat = -lat;
+        }
+        if ("W".equalsIgnoreCase(lonHemi)) {
+            lon = -lon;
+        }
+        position.setLatitude(lat);
+        position.setLongitude(lon);
+        position.setValid(lat != 0 || lon != 0);
+
+        parser.nextDouble(0); // speed (siempre 0)
+        parser.nextInt(0);    // course/10
+        position.set("ioStatus", parser.next());
+        position.set("eventNum", parser.nextInt(0));
+        position.set("secondsSinceQuery", parser.nextInt(0));
+        position.set("msgNum", parser.nextInt(0));
+
+        return position;
+    }
+
+    // ── Decodificar RHT (Link a Mapas) ────────────────────────
+    private Position decodeRHT(Channel channel, SocketAddress remoteAddress,
+                               String sentence, String deviceId) throws Exception {
+
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, deviceId);
+        if (deviceSession == null) {
+            return null;
+        }
+
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(deviceSession.getDeviceId());
+
+        // RHT1\nhttp://... o RHT2\nhttp://...
+        String type = sentence.startsWith("RHT1") ? "googleMaps" : "yahooMaps";
+        String url = sentence.substring(4).trim();
+        position.set("mapLink", url);
+        position.set("mapType", type);
+
+        return position;
+    }
     @Override
     protected Object decode(Channel channel, SocketAddress remoteAddress, Object msg)
             throws Exception {
@@ -888,8 +1755,9 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             }
         }
 
-        // Keep-alive y ACK del dispositivo
-        if (sentence.startsWith("KA") || sentence.startsWith("ACK")) {
+        // Keep-alive y ACK del dispositivo (sin posición)
+        if (sentence.startsWith("KA") || sentence.startsWith("ACK")
+                || sentence.startsWith("RBUOK") || sentence.startsWith("RDLOK")) {
             return null;
         }
 
@@ -905,18 +1773,70 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             return decodeRIO(channel, remoteAddress, sentence, deviceId);
         }
 
+        // RHT: Link a mapas (sin posición GPS)
+        if (sentence.startsWith("RHT")) {
+            return decodeRHT(channel, remoteAddress, sentence, deviceId);
+        }
+
+        // RTX/RTY: Reportes de texto (sin posición GPS)
+        if (sentence.startsWith("RTX")) {
+            return decodeRTX(channel, remoteAddress, sentence, deviceId);
+        }
+        if (sentence.startsWith("RTY")) {
+            return decodeRTY(channel, remoteAddress, sentence, deviceId);
+        }
+
+        // LC/RLC: Locator por celda
+        if (sentence.startsWith("LC")) {
+            return decodeRLC(channel, remoteAddress, sentence, deviceId);
+        }
+
         // Rutear por tipo de mensaje de posición
         Position position = null;
         if (sentence.startsWith("RCQ")) {
             position = decodeRCQ(channel, remoteAddress, sentence, deviceId);
         } else if (sentence.startsWith("RCW")) {
             position = decodeRCW(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RCP")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RCP_PATTERN, "RCP");
+        } else if (sentence.startsWith("RCT")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RCT_PATTERN, "RCT");
+        } else if (sentence.startsWith("RCU")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RCU_PATTERN, "RCU");
+        } else if (sentence.startsWith("RCV")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RCV_PATTERN, "RCV");
         } else if (sentence.startsWith("RER")) {
             position = decodeRER(channel, remoteAddress, sentence, deviceId);
         } else if (sentence.startsWith("REQ")) {
             position = decodeREQ(channel, remoteAddress, sentence, deviceId);
         } else if (sentence.startsWith("RCR")) {
             position = decodeRCR(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RBQ")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RBQ_PATTERN, "RBQ");
+        } else if (sentence.startsWith("RBR")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RBR_PATTERN, "RBR");
+        } else if (sentence.startsWith("RBV")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RBV_PATTERN, "RBV");
+        } else if (sentence.startsWith("RHQ")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RHQ_PATTERN, "RHQ");
+        } else if (sentence.startsWith("RHR")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RHR_PATTERN, "RHR");
+        } else if (sentence.startsWith("RHV")) {
+            position = decodeCQVariant(channel, remoteAddress, sentence, deviceId, RHV_PATTERN, "RHV");
+        } else if (sentence.startsWith("RGP")) {
+            position = decodeRGP(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RCY")) {
+            position = decodeRCY(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RAD")) {
+            position = decodeRAD(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RAE")) {
+            position = decodeRAE(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RIB")) {
+            position = decodeRIB(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RSC")) {
+            position = decodeRSC(channel, remoteAddress, sentence, deviceId);
+        } else if (sentence.startsWith("RMV")) {
+            position = decodeRMV(channel, remoteAddress, sentence, deviceId);
         }
 
         // Enviar ACK si el mensaje fue procesado y es originado por el dispositivo
