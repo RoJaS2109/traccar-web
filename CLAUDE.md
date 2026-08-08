@@ -262,6 +262,8 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 
 **Fuente Java:** `docker/org/traccar/web/OverrideTextFilter.java` — copia del fuente modificado que usa el builder.
 
+**Decoder Rinho:** `docker/org/traccar/protocol/RinhoProtocolDecoder.java` — copia del decoder que debe mantenerse sincronizada con `traccar/src/main/java/org/traccar/protocol/RinhoProtocolDecoder.java`. Si se modifica el decoder en el repo `traccar` y no se sincroniza esta copia, el deploy usará el decoder antiguo. Ver [`docs/GPS_RINHO/protocolo-rinho.md`](docs/GPS_RINHO/protocolo-rinho.md) para documentación completa del protocolo.
+
 ### docker-compose.yml
 
 - `traccar`: imagen `rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
@@ -274,4 +276,5 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 - **Service worker cache:** después de un deploy, el SW puede seguir sirviendo archivos viejos. Para forzar actualización en el navegador: Configuración → Datos de sitios → eliminar datos del sitio, o usar modo incógnito.
 - **Branding no se actualiza:** verificar con `curl -s https://gps.rudatrak.com/manifest.webmanifest | grep RudaTrak`. Si dice "Traccar", el build Docker no parcheó el JAR correctamente o el contenedor no se recreó.
 - **Primer build lento:** `docker build` descarga `eclipse-temurin:21-jdk` (~400 MB) la primera vez. Builds posteriores usan la capa cacheada.
+- **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
 - **Fuentes/glyphs en Android:** `cdn.traccar.com/map/fonts/` a veces no es accesible desde Android. El texto de capas symbol no se renderiza sin glyphs. `localIdeographFontFamily: 'sans-serif'` ayuda con caracteres CJK. Para texto latino, el popup HTML es el mecanismo confiable para mostrar información.
