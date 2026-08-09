@@ -206,6 +206,9 @@ const EventReportPage = () => {
       case 'attributes':
         switch (item.type) {
           case 'alarm':
+            if (item.attributes.eventDescription) {
+              return item.attributes.eventDescription;
+            }
             return t(prefixString('alarm', item.attributes.alarm));
           case 'deviceOverspeed':
             return formatSpeed(item.attributes.speed, speedUnit, t);

@@ -45,6 +45,7 @@ const EventPage = () => {
       type: event.type,
       attributes: {
         alarms: event.attributes.alarm,
+        eventDescription: event.attributes.eventDescription,
       },
     });
 
