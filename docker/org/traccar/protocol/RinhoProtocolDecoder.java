@@ -619,19 +619,23 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
     // ── Categoría del evento: "alarma" o "aviso" ────────────────
     private String getEventCategory(int eventCode) {
         return switch (eventCode) {
-            // Avisos (eventos informativos que no son alarmas críticas)
-            case 0x41, 0x42 -> "aviso";              // SERVICE – Motor / Transmisión
-            default          -> "alarma";
+            // Avisos (informativos que no son alarmas críticas)
+            case 0x03, 0x05, 0x07, 0x09, 0x11 -> "aviso";     // Puertas cerradas
+            case 0x20, 0x21, 0x22, 0x23 -> "aviso";            // Reconexiones / Pérdida WiFi
+            case 0x25 -> "aviso";                               // Corte Antena GPS
+            case 0x26, 0x27, 0x28 -> "aviso";                   // Offline / Pérdidas
+            case 0x41, 0x42 -> "aviso";                         // SERVICE – Motor / Transmisión
+            default -> "alarma";
         };
     }
 
     // ── Tipo de evento Traccar nativo ──────────────────────────
     private String getEventType(int eventCode) {
         return switch (eventCode) {
-            case 0x35 -> Event.TYPE_GEOFENCE_ENTER;     // Entrada Geocerca
-            case 0x36 -> Event.TYPE_GEOFENCE_EXIT;      // Salida Geocerca
-            case 0x40, 0x46 -> Event.TYPE_DEVICE_FUEL_DROP; // Consumo Anómalo / Fuga Combustible
-            case 0x74, 0x77 -> Event.TYPE_DEVICE_OVERSPEED;  // Velocidad Anómala / Exceso Velocidad
+            case 0x35, 0x37 -> Event.TYPE_GEOFENCE_ENTER;      // Entrada Geocerca / Zona Restricta
+            case 0x36 -> Event.TYPE_GEOFENCE_EXIT;              // Salida Geocerca
+            case 0x40, 0x46 -> Event.TYPE_DEVICE_FUEL_DROP;    // Consumo Anómalo / Fuga Combustible
+            case 0x74, 0x77 -> Event.TYPE_DEVICE_OVERSPEED;    // Velocidad Anómala / Exceso Velocidad
             case 0x24, 0x41, 0x42, 0x43, 0x44 -> Event.TYPE_MAINTENANCE;
             default -> Event.TYPE_ALARM;
         };

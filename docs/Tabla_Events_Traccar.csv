@@ -1,0 +1,23 @@
+﻿Constante,Tipo,¿Quién lo genera?
+TYPE_COMMAND_RESULT,commandResult,Traccarinterno
+TYPE_DEVICE_ONLINE,deviceOnline,Traccarinterno
+TYPE_DEVICE_UNKNOWN,deviceUnknown,Traccarinterno
+TYPE_DEVICE_OFFLINE,deviceOffline,Traccarinterno
+TYPE_DEVICE_INACTIVE,deviceInactive,Traccarinterno
+TYPE_QUEUED_COMMAND_SENT,queuedCommandSent,Traccarinterno
+TYPE_DEVICE_MOVING,deviceMoving,Traccarinterno
+TYPE_DEVICE_STOPPED,deviceStopped,Traccarinterno
+TYPE_DEVICE_OVERSPEED,deviceOverspeed,Traccar+Rinho
+TYPE_DEVICE_FUEL_DROP,deviceFuelDrop,Traccar+Rinho
+TYPE_DEVICE_FUEL_INCREASE,deviceFuelIncrease,Traccarinterno
+TYPE_GEOFENCE_ENTER,geofenceEnter,Traccar+Rinho
+TYPE_GEOFENCE_EXIT,geofenceExit,Traccar+Rinho
+TYPE_PROXIMITY_ENTER,proximityEnter,Traccarinterno
+TYPE_PROXIMITY_EXIT,proximityExit,Traccarinterno
+TYPE_UNACCOMPANIED_MOTION,unaccompaniedMotion,Traccarinterno
+TYPE_ALARM,alarm,Traccar+Rinho
+TYPE_IGNITION_ON,ignitionOn,Traccarinterno
+TYPE_IGNITION_OFF,ignitionOff,Traccarinterno
+TYPE_MAINTENANCEma,intenance,Traccar+Rinho
+TYPE_DRIVER_CHANGED,driverChanged,Traccarinterno
+TYPE_MEDIA,media,Traccarinterno
