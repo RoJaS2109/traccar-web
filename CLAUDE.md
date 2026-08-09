@@ -264,6 +264,8 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 
 **Decoder Rinho:** `docker/org/traccar/protocol/RinhoProtocolDecoder.java` — copia del decoder que debe mantenerse sincronizada con `traccar/src/main/java/org/traccar/protocol/RinhoProtocolDecoder.java`. Si se modifica el decoder en el repo `traccar` y no se sincroniza esta copia, el deploy usará el decoder antiguo. Ver [`docs/GPS_RINHO/protocolo-rinho.md`](docs/GPS_RINHO/protocolo-rinho.md) para documentación completa del protocolo.
 
+**AlarmEventHandler:** `docker/org/traccar/handler/events/AlarmEventHandler.java` — copia del handler que propaga `eventDescription` de la posición al evento. Debe sincronizarse con `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java`. Sin este parche, la UI muestra el tipo genérico de alarma ("General", "Alarma de fallo") en vez de la descripción en español del decoder Rinho.
+
 ### docker-compose.yml
 
 - `traccar`: imagen `rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
@@ -272,9 +274,11 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 
 ### Gotchas de deploy
 
-- **Contenedor no se actualiza:** `docker compose up -d` sin `--force-recreate` no recrea contenedores si el compose file no cambió, aunque la imagen sí haya cambiado. Solución: usar Portainer API (redeploy del stack).
-- **Service worker cache:** después de un deploy, el SW puede seguir sirviendo archivos viejos. Para forzar actualización en el navegador: Configuración → Datos de sitios → eliminar datos del sitio, o usar modo incógnito.
+- **Contenedor no se actualiza:** `docker compose up -d` sin `--force-recreate` no recrea contenedores si el compose file no cambió, aunque la imagen sí haya cambiado. Solución: usar Portainer API (redeploy del stack) o `docker compose up -d --force-recreate`.
+- **Service worker cache:** después de un deploy, el SW puede seguir sirviendo archivos viejos. Para forzar actualización en el navegador: hacer clic en el banner "Hay una nueva versión" → "Actualizar", o Configuración → Datos de sitios → eliminar datos del sitio, o usar modo incógnito. **Si no se actualiza, la UI ejecuta código viejo y cambios como `eventDescription` no se ven.**
+- **Caché de capas Docker:** `deploy.sh` puede usar capas cacheadas del builder (dice `CACHED [builder 6/6]`) y no recompilar aunque cambien los fuentes. Si los cambios en `docker/` no se reflejan, usar `docker build --no-cache` manualmente.
 - **Branding no se actualiza:** verificar con `curl -s https://gps.rudatrak.com/manifest.webmanifest | grep RudaTrak`. Si dice "Traccar", el build Docker no parcheó el JAR correctamente o el contenedor no se recreó.
 - **Primer build lento:** `docker build` descarga `eclipse-temurin:21-jdk` (~400 MB) la primera vez. Builds posteriores usan la capa cacheada.
 - **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
+- **AlarmEventHandler no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java` y la copia para Docker está en `docker/org/traccar/handler/events/AlarmEventHandler.java`. Sin sync, `eventDescription` no se propaga de la posición al evento.
 - **Fuentes/glyphs en Android:** `cdn.traccar.com/map/fonts/` a veces no es accesible desde Android. El texto de capas symbol no se renderiza sin glyphs. `localIdeographFontFamily: 'sans-serif'` ayuda con caracteres CJK. Para texto latino, el popup HTML es el mecanismo confiable para mostrar información.
