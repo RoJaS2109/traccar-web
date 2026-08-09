@@ -48,7 +48,16 @@ public class AlarmEventHandler extends BaseEventHandler {
                     String lastAlarmString = lastPosition.getString(Position.KEY_ALARM);
                     if (lastAlarmString != null) {
                         Set<String> lastAlarms = new HashSet<>(Arrays.asList(lastAlarmString.split(",")));
-                        alarms.removeAll(lastAlarms);
+                        // Diferentes eventos Rinho con el mismo tipo de alarma Traccar
+                        // no deben ser deduplicados (ej. 0x41 y 0x42 → ambos ALARM_FAULT)
+                        Number currentEvent = position.getInteger(Position.KEY_EVENT);
+                        Number lastEvent = lastPosition.getInteger(Position.KEY_EVENT);
+                        if (currentEvent != null && lastEvent != null
+                                && currentEvent.intValue() != lastEvent.intValue()) {
+                            // Eventos distintos — no filtrar como duplicado
+                        } else {
+                            alarms.removeAll(lastAlarms);
+                        }
                     }
                 }
             }
