@@ -1,0 +1,3375 @@
+Mensajes de Posición
+Los equipos Rinho envían reportes de posición y eventos al servidor en diferentes formatos. Esta sección documenta la estructura de los mensajes y cómo configurarlos.
+
+Los reportes pueden enviarse por GPRS, WiFi o SMS según la configuración del equipo y las reglas del motor de eventos.
+
+Tipos de Reportes
+📍
+Reportes Standards
+Posición básica: GP, CY - Para tracking general
+
+→
+📊
+Reportes Extendidos
+Posición + datos adicionales para telemetría completa
+
+→
+📦
+Reportes Binarios
+Formato compacto BP para bajo consumo de datos
+
+→
+🔧
+Reportes Aplicados
+Funciones específicas: iButton, temperatura
+
+→
+📝
+Reportes de Texto
+Mensajes alfanuméricos para alertas
+
+→
+👤
+Reportes de Usuario
+Formato personalizable para integración custom
+
+→
+📈
+Reportes Analógicos
+Datos de entradas analógicas y sensores
+
+→
+Generación de Reportes
+Los reportes se generan mediante el Comando G:
+
+
+>Gttnnp<
+Campo	Descripción
+tt	Tipo de reporte (GP, CY, BP, etc.)
+nn	Número de disparador (00-99)
+p	Prioridad: H (alta), M (media), L (baja)
+Ejemplo
+
+>GGP00M<
+
+Genera un reporte GP con disparador 00 y prioridad Media.
+
+Reportes más Usados
+GP - Reporte General de Posición
+
+>GGP00M<
+
+Contiene: ID, fecha/hora, posición, velocidad, rumbo, estado.
+
+Formato de respuesta:
+
+
+>RPGP00+2024082512345,-34.603722,-58.381592,120,270,3;ID=1234;*CC<
+
+CY - Reporte Compacto
+Menor tamaño de datos manteniendo información esencial.
+
+BP - Reporte Binario
+Máxima compresión para planes de datos limitados.
+
+Prioridades
+Prioridad	Código	Comportamiento
+Alta	H	Envío inmediato, reintento continuo
+Media	M	Envío en cola, reintento moderado
+Baja	L	Almacenar si no hay conexión
+Use prioridad Alta (H) solo para alertas críticas. El exceso de reportes de alta prioridad puede afectar la estabilidad de conexión.
+
+Destinos de Envío
+Destino	Código	Descripción
+IP Principal	@IP0	Canal MAIN primario
+IP Secundaria	@IP1	Canal MAIN secundario
+IP WiFi	@IP3	Solo por WiFi
+SMS	@SM0	Por mensaje de texto
+Secciones Relacionadas
+📤
+Generadores de Reportes
+Comando G y opciones de generación
+
+→
+✅
+Confirmación de Recepción
+ACK y protocolo de confirmación
+
+→
+Ver También
+Motor de Eventos - Automatización de reportes
+Configuración GPRS - Destinos IP
+Datalog - Almacenamiento
+
+Confirmación de Recepción (ACK)
+Cuando el servidor recibe un reporte del equipo, debe responder con un ACK (acknowledge) para confirmar la recepción correcta.
+
+📋 Formato del ACK
+
+>ACK;#NNNN;ID=XXXX;*CC<
+Campo	Descripción
+ACK	Comando de confirmación
+#NNNN	Número de mensaje del reporte recibido (hex)
+ID=XXXX	ID del equipo
+*CC	Checksum
+💬 Ejemplo Completo
+1. Equipo envía reporte
+
+>RCY00020205000000-2778467-06425658000000-000090;DFFFFFF;IGN1;IN00;XP00;#0021;ID=1234;*59<
+
+2. Servidor responde ACK
+
+>ACK;#0021;ID=1234;*72<
+El #0021 debe coincidir exactamente con el número de mensaje del reporte.
+
+📱 ACK Simplificado (SMS)
+Para responder desde un celular a un reporte SMS, se puede usar la versión corta:
+
+
+>ACK;#0021<
+Sin ID ni checksum, pero mantiene el número de mensaje.
+
+⚠️ Comportamiento sin ACK
+Si el equipo no recibe ACK:
+
+Paso	Acción
+1	Almacena el reporte en buffer (BlackBox)
+2	Reintenta el envío
+3	Después de varios intentos, cambia a IP secundaria
+🔄 Comandos con Número de Mensaje
+El servidor puede enviar comandos con número de mensaje (rango 0x8000 - 0xFFFF) para recibir confirmación del equipo.
+
+Ejemplo
+Servidor envía:
+
+
+>SSSXP0011;#8001;ID=1234;*6A<
+
+Equipo responde:
+
+
+>RSSXP0011;#8001;ID=1234;*6B<
+
+La respuesta con #8001 confirma que el comando fue ejecutado.
+
+🔢 Rangos de Número de Mensaje
+Rango	Origen	Uso
+0x0000 - 0x7FFF	Equipo → Servidor	Reportes automáticos
+0x8000 - 0xFFFF	Servidor → Equipo	Comandos con confirmación
+🧮 Cálculo del Checksum
+El checksum (*CC) se calcula realizando XOR de todos los caracteres desde > hasta * (sin incluir el *).
+
+👉 Usa el Analizador de Checksums para calcular y verificar checksums.
+
+Ver También
+Analizador de Checksums
+Protocolo de Comunicación
+Mensajes de Posición
+Comando G - Generadores
+
+Generadores de Reportes
+La versatilidad de nuestros dispositivos le permite integrar en su potente motor de eventos la función primordial de generar reportes.
+
+Los reportes pueden estar dirigidos a múltiples destinos, llevando datos de tracking, estado de hardware y/o texto adjunto.
+
+Comando Principal
+📤
+Comando G - Generador
+Comando principal para generar y encolar reportes de cualquier tipo.
+
+→
+Ver También
+Motor de Eventos - Automatización de reportes
+Reportes Standards - GP, CY
+Reportes Extendidos - CQ, CR, etc.
+
+Comando G - Generador de Reportes
+Genera reportes de diferentes tipos, con posibilidad de especificar destino y adosar mensajes de texto.
+
+📊
+Tipos de Reporte
+CY, GP, AD, BP, Ux...
+
+→
+🎯
+Destinos
+GPRS, SMS, WiFi, BLE...
+
+→
+⚡
+Prioridades
+Alta, Media, Baja
+
+→
+💬
+Ejemplos
+Casos de uso comunes
+
+→
+📋 Sintaxis
+
+Gaabbc[;@dd..dd][;TXT=ee..ee]
+Parámetro	Descripción
+aa	Tipo de reporte (CY, GP, AD, etc.)
+bb	Número de reporte (00-FF o XX)
+c	Prioridad (H, M, L)
+@dd..dd	Destino (opcional)
+TXT=ee..ee	Texto adosado (opcional, hasta 50 chars)
+Los corchetes [ ] delimitan fragmentos opcionales y no deben incluirse en los comandos.
+
+Respuesta
+
+GOK
+
+📊 aa - Tipo de Reporte
+Reportes Standard
+Tipo	Descripción
+CY	Standard completo
+GP	Posición general
+Reportes Extendidos
+Tipo	Descripción
+CP	Compacto + odómetro extendido
+CQ	Compacto + odómetro ext. + filtrado
+CR	Compacto + odómetro + temp. ext. + filtrado
+CT	Compacto + odómetro + ID chofer ext. filtrado
+CU	Compacto + odómetro + último iButton válido
+CV	Compacto + odómetro + 2 temp. ext. + filtrado
+BQ	Compacto + batería + odómetro ext. + filtrado
+BR	Compacto + batería + odómetro + temp. ext. + filtrado
+BV	Compacto + batería + odómetro + 2 temp. ext. + filtrado
+HQ	Compacto + batería + horómetro + odómetro ext. + filtrado
+HR	Compacto + batería + horómetro + odómetro + temp. ext.
+HV	Compacto + batería + horómetro + odómetro + 2 temp.
+Reportes Analógicos
+Tipo	Descripción
+AD	Analógico
+AE	Analógico con signo
+Reportes Binarios
+Tipo	Descripción
+BP	Binario
+Reportes Aplicados
+Tipo	Descripción
+HT	Link a Yahoo/Google Maps
+IB	GP extendido + iButton + temperatura
+LC	Modo Locator
+MV	Estado dinámico
+SC	Sensor de combustible (caudalímetro)
+Reportes de Texto
+Tipo	Descripción
+TX	Texto
+TY	Texto (pasarela)
+Reportes de Usuario
+Tipo	Descripción
+Ux	Reporte de usuario (x = 0-9)
+🔢 bb - Número de Reporte
+Valor	Descripción
+00-FF	Número de reporte específico (0-255)
+XX	Adopta el número de la regla RL donde se ejecuta
+⚡ c - Prioridad
+Valor	Nivel	Descripción
+H	Alta	No puede ser sobrescrito si el buffer está lleno
+M	Media	Puede ser sobrescrito por reportes de alta prioridad
+L	Baja	Puede ser sobrescrito por reportes de media o alta prioridad
+🎯 dd..dd - Destino (opcional)
+Si no se especifica, el destino es GPRS por default.
+
+Destinos Principales
+Destino	Descripción
+GPRS	Conexión de datos celular
+WIF	WiFi (solo IoT)
+BTH	Bluetooth BLE SPP (solo IoT)
+SMa	SMS (a = 0 a 4)
+TRb	Puerto Serial (b = 0 a 2)
+XBb	Buffer de texto (b = 0 a 7)
+LOG	Datalog interno
+Destinos Backup (v1.09.15+)
+Destino	Descripción
+BACK	Backup inteligente - Alterna IP4/IP5, conmuta GPRS/WiFi
+BGP	Backup GPRS directo - Alterna IP4/IP5
+BWI	Backup WiFi directo - Prioridad IP6, alterna IP4/IP5
+💬 Ejemplos
+Reporte CY con texto a SMS
+
+>GCYBFH;@SM0;TXT=Alta temperatura<
+
+Genera reporte BF de alta prioridad tipo CY con texto adosado al destino SM0:
+
+
+>RCYBF020205000000-2778467-06425658000000-000090;DFFFFFF;IGN1;IN00;XP00;TXT=Alta temperatura;#9001;ID=1234;*1E<
+
+Reporte desde regla con número automático
+
+>SRL33E;TRG=IN00-;ACC={GCYXXH;@SM0;TXT=Alarma activada}<
+
+Genera reporte 33 (adopta el número de la regla):
+
+
+>RCY33020205000000-2778467-06425658000000-000090;DFFFFFF;IGN1;IN00;XP00;TXT=Alarma activada;#9001;ID=1234;*1E<
+
+Reporte de texto al puerto serial
+
+>GTX00H;@TRM;TXT=Alarma activada<
+
+Respuesta:
+
+
+>RTXAlarma activada;ID=1234;*61<
+
+Reporte binario
+
+>GBP120<
+
+Genera reporte 12 tipo binario.
+
+Reporte CQ al datalog
+
+>GCQ00H;@LOG<
+
+Almacena reporte en el datalog interno.
+
+⚠️ Restricciones
+Por tipo de reporte:
+
+HT (link a mapas): Solo acepta valores 01 y 02 como número de reporte
+BP (binario): Usar 0 como número, destino siempre GPRS
+SC (caudalímetro): Destino siempre GPRS
+Tipos sin campo de texto: AD, AE, BR, BV, CR, CT, CU, CV, GP, HR, HV, IB, LC, SC
+
+Compatibilidad
+MT
+Legacy
+C3
+Legacy
+UL
+Legacy
+SP
+Legacy
+C5
+Legacy
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Motor de Eventos - Automatización con reglas
+Lista de Disparadores - Triggers disponibles
+Confirmación ACK - Protocolo de confirmación
+
+Comando KA - Keep Alive Multi-Destino
+Envía mensajes periódicos KA para mantener conexiones activas con servidores. Soporta servidor principal, backup o ambos simultáneamente.
+
+Funciona automáticamente con WiFi y GPRS según la configuración de canales.
+
+📋 Sintaxis
+Configurar (SKA)
+
+SKA[tiempo],[destino]
+
+Parámetro	Descripción
+tiempo	Intervalo en segundos (0-3600, 0=deshabilitar)
+destino	B = Backup, M = Main, BM = Ambos (opcional, default: B)
+Consultar (QKA)
+
+QKA
+
+Respuesta:
+
+
+RKA[tiempo],[destino]
+
+🎯 Destinos
+Valor	Servidor	Descripción
+B	Backup	Envía solo a servidor backup (default)
+M	Main	Envía solo a servidor principal
+BM	Ambos	Envía a ambos simultáneamente
+💬 Ejemplos
+Configurar Keep Alive
+
+>SKA60,B<       // 1 min a BACK
+>SKA120,M<      // 2 min a MAIN
+>SKA180,BM<     // 3 min a ambos
+>SKA60<         // 1 min a BACK (default)
+>SKA0<          // Deshabilitar
+
+Consultar configuración
+
+>QKA<
+
+Respuestas posibles:
+
+
+>RKA60,B ...    // 60s a BACK
+>RKA120,M ...   // 120s a MAIN
+>RKA180,BM ...  // 180s a ambos
+
+📌 Casos de Uso
+Escenario	Comando	Intervalo
+Alta disponibilidad	>SKA60,BM<	1 min a ambos
+Solo principal	>SKA120,M<	2 min
+Solo backup	>SKA30,B<	30 seg
+Conexión crítica	>SKA10,BM<	10 seg a ambos
+Ahorro de datos	>SKA600,M<	10 min
+Deshabilitar	>SKA0<	-
+⚙️ Características
+Característica	Descripción
+Intervalo	1-3600 segundos (0=deshabilitar)
+Mensaje enviado	KA
+Conectividad	WiFi/GPRS automático
+Persistencia	Configuración sobrevive a reinicios
+Redundancia	Dos servidores simultáneos con BM
+Failover	Automático entre servidores
+Mantiene conexiones activas en redes con timeout agresivo (NAT, firewalls).
+
+Compatibilidad
+ZE-IoT
+SP-IoT
+SM-IoT
+MT
+C3
+UL
+SP
+C5
+Ver también
+Comando G - Generador de Reportes
+Configuración de IPs
+
+Comando TX - Reporte de Texto
+Genera y envía mensajes de texto plano, sin datos de posición GPS. Útil para notificaciones, alertas personalizadas y comunicación bidireccional.
+
+📋 Sintaxis
+Generar reporte (GTX)
+
+GTXbbc[;@dd..dd][;TXT=ee..ee]
+
+Parámetro	Descripción
+bb	Número de reporte (00-FF)
+c	Prioridad (H, M, L)
+@dd..dd	Destino (opcional)
+TXT=ee..ee	Texto hasta 50 caracteres
+Ver Comando G para detalles completos.
+
+Enviar texto directo (STX)
+
+STXMENSAJE[;@dd..dd]
+
+Parámetro	Descripción
+MENSAJE	Cadena de hasta 50 caracteres
+@dd..dd	Destino opcional (default: GPRS)
+Respuesta
+
+RTXee..ee;#NNNN;ID=XXXX;*CC<
+
+🎯 Destinos
+Destino	Descripción
+GPRS	Conexión de datos (default)
+SMa	SMS (a = 0-4)
+TRM	Puerto serial
+💬 Ejemplos
+Enviar texto a GPRS (default)
+
+>STXHOLA<
+
+Respuesta:
+
+
+>RTXHOLA;#0019;ID=1234;*64<
+
+Enviar texto a SMS
+
+>STXHOLA;@SM1<
+
+Respuesta:
+
+
+>RTXHOLA;#0019;ID=1234;*64<
+
+El mensaje se envía al número configurado en SM1.
+
+Alerta desde regla del motor de eventos
+
+>SRL40E;TRG=AR00+;ACC={GTX40H;@SM0;TXT=Bateria baja detectada}<
+
+Envía SMS cuando el voltaje cae por debajo del umbral AR00.
+
+📌 Usos Típicos
+Aplicación	Ejemplo
+Alertas de batería	TXT=Bateria baja
+Confirmación de comando	TXT=Comando recibido OK
+Estado de proceso	TXT=Carga completada
+Mensajes de debug	TXT=Debug: valor=123
+⚙️ Configuración
+Por default, TX genera reportes tipo TX. Puede configurarse para generar otros tipos mediante Comando CXTX.
+
+Compatibilidad
+MT
+Legacy
+C3
+Legacy
+UL
+Legacy
+SP
+Legacy
+C5
+Legacy
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Comando G - Generador de Reportes
+Comando TY - Texto Pasarela
+Motor de Eventos
+
+Comando TY - Texto Pasarela
+Envía mensajes de texto plano con soporte para caracteres especiales. El texto puede verse reflejado en el puerto serial o ser redirigido mediante el motor de eventos.
+
+📋 Sintaxis
+Enviar mensaje (STY)
+
+STYmensaje
+
+Parámetro	Descripción
+mensaje	Cadena de hasta 150 caracteres
+Habilitar/Deshabilitar captura
+
+STYa
+
+Valor	Estado
+E	Habilitado
+D	Deshabilitado
+Para salir del modo captura, enviar por puerto serie la secuencia +++
+
+🎯 Destinos
+Destino	Descripción
+GPRS	Conexión de datos (default)
+SMa	SMS (a = 0-4)
+TRM	Puerto serial
+🔤 Caracteres Especiales
+Imprimibles
+
+!"#$%&'()*+,-./0123456789:=?@ABCDEFGHIJKLMNOP
+QRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+No imprimibles (requieren codificación hex)
+Carácter	Código
+>	\3E
+<	\3C
+\	\5C
+;	\3B
+💬 Ejemplos
+Enviar caracteres especiales a TRM
+Para enviar el mensaje >HOLA< al puerto terminal:
+
+
+>STY\3EHOLA\3C;@TRM<
+
+Captura TRM a GPRS
+Si el terminal captura en el puerto:
+
+
+>MENSAJE DE PRUEBA<
+Enviará por GPRS:
+
+
+>RTY\3EMENSAJE DE PRUEBA\3C;ID=EXTEST;*3D<
+
+Comando TRM a GPRS
+El equipo recibe el comando vía TRM:
+
+
+>STY,DESDE COMANDO TRM A GPRS<
+
+Enviará por GPRS:
+
+
+>RTYDESDE COMANDO TRM A GPRS;ID=EXTEST;*7A<
+
+Comando GPRS a TRM
+El equipo recibe el comando vía GPRS:
+
+
+>STY,DESDE GPRS A TRM;ID=EXTEST;*32<
+
+Enviará al TRM:
+
+
+DESDE GPRS A TRM
+
+Solicitud desde regla a accesorio
+Cada vez que cambia la entrada IN03, envía solicitud al TRM:
+
+
+>SRLA0E;TRG=IN03-;ACC={STY\3ESOLICITUD DE TRAMA ACCESORIO\3C;@TRM}<
+
+Se enviará por TRM:
+
+
+>SOLICITUD DE TRAMA ACCESORIO<
+
+⚙️ Configuración
+Para configurar el comportamiento del reporte TY:
+
+Comando CXTY
+Compatibilidad
+MT
+Legacy
+C3
+Legacy
+UL
+Legacy
+SP
+Legacy
+C5
+Legacy
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Comando TX - Reporte de Texto
+Comando G - Generador de Reportes
+Motor de Eventos
+
+
+📦 Black Box (CXBB)
+El módulo Black Box funciona como la “caja negra” de un avión: captura y almacena reportes antes y después de un evento, permitiendo analizar qué pasó en los momentos previos y posteriores a un incidente.
+
+🤔 ¿Para qué sirve?
+Imagina que ocurre un accidente o evento crítico. Con Black Box puedes:
+
+🔙 Ver el pasado: Qué pasó en los segundos/minutos antes del evento
+🔜 Ver el futuro: Qué pasó después del evento
+📊 Análisis forense: Reconstruir exactamente qué ocurrió
+🚗 Conducción: Analizar comportamiento del conductor ante frenadas bruscas
+Analogía: Como el DVR de un auto que guarda los últimos minutos de video, Black Box guarda los últimos reportes de posición/estado del vehículo.
+
+⚙️ Cómo funciona
+Captura continua: El equipo graba reportes constantemente en segundo plano
+Buffer circular: Mantiene las últimas N muestras (sobrescribe las más antiguas)
+Evento/Disparo: Cuando ocurre el evento, “congela” el pasado y captura el futuro
+Envío: Transmite todos los reportes (pasados + futuros) al servidor
+🔧 Configuración
+Comando SCXBB
+
+>SCXBB,tipo,frecuencia,muestras_futuras,muestras_pasadas<
+
+Parámetro	Descripción	Valores
+tipo	Tipo de reporte a capturar	CQ, CP, MV, etc.
+frecuencia	Intervalo entre capturas (× 1000ms)	1-255
+muestras_futuras	Reportes a capturar después del evento	1-20
+muestras_pasadas	Reportes del historial a incluir	1-20
+Tipos de reporte recomendados
+Tipo	Descripción	Uso típico
+CQ	Posición compacta	Reconstrucción de ruta
+MV	Movimiento	Análisis de conducción
+CP	Completo	Diagnóstico detallado
+🎯 Activación
+Comando GBB - Disparar captura
+
+>GBBnnP<
+
+Parámetro	Descripción	Valores
+nn	Número identificador	00-99
+P	Prioridad de envío	L (baja), M (media), H (alta)
+Ejemplo:
+
+
+>GBB01H<    // Dispara Black Box con ID=01, prioridad alta
+
+📋 Ejemplos prácticos
+🚨 Análisis de accidente (alta frecuencia)
+Capturar posición cada segundo, 10 segundos antes y 20 después:
+
+
+>SCXBB,CQ,1,20,10<
+
+Resultado: Al disparar, obtienes 30 reportes (10 pasados + 20 futuros) con resolución de 1 segundo.
+
+🚗 Análisis de frenada brusca
+Capturar movimiento cada 500ms, 15 muestras antes y después:
+
+
+>SCXBB,MV,0.5,15,15<
+
+Resultado: 30 reportes con resolución de medio segundo para analizar la maniobra.
+
+📍 Monitoreo de ruta (baja frecuencia)
+Capturar posición cada minuto, 5 antes y 20 después:
+
+
+>SCXBB,CQ,60,20,5<
+
+Resultado: 25 reportes cubriendo ~25 minutos de ruta.
+
+🔗 Integración con Motor de Eventos
+Puedes activar Black Box automáticamente ante eventos específicos:
+
+
+// Activar Black Box ante frenada brusca
+>SRL50E;TRG=ACC-;ACC={GBB01H}<
+
+// Activar ante exceso de velocidad
+>SRL51E;TRG=SPD+;ACC={GBB02H}<
+
+// Activar ante desconexión de batería
+>SRL52E;TRG=PWR-;ACC={GBB03H}<
+
+Caso de uso real: Configura Black Box con GBB en las reglas de eventos críticos para tener siempre el contexto completo de qué pasó.
+
+📊 Consulta
+Comando QCXBB
+
+>QCXBB<
+
+Respuesta:
+
+
+>RCXBB,CQ,1,20,10;ID=...
+
+📖 Resumen de comandos
+Comando	Función
+SCXBB,tipo,freq,fut,pas	Configurar Black Box
+QCXBB	Consultar configuración
+GBBnnP	Disparar captura
+✅ Compatibilidad
+💾
+Firmware:
+v1.00.00
+SP-IOT
+SM-IOT
+ZE-IOT
+🔗 Ver también
+Generador G - Generación manual de reportes
+Motor de Eventos - Automatizar activación
+Reportes Standards - Tipos de reporte disponibles
+
+
+Reportes Analógicos
+Los reportes analógicos permiten informar el estado de lectura de la totalidad de sensores AD que posee el dispositivo.
+
+Comandos Disponibles
+📊
+Reporte AD
+Estado de todas las entradas analógicas en formato estándar.
+
+→
+📈
+Reporte AE
+Igual que AD pero con signos en las magnitudes (para escalado).
+
+→
+Se recomienda el uso del Reporte AE en aplicaciones donde se desee transpolar las lecturas a valores y escalas diferentes.
+
+Configuración
+Configure cada entrada AD a través del Comando CXAIN.
+
+Disparadores
+Es posible establecer parámetros de disparo a través de ventanas de valores de tensión o temperatura usando el Comando AR.
+
+Ver También
+Entradas Analógicas - Configuración de I/O
+Comando CXAIN - Escalado de entradas
+
+
+Reporte AD
+Comando AD (G-Q-R)
+Informa el estado de los conversores analógico-digitales del dispositivo: tensiones en entradas analógicas, batería principal y batería de respaldo.
+
+Generar reporte
+
+GADbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar
+
+QAD
+
+Respuesta
+
+RADaaddmmyyhhMMssaaaabbbbccccddddeeeeffffgggghhhh[;#QQQQ]
+
+Campos del reporte
+Campo	Descripción
+aa	Número de reporte (00..FF)
+dd	Día
+mm	Mes
+yy	Año
+hh	Hora
+MM	Minutos
+ss	Segundos
+Valores analógicos
+Campo	Entrada	Unidad
+aaaa	IN00	1/100 V
+bbbb	IN01	1/100 V
+cccc	IN02	1/100 V
+dddd	IN03	1/100 V
+eeee	IN04	1/100 V
+ffff	IN05	1/100 V
+gggg	Batería Principal	1/100 V
+hhhh	Batería Respaldo	1/100 V
+QQQQ	Número de mensaje (hex)	-
+Ejemplo
+
+>RAD0002021201324512001200120012001200120012000420;#0666;ID=1234;*2A<
+
+Interpretación del ejemplo
+Campo	Valor	Significado
+aa	00	Reporte #0
+ddmmyy	020212	02/02/12
+hhMMss	013245	01:32:45
+aaaa	1200	IN00 = 12.00V
+bbbb	1200	IN01 = 12.00V
+cccc	1200	IN02 = 12.00V
+dddd	1200	IN03 = 12.00V
+eeee	1200	IN04 = 12.00V
+ffff	1200	IN05 = 12.00V
+gggg	1200	Bat. Principal = 12.00V
+hhhh	0420	Bat. Respaldo = 4.20V
+Comparación AD vs AE
+Característica	AD	AE
+Formato valores	Solo magnitud	Signo + Magnitud
+Uso típico	Valores absolutos	Valores con escala
+Configuración	Directo	Requiere CXAIN
+Use el reporte AE cuando necesite valores escalados o con signo. Use AD para lecturas directas de tensión.
+
+
+Reporte AE
+Comando AE (G-Q-R)
+Informa el estado de los conversores analógico-digitales con signo y magnitud de los valores leídos. Cada nivel depende de los atributos configurados mediante Comando CXAIN.
+
+Generar reporte
+
+GAEbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar
+
+QAE
+
+Respuesta
+
+RAEaaddmmyyhhMMssnaaaaobbbbpccccqddddreeeesfffftgggguhhhh[;#QQQQ]
+
+Campos del reporte
+Campo	Descripción
+aa	Número de reporte (00..FF)
+dd	Día
+mm	Mes
+yy	Año
+hh	Hora
+MM	Minutos
+ss	Segundos
+Valores analógicos con signo
+Signo	Valor	Entrada
+n	aaaa	AIN00
+o	bbbb	AIN01
+p	cccc	AIN02
+q	dddd	AIN03
+r	eeee	AIN04
+s	ffff	AIN05
+t	gggg	Batería Principal
+u	hhhh	Batería Respaldo
+Campo	Descripción
+QQQQ	Número de mensaje (hex)
+El signo puede ser + o -. Los valores están en 1/100 de volt (centésimas).
+
+Ejemplo
+
+>RAE00020212013245+1200+1200+1200+1200+1200+1200+1200+0420;#0666;ID=1234;*2A<
+
+Interpretación del ejemplo
+Campo	Signo	Valor	Significado
+AIN00	+	1200	+12.00V
+AIN01	+	1200	+12.00V
+AIN02	+	1200	+12.00V
+AIN03	+	1200	+12.00V
+AIN04	+	1200	+12.00V
+AIN05	+	1200	+12.00V
+Bat.Ppal	+	1200	+12.00V
+Bat.Resp	+	0420	+4.20V
+Configuración de escala
+Los valores reportados dependen de la configuración de CXAIN:
+
+Offset: Desplazamiento del cero
+Ganancia: Factor de escala
+Unidad: Permite representar temperatura, presión, etc.
+
+
+Reportes Aplicados
+Estas estructuras de reporte surgen con la finalidad de compatibilizar el sistema con diferentes dispositivos externos como así también obtener información referente a posición y status a través de un simple link aplicable a WEB y smartphones.
+
+El modo Locator permite obtener una posición geográfica a través de la extrapolación de posición de antenas de red celular - útil donde no hay cobertura GPS.
+
+Reportes Disponibles
+⛽
+SC - Sensor Combustible
+Integración con sensor de combustible Telemetric (SIID).
+
+→
+🗺️
+HT - Link Cartográfico
+Visualización rápida de posición en aplicativos web.
+
+→
+🔑
+IB - iButton/Temperatura
+Implementación de lector iButton y sensor de temperatura.
+
+→
+📶
+LC - Locator
+Posición geográfica aproximada por triangulación celular.
+
+→
+📉
+MV - Accidentología
+Análisis de perfiles de conducción con acelerómetro.
+
+→
+Ver También
+Dinámica de Movimiento - Configuración del acelerómetro
+Entradas y Salidas - Sensores 1-Wire
+
+
+Reporte HT
+Reporte HT (G-Q-R)
+Genera un enlace web clickeable que muestra la posición del equipo en Google Maps o Yahoo Maps. Ideal para enviar ubicación por SMS a usuarios sin software de tracking.
+
+Generar reporte con link
+
+GHTbbc
+
+Ver Comando G para parámetros bb (número) y c (prioridad).
+
+El número de reporte (bb) solo acepta valores 01 o 02:
+
+01 = Google Maps
+02 = Yahoo Maps
+Consultar link actual
+
+QHTa
+
+Parámetro	Valor	Descripción
+a	1	Google Maps
+a	2	Yahoo Maps
+Respuesta
+Google Maps (a=1)
+
+RHT1
+http://maps.google.com/maps?f=q&q=Latitud,Longitud&om=1&z=17
+
+Yahoo Maps (a=2)
+
+RHT2
+http://maps.yahoo.com/#mvt=h&lat=Latitud&lon=Longitud&zoom=17&q1=Latitud,Longitud
+
+Donde Latitud y Longitud están en formato grados decimales.
+
+Ejemplos
+Enviar link Google Maps por SMS
+
+>GHT01H;@SM0<
+
+Genera reporte de alta prioridad al destino SMS 0:
+
+
+>RHT1
+http://maps.google.com/maps?f=q&q=-27.80778,-64.42763&om=1&z=17;ID=974862;*5E<
+
+Regla de alerta con ubicación
+
+>SRL50E;TRG=IN00+;ACC={GHT01H;@SM0}<
+
+Envía link de Google Maps cuando se activa la entrada IN00.
+
+Uso típico
+Este reporte es especialmente útil para:
+
+Alertas de pánico: Enviar ubicación exacta por SMS
+Notificaciones a familiares: Link clickeable sin necesidad de app
+Reportes de llegada: Confirmar posición a destinatario
+
+
+Reporte IB
+Comando IB (G-Q-R)
+Mensaje que incluye datos GPS, estado de entradas/salidas, ID de IButton y temperatura. Estructura idéntica al Reporte GP con información adicional de hardware externo.
+
+Generar reporte
+
+GIBbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar
+
+QIB
+
+Respuesta
+
+RIBAAAAAABBBBBBCCCCCCCCDDDDDDDDDEEEFFFGHHIIJJKK;LLLLLLLLLLLLLLLL;MNNNNOO[;#PPPP]
+
+Campos del reporte
+Campo	Descripción
+AAAAAA	Fecha RTC (DDMMAA)
+BBBBBB	Hora RTC (HHMMSS)
+CCCCCCCC	Latitud
+DDDDDDDDD	Longitud
+EEE	Velocidad (km/h)
+FFF	Rumbo (grados)
+G	GPS Fix Mode (2=2D, 3=3D)
+HH	Segundos desde última posición válida (hex)
+II	Estado entradas digitales IGN+IN (hex)
+JJ	Número de reporte (00..FF)
+KK	PDOP (parte entera decimal)
+Campos específicos de IB
+Campo	Descripción
+LLLLLLLLLLLLLLLL	Último ID de IButton DS1990 registrado
+M	Signo de temperatura (+ o -)
+NNNN	Temperatura en centésimas de °C
+OO	Segundos desde último cálculo de temperatura
+PPPP	Número de mensaje (hex)
+Interpretación del ID IButton
+El campo LLLLLLLLLLLLLLLL contiene el ID único de 8 bytes del dispositivo IButton DS1990:
+
+
+0100000012345678
+Si no hay ningún IButton logueado al momento del reporte, el campo se omite para ahorrar datos en la transmisión.
+
+Interpretación de temperatura
+Ejemplo	Significado
++2350	+23.50°C
+-0550	-5.50°C
++0000	0.00°C
+El campo OO indica la antigüedad de la lectura:
+
+00: Lectura actual
+FF: Más de 255 segundos sin actualización
+Notas importantes
+Sin señal GPS, los campos de fecha y hora toman valores del RTC (reloj interno) en lugar de los datos GPS.
+
+
+Reporte LC
+Reporte LC - Locator (Modo celda)
+Permite localización aproximada utilizando triangulación de celdas GSM cuando no hay señal GPS disponible.
+
+La precisión del modo Locator depende de la densidad de celdas del operador. En zonas urbanas puede ser de 200-500m, en zonas rurales de varios kilómetros.
+
+Activar modo Locator
+
+SLCX
+
+Inicia una consulta de localización por celda.
+
+Respuesta
+
+RLCX;...
+
+Formato del reporte LC
+
+>LC00;AAAAAA;BBBBBB;CDDD.DDDD;EFFF.FFFF;GGG;HH;IIIIII;JJJJ;KK;LLLL<
+Campos del reporte
+Campo	Descripción
+00	Número de reporte LC (00)
+AAAAAA	Fecha (DDMMAA)
+BBBBBB	Hora (HHMMSS)
+CDDD.DDDD	Latitud (C: N/S, DDD.DDDD: grados)
+EFFF.FFFF	Longitud (E: W/E, FFF.FFFF: grados)
+GGG	Velocidad (siempre 000 en LC)
+HH	Rumbo/10 (siempre 00 en LC)
+IIIIII	Status de entradas/salidas
+JJJJ	Número de evento
+KK	Segundos transcurridos desde la consulta
+LLLL	Número de mensaje
+El campo KK indica cuántos segundos han pasado desde que se inició la consulta SLCX hasta que se recibió la respuesta de localización.
+
+Señales disponibles
+Señal	Descripción
+LC00+	Se recibió una nueva posición de celda
+LC01+	Se recibió una nueva respuesta del servidor
+Ejemplo de uso con regla
+
+>SRL10E;TRG=LC00+;ACC={GCY10H}<
+
+Cuando se obtiene una posición por celda (LC00+), envía un reporte CY de alta prioridad.
+
+Consideraciones
+Aspecto	Detalle
+Precisión	Variable según densidad de celdas
+Disponibilidad	Requiere cobertura GSM
+Consumo	Menor que GPS
+Latencia	Mayor que GPS (depende del servidor)
+
+
+Reporte MV
+Comando MV (G-R)
+Log de movimiento para accidentología y perfil de conducción. Genera 200 registros correspondientes a 20 segundos de comportamiento del acelerómetro (10 segundos antes y 10 después del comando).
+
+Frecuencia de muestreo: 50Hz. Cada registro se genera a partir de 5 muestras.
+
+Generar reporte
+
+GMVbbc
+
+Ver Comando G para detalles de parámetros.
+
+Respuesta
+
+RMVAAAAAABBBBBB.CCC X+MMMM+mmmm*MMMM Y+NNNN+nnnn*NNNN Z+OOOO+oooo*OOOO DDDEEEFFGG
+
+Campos del reporte
+Campo	Descripción
+AAAAAA	Fecha RTC (DDMMAA)
+BBBBBB	Hora RTC (HHMMSS)
+.CCC	Milésimas de segundo
+Datos del acelerómetro
+Eje	Pico Máx	Pico Mín	Promedio
+X	+MMMM	+mmmm	*MMMM
+Y	+NNNN	+nnnn	*NNNN
+Z	+OOOO	+oooo	*OOOO
+Campos adicionales
+Campo	Descripción
+DDD	Rumbo (0-359°)
+EEE	Velocidad (km/h)
+FF	Estado entradas digitales (Al. principal, Ign, INs)
+GG	Número de evento (00..FF)
+Estructura del registro
+Tiempo cero = Momento de ejecución del comando GMV
+
+Período	Registros	Descripción
+-10 seg	100	Datos previos al evento
++10 seg	100	Datos posteriores al evento
+Total	200	Muestreo a 50Hz
+Disparadores asociados
+Se pueden configurar 4 grupos de umbrales de aceleración, dando 24 banderas de estado posibles para análisis de comportamiento por eje.
+
+Ver Comando MVT
+
+Aplicaciones
+Uso	Descripción
+Detección de colisiones	Análisis de impactos y accidentes
+Perfil de conducción	Frenadas bruscas, aceleraciones
+Análisis forense	Reconstrucción de eventos
+Scoring de conductores	Evaluación de conducción
+
+
+Reporte SC
+Comando SC (G-Q-R)
+Informa el estado del sensor de caudal de combustible Telemetric de la firma Siid conectado al puerto serie del dispositivo.
+
+Requiere configurar el puerto serie a 4800 baudios mediante Comando CXTRM.
+
+Generar reporte
+
+GSCbbc
+
+Ver Comando G para detalles de parámetros.
+
+Consultar
+
+QSC
+
+Respuesta
+
+RSCxxddmmaahhMMssabbbbbbbbccccddddddddddeeeefffggg[;#QQQQ]
+
+Campos del reporte
+Campo	Descripción
+xx	Número de reporte (00..FF)
+dd	Día
+mm	Mes
+aa	Año
+hh	Hora
+MM	Minutos
+ss	Segundos
+Datos del caudalímetro
+Campo	Descripción	Formato
+a	Estado de conexión	0=desconectado, 1=conectado
+bbbbbbbb	Consumo total	1/10 Litros (bbbbbbb.b)
+cccc	Caudal de consumo	1/10 L/h (ccc.c)
+dddddddddd	Tiempo de marcha	Segundos (condicionado a IGN)
+eeee	Cantidad de desconexiones	Contador
+fff	Temperatura de entrada	1/10 °C (-9.9 a 99.9)
+ggg	Temperatura de retorno	1/10 °C (-9.9 a 99.9)
+QQQQ	Número de mensaje	Hexadecimal
+Trama del caudalímetro
+El sensor Telemetric envía esta trama a 4800 baudios:
+
+
+SSCabbbbbbbbccccddddddddddeeeefffggg
+
+Ejemplo de reporte
+
+>RSC03120312172844123324543022300345643812001341440;#0666;ID=1234;*2A<
+
+Interpretación del ejemplo
+Campo	Valor	Significado
+xx	03	Reporte #3
+ddmmaa	120312	12/03/12
+hhMMss	172844	17:28:44
+a	1	Conectado
+bbbbbbbb	23324543	2,332,454.3 litros consumidos
+cccc	0223	22.3 L/h caudal actual
+dddddddddd	0034564381	34,564,381 seg de marcha
+eeee	2001	2001 desconexiones
+fff	341	34.1°C entrada
+ggg	440	44.0°C retorno
+
+
+Reportes Binarios
+Los reportes binarios fueron creados con la finalidad de integrar módulos de comunicación satelital al sistema existente, dotando a RINHO de un modo de comunicación híbrido (GPRS + SATELITAL).
+
+Las redes satelitales de AVL utilizan constelaciones de satélites de órbita media/baja, permitiendo transmitir tramas binarias a costo moderado con latencia aceptable.
+
+Reportes Disponibles
+🛰️
+BP - Binario ORBCOMM
+Reporte binario para transmisión vía red satelital ORBCOMM.
+
+→
+Funcionamiento
+Al generar el reporte BP, RINHO envía vía puerto serial un string binario con:
+
+Encabezado con parámetros del módulo satelital
+Datos de posición y estado a transmitir
+Es necesario configurar la velocidad del puerto serial en 4800 baudios usando el Comando CXTRM.
+
+Ver También
+Comando CXTRM - Configuración puerto serial
+Motor de Eventos - Integración con reglas
+
+
+
+Reporte BP
+Comando BP (G)
+Reporte binario compacto para transmisión eficiente. Apto para comunicación satelital (Iridium 9602 SBD).
+
+La estructura puede visualizarse en modo debug mediante Comando DB.
+
+Generar reporte
+
+GBPbbc
+
+Ver Comando G para detalles de parámetros.
+
+Plataforma IoT
+Para modelos Spider IOT, Smart IOT, Zero IOT.
+
+Los parámetros se configuran mediante Comando CXBP.
+
+Plataforma AVR (Legacy)
+Para modelos Spider, Ultralite, Minitrack, C3, C5.
+
+Incluye Fecha, Hora, Latitud, Longitud, Velocidad, Rumbo, estado de entradas (IGN+IN) y salidas digitales (XP).
+
+Estructura binaria
+Byte	Campo	Tipo	Descripción
+AA	Tipo de reporte	uint8	Default 0x00
+BB	Número de reporte	uint8	00..FF
+CC	Día	uint8	-
+DD	Mes	uint8	-
+EE	Año	uint8	-
+FF	Hora	uint8	-
+GG	Minutos	uint8	-
+HH	Segundos	uint8	-
+Coordenadas (IEEE 754 Float, Little Endian)
+Bytes	Campo	Descripción
+II-LL	Latitud	4 bytes, grados decimales
+MM-PP	Longitud	4 bytes, grados decimales
+Velocidad y rumbo (uint16, Little Endian)
+Bytes	Campo	Unidad
+QQ-RR	Velocidad	km/h
+SS-TT	Rumbo	grados
+Estado y tiempo
+Byte	Campo	Descripción
+UU	Entradas digitales	IGN+IN (hex, MSB=IGN)
+VV	Salidas digitales	XP (hex)
+WW	Segundos sin GPS	Desde última posición válida
+ID equipo (opcional)
+Bytes	Campo	Descripción
+XX..YY	ID Equipo	Variable, ver CXBP
+Tamaño del paquete
+Configuración	Tamaño
+Sin ID	24 bytes
+Con ID (4 bytes)	28 bytes
+Con ID (8 bytes)	32 bytes
+El tamaño del campo ID se configura mediante CXBP. Asegúrese de que coincida con la configuración del servidor receptor.
+
+
+
+Reporte B3
+Reporte binario TAU compacto de 47 bytes que empaqueta la posición GPS, el estado del equipo y los datos de celda en una sola trama. Está pensado para reducir el volumen de datos transmitido: aproximadamente 70% menos que el reporte de texto equivalente.
+
+Los reportes binarios TAU (B3 y B9) se asignan a eventos igual que los reportes de texto (tipo CQ / CY). El equipo los codifica y transmite directamente en binario.
+
+¿Para qué sirve?
+📉 Minimizar el consumo de datos móviles en flotas grandes
+🛰️ Enlaces satelitales / LPWA donde cada byte cuenta
+📍 Reporte de posición con estado de red y celda en una trama única
+🔋 Transmisiones más cortas = menor consumo energético del módem
+Asignación a eventos
+El reporte se asigna a un evento con el código de dos letras B3, exactamente igual que los reportes de texto CQ o CY. Cuando el evento se dispara, el equipo genera la trama binaria de 47 bytes y la envía al destino configurado.
+
+SMS no es un destino válido para reportes binarios. Si el destino asignado es SMS, la trama se descarta (el binario no se transmite por SMS). Use GPRS, Wi-Fi, backend o log.
+
+Consulta por terminal (QBUS)
+Al consultar el buffer por terminal con QBUS, la trama se muestra como hex dump con el prefijo RB3:.
+
+
+>QBUS<
+>RB3:3E52423368...<   // 47 bytes en hexadecimal
+
+Estructura binaria (47 bytes)
+Bytes	Campo	Descripción
+0–3	Cabecera	ASCII >RB3
+4–7	Fecha/hora	Epoch TAU (uint32, big-endian)
+8	Evento	Código de evento que disparó el reporte
+9–12	HDOP + longitud	HDOP (6 bits) + longitud TAU de 26 bits (lon × 10⁵ + 18000000)
+13–16	Fix + satélites + latitud	Fix (2 bits) + satélites (4 bits) + latitud TAU de 25 bits (lat × 10⁵ + 9000000)
+17	Edad de posición	Segundos desde el último fix válido (máx. 255)
+18–19	Señal GSM + velocidad	CSQ (6 bits) + velocidad km/h (10 bits)
+20–21	Registro de red + rumbo	Registro GSM/GPRS (3 + 3 bits) + rumbo en grados (9 bits)
+22–23	Salidas + entradas	Salidas digitales XP (5 bits) + entradas IN (10 bits)
+24–25	Alimentación + batería	Estado GPS/CEL + tensión de batería (12 bits)
+26–29	Odómetro	Odómetro total (uint32, big-endian)
+30	Batería backup	Nivel LiPo mapeado a 0–100%
+31	Tecnología de red	-90 sin red, -91 2G, -92 3G, -93 4G LTE, -94 Cat-M1, -95 Cat-NB1
+32–33	MCC	Mobile Country Code (uint16, big-endian)
+34–35	MNC	Mobile Network Code (uint16, big-endian)
+36–37	LAC	Location Area Code (uint16, big-endian)
+38–39	Cell ID	Identificador de celda (uint16, big-endian)
+40–43	ID equipo	Identificador del equipo (4 bytes)
+44–45	Nº de mensaje	Contador de mensaje (uint16, big-endian)
+46	Checksum	XOR de los bytes 0–45
+Coordenadas: latitud y longitud se transmiten con offset TAU (lat × 10⁵ + 9000000, lon × 10⁵ + 18000000) para evitar el signo. El campo de tecnología de red usa valores negativos como identificador de RAT.
+
+Ver También
+Reporte B9 — binario TAU con acelerómetro y trail GPS
+Reporte BP — binario compacto (Iridium SBD)
+
+
+
+Reporte B9
+Reporte binario TAU de 89 bytes que amplía al B3 con datos de acelerómetro (XYZ) y un trail de las últimas 10 posiciones GPS codificadas como deltas. Mantiene el mismo objetivo de eficiencia: aproximadamente 70% menos de datos que el reporte de texto equivalente.
+
+Los reportes binarios TAU (B9 y B3) se asignan a eventos igual que los reportes de texto (tipo CQ / CY). El equipo los codifica y transmite directamente en binario.
+
+¿Para qué sirve?
+📈 Reportar la dinámica del vehículo (acelerómetro) junto a la posición
+🧭 Enviar el recorrido reciente (10 posiciones) en una sola trama compacta
+📉 Minimizar el consumo de datos móviles frente al reporte de texto
+🛰️ Enlaces satelitales / LPWA con mayor densidad de información por byte
+Asignación a eventos
+El reporte se asigna a un evento con el código de dos letras B9, exactamente igual que los reportes de texto CQ o CY. Cuando el evento se dispara, el equipo genera la trama binaria de 89 bytes y la envía al destino configurado.
+
+SMS no es un destino válido para reportes binarios. Si el destino asignado es SMS, la trama se descarta (el binario no se transmite por SMS). Use GPRS, Wi-Fi, backend o log.
+
+Consulta por terminal (QBUS)
+Al consultar el buffer por terminal con QBUS, la trama se muestra como hex dump con el prefijo RB9:.
+
+
+>QBUS<
+>RB9:3E52423968...<   // 89 bytes en hexadecimal
+
+Estructura binaria (89 bytes)
+Los bytes 0–23 comparten el mismo formato que el reporte B3 (cabecera, fecha/hora, posición, red). A partir del byte 24 se agregan acelerómetro y trail.
+
+Bytes	Campo	Descripción
+0–3	Cabecera	ASCII >RB9
+4–7	Fecha/hora	Epoch TAU (uint32, big-endian)
+8	Evento	Código de evento que disparó el reporte
+9–12	HDOP + longitud	HDOP (6 bits) + longitud TAU de 26 bits (lon × 10⁵ + 18000000)
+13–16	Fix + satélites + latitud	Fix (2 bits) + satélites (4 bits) + latitud TAU de 25 bits (lat × 10⁵ + 9000000)
+17	Edad de posición	Segundos desde el último fix válido (máx. 255)
+18–19	Señal GSM + velocidad	CSQ (6 bits) + velocidad km/h (10 bits)
+20–21	Registro de red + rumbo	Registro GSM/GPRS (3 + 3 bits) + rumbo en grados (9 bits)
+22–23	Salidas + entradas	Salidas digitales XP (5 bits) + entradas IN (10 bits)
+24–29	Acelerómetro XYZ	Eje resultante + ejes Z / Y / X codificados con offset +999
+30	Estado de movimiento	0 = detenido, 1 = en movimiento
+31	Edad del dato	Antigüedad del trail
+32–81	Trail de 10 posiciones	10 registros × 5 bytes: velocidad (8 bits) + rumbo (9 bits) + Δlat (11 bits) + Δlon (12 bits)
+82–85	ID equipo	Identificador del equipo (4 bytes)
+86–87	Nº de mensaje	Contador de mensaje (uint16, big-endian)
+88	Checksum	XOR de los bytes 0–87
+Acelerómetro (bytes 24–29)
+Se transmite el eje resultante junto a los tres ejes codificados con un offset de +999: el eje X directo, el eje Y dividido por 32 y el eje Z dividido por 4. El byte 30 indica si el vehículo está detenido o en movimiento.
+
+Trail de posiciones (bytes 32–81)
+Cada uno de los 10 registros (5 bytes) guarda una posición del recorrido reciente como delta respecto a la posición del evento:
+
+Δlat: (Δlat / 2) + 999 en 11 bits (Δ en grados × 10⁵)
+Δlon: (Δlon / 16) + 999 en 12 bits (Δ en grados × 10⁵)
+Junto con velocidad (8 bits) y rumbo (9 bits)
+Un registro cuyo primer byte es 255 indica una posición inválida / vacía (menos de 10 puntos disponibles).
+
+Ver También
+Reporte B3 — binario TAU compacto (47 bytes)
+Reporte BP — binario compacto (Iridium SBD)
+
+
+Reportes de Texto
+Rinho integra la capacidad de transmitir texto a través del dispositivo, estableciendo la comunicación en base a su estructura de transmisión.
+
+Comandos Disponibles
+📝
+TX - Texto
+Genera y transmite texto en formato GTX o STX.
+
+→
+📨
+TY - Texto Plano
+Genera, transmite y recibe texto plano (modo módem transparente).
+
+→
+Modos de Uso
+Modo	Comando	Descripción
+GTX	>GTX00M;TXT=mensaje<	Texto como reporte con disparador
+STX	>STXmensaje<	Texto directo sin disparador
+TY	>STYmensaje<	Módem transparente bidireccional
+Exclusivamente Rinho C5 permite procesar información de periféricos conectados incluyendo el módem y GPS internos.
+
+Ver También
+Comando CXXB - Procesamiento de datos externos
+Generadores de Reportes - Comando G
+
+
+
+Comando TX - Reporte de Texto
+Genera y envía mensajes de texto plano, sin datos de posición GPS. Útil para notificaciones, alertas personalizadas y comunicación bidireccional.
+
+📋 Sintaxis
+Generar reporte (GTX)
+
+GTXbbc[;@dd..dd][;TXT=ee..ee]
+
+Parámetro	Descripción
+bb	Número de reporte (00-FF)
+c	Prioridad (H, M, L)
+@dd..dd	Destino (opcional)
+TXT=ee..ee	Texto hasta 50 caracteres
+Ver Comando G para detalles completos.
+
+Enviar texto directo (STX)
+
+STXMENSAJE[;@dd..dd]
+
+Parámetro	Descripción
+MENSAJE	Cadena de hasta 50 caracteres
+@dd..dd	Destino opcional (default: GPRS)
+Respuesta
+
+RTXee..ee;#NNNN;ID=XXXX;*CC<
+
+🎯 Destinos
+Destino	Descripción
+GPRS	Conexión de datos (default)
+SMa	SMS (a = 0-4)
+TRM	Puerto serial
+💬 Ejemplos
+Enviar texto a GPRS (default)
+
+>STXHOLA<
+
+Respuesta:
+
+
+>RTXHOLA;#0019;ID=1234;*64<
+
+Enviar texto a SMS
+
+>STXHOLA;@SM1<
+
+Respuesta:
+
+
+>RTXHOLA;#0019;ID=1234;*64<
+
+El mensaje se envía al número configurado en SM1.
+
+Alerta desde regla del motor de eventos
+
+>SRL40E;TRG=AR00+;ACC={GTX40H;@SM0;TXT=Bateria baja detectada}<
+
+Envía SMS cuando el voltaje cae por debajo del umbral AR00.
+
+📌 Usos Típicos
+Aplicación	Ejemplo
+Alertas de batería	TXT=Bateria baja
+Confirmación de comando	TXT=Comando recibido OK
+Estado de proceso	TXT=Carga completada
+Mensajes de debug	TXT=Debug: valor=123
+⚙️ Configuración
+Por default, TX genera reportes tipo TX. Puede configurarse para generar otros tipos mediante Comando CXTX.
+
+Compatibilidad
+MT
+Legacy
+C3
+Legacy
+UL
+Legacy
+SP
+Legacy
+C5
+Legacy
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Comando G - Generador de Reportes
+Comando TY - Texto Pasarela
+Motor de Eventos
+
+
+
+Comando TY - Texto Pasarela
+Envía mensajes de texto plano con soporte para caracteres especiales. El texto puede verse reflejado en el puerto serial o ser redirigido mediante el motor de eventos.
+
+📋 Sintaxis
+Enviar mensaje (STY)
+
+STYmensaje
+
+Parámetro	Descripción
+mensaje	Cadena de hasta 150 caracteres
+Habilitar/Deshabilitar captura
+
+STYa
+
+Valor	Estado
+E	Habilitado
+D	Deshabilitado
+Para salir del modo captura, enviar por puerto serie la secuencia +++
+
+🎯 Destinos
+Destino	Descripción
+GPRS	Conexión de datos (default)
+SMa	SMS (a = 0-4)
+TRM	Puerto serial
+🔤 Caracteres Especiales
+Imprimibles
+
+!"#$%&'()*+,-./0123456789:=?@ABCDEFGHIJKLMNOP
+QRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+No imprimibles (requieren codificación hex)
+Carácter	Código
+>	\3E
+<	\3C
+\	\5C
+;	\3B
+💬 Ejemplos
+Enviar caracteres especiales a TRM
+Para enviar el mensaje >HOLA< al puerto terminal:
+
+
+>STY\3EHOLA\3C;@TRM<
+
+Captura TRM a GPRS
+Si el terminal captura en el puerto:
+
+
+>MENSAJE DE PRUEBA<
+Enviará por GPRS:
+
+
+>RTY\3EMENSAJE DE PRUEBA\3C;ID=EXTEST;*3D<
+
+Comando TRM a GPRS
+El equipo recibe el comando vía TRM:
+
+
+>STY,DESDE COMANDO TRM A GPRS<
+
+Enviará por GPRS:
+
+
+>RTYDESDE COMANDO TRM A GPRS;ID=EXTEST;*7A<
+
+Comando GPRS a TRM
+El equipo recibe el comando vía GPRS:
+
+
+>STY,DESDE GPRS A TRM;ID=EXTEST;*32<
+
+Enviará al TRM:
+
+
+DESDE GPRS A TRM
+
+Solicitud desde regla a accesorio
+Cada vez que cambia la entrada IN03, envía solicitud al TRM:
+
+
+>SRLA0E;TRG=IN03-;ACC={STY\3ESOLICITUD DE TRAMA ACCESORIO\3C;@TRM}<
+
+Se enviará por TRM:
+
+
+>SOLICITUD DE TRAMA ACCESORIO<
+
+⚙️ Configuración
+Para configurar el comportamiento del reporte TY:
+
+Comando CXTY
+Compatibilidad
+MT
+Legacy
+C3
+Legacy
+UL
+Legacy
+SP
+Legacy
+C5
+Legacy
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Comando TX - Reporte de Texto
+Comando G - Generador de Reportes
+Motor de Eventos
+
+
+
+Reportes de Usuario
+Los reportes de usuario permiten crear formatos personalizados para integración con sistemas custom.
+
+Comandos Disponibles
+👤
+Ux - Definición de Formato
+Define la estructura del reporte de usuario personalizado.
+
+→
+📤
+UC - Generar Reporte
+Genera y encola reportes de usuario predefinidos.
+
+→
+Flujo de Trabajo
+
+1. Definir formato con comando Ux
+2. Generar reporte con comando GUC o SUC
+3. El reporte se encola según prioridad
+Ver También
+Generadores de Reportes - Comando G
+Motor de Eventos - Automatización de reportes
+
+
+
+Comando EVAL - Evaluador de Expresiones
+Motor de evaluación de expresiones matemáticas, lógicas y de estado del sistema.
+
+📊
+Variables
+V, AIN, IN, GPS, ECU...
+
+→
+🧮
+Operadores
+Aritméticos, lógicos, bitwise
+
+→
+📝
+Formato
+printf style: %d, %f, %X
+
+→
+💬
+Ejemplos
+Casos de uso prácticos
+
+→
+📋 Sintaxis
+
+EVAL expresión[:formato[:valor_error]]
+
+Parámetro	Descripción	Default
+expresión	Operación o consulta a evaluar	(obligatorio)
+formato	Formato de salida estilo printf	%.2f
+valor_error	Valor si falla la evaluación	ERR
+Dentro de la expresión, los argumentos de funciones con múltiples parámetros se separan con ; (punto y coma), no con coma. Ejemplo: ECU(0;0), MBS(1;2). La expresión finaliza con el separador de formato : o con el cierre del mensaje del protocolo (<).
+
+Ejemplos Básicos
+
+>EVAL 10 + 5<
+Resultado: 15.00
+
+
+>EVAL 10 + 5.5 * 2:%.1f:NA<
+Resultado: 21.0 (si falla, devuelve NA)
+
+📊 Variables del Sistema
+Sin Parámetros
+Variable	Descripción	Unidad	Link
+V	Tensión principal	dV (28.0V = 280)
+VBU	Tensión batería respaldo	dV
+OT	Odómetro total	metros
+OP	Odómetro parcial	metros
+CREG	Estado registro red	-
+CSQ	Calidad señal celular	0-31
+HO	Horómetro	segundos
+VEL	Velocidad GPS filtrada	km/h
+HDG	Rumbo GPS (heading) (v1.09.18+)	0-360°
+AGE	Edad dato GPS	segundos
+LAT	Latitud	grados×10⁵
+LON	Longitud	grados×10⁵
+IGN	Estado ignición	0/1
+CEL	Conexión celular	0/1
+GPS	GPS activo	0/1
+PWR	Alimentación	0/1
+JMD	Jamming detectado	0/1
+PK	Parking	0/1
+AC	Acelerómetro	0/1
+WIF	WiFi	0/1
+CAN	Bus CAN	0/1
+ALT	Altitud GPS (v1.09.19+)	metros
+TICK	Ticks desde arranque	segundos
+TT	Tacómetro interno (pulso/seg)	0/1
+BUF	Buffer de reportes con pendientes	0/1
+BTHPWR	Alimentación Bluetooth	0/1
+WIFPWR	Alimentación WiFi	0/1
+CELPWR	Alimentación módulo celular	0/1
+GPSPWR	Alimentación módulo GPS	0/1
+VIOPWR	Alimentación de accesorios	0/1
+INTPWR	Alimentación interna	0/1
+Con Un Parámetro
+Variable	Descripción	Rango	Link
+AIN(n)	Entrada analógica	0-3
+IN(n)	Entrada digital	0-3
+XP(n)	Salida digital	0-n
+UV(n)	Variable de usuario	0-n
+U(n)	Variable auxiliar	0-n
+MXB(n)	Buffer XB	0-n
+DC(n)	Ángulo (ANG)	0-n
+DV(n)	Frecuencia (FRE)	0-n
+OW(n)	Sensor 1-Wire	0-n
+Señales del Motor de Eventos como variables (retornan 0/1): Además de las anteriores, cualquier disparador con índice del Motor de Eventos puede usarse en EVAL como TOKEN(n). Incluye: ACK, AR, BE, BS, BSW, BSWN, CID, CQ, FCT, IC, ICL, KO, MC, MVXN, MVXP, MVYN, MVYP, MVZN, MVZP, NT, RG, RL, SIM, TD, TR, VL, VBU, WP, XB, ZNA, ZNB. Ver Lista de Disparadores con rangos válidos de cada uno.
+
+Con Dos Parámetros
+Variable	Descripción	Param 1	Param 2
+ECU(i;t)	Datos ECU	Índice	0=valor, 2=edad (ms)
+MBS(i;t)	Sensores BLE	Índice	0=temp, 1=humedad
+MBSW(i;t)	BLE wildcard	Índice	0=connected, 1=major, 2=minor, 3=distance, 4=rssi, 5=age
+MDT(i;t)	Sensor 1-Wire (temp)	Índice	0=valor, 1=edad
+MTD(i;t)	Timers TD	Índice	0=estado, 1=timer, 2=dist, 3=timeout, 4=distanceout
+MTR(i;t)	Trips	Índice	0=trigger, 1=habilitado, 2=hora, 3=minuto, 4=segundo
+MNT(i;t)	Contadores	Índice	0=actual, 1=máximo
+MDL(i;t)	Datos LOG	Índice	0=cantidad, 1=pendientes, 2=habilitado, 3=reintentos, 4=tiempo reintento
+MPC(i;t)	Contador pulsos	Índice	0=valor, 1=factor K
+MFC(i;t)	Frecuencímetro	Índice	0=freq, 1=factor Q, 2=basetime
+🧮 Operadores
+Aritméticos
+Operador	Descripción	Ejemplo	Resultado
++	Suma	EVAL 10 + 5	15.00
+-	Resta	EVAL 20 - 8	12.00
+*	Multiplicación	EVAL 3 * 4	12.00
+/	División	EVAL 10 / 2	5.00
+%	Módulo (resto entero)	EVAL 10 % 3	1.00
+Comparadores
+Operador	Descripción	Ejemplo	Resultado
+gt	Mayor que	EVAL 5 gt 3	1.00
+lt	Menor que	EVAL 5 lt 7	1.00
+ge	Mayor o igual	EVAL 5 ge 5	1.00
+le	Menor o igual	EVAL 4 le 5	1.00
+eq	Igual	EVAL 5 eq 5	1.00
+ne	No igual	EVAL 5 ne 6	1.00
+Lógicos
+Operador	Descripción	Ejemplo	Resultado
+&&	AND lógico	EVAL (5 gt 3) && (2 lt 4)	1.00
+||	OR lógico	EVAL (5 gt 6) || (2 lt 4)	1.00
+^^	XOR lógico	EVAL 1 ^^ 0	1.00
+!	NOT lógico (unario)	EVAL !0	1.00
+Bitwise
+Operador	Descripción	Ejemplo	Resultado
+&	AND bit a bit	EVAL 5 & 3	1.00
+|	OR bit a bit	EVAL 5 | 2	7.00
+^	XOR bit a bit	EVAL 5 ^ 3	6.00
+~	NOT bit a bit (unario)	EVAL ~0 & 0xFF	255.00
+sl	Shift left	EVAL 2 sl 1	4.00
+sr	Shift right	EVAL 4 sr 1	2.00
+📝 Formato de Salida
+Personaliza la presentación del resultado usando sintaxis printf de C:
+
+Formato	Descripción	Ejemplo	Resultado
+%.2f	Flotante 2 decimales	EVAL 3.14159:%.2f	3.14
+%.3f	Flotante 3 decimales	EVAL 3.14159:%.3f	3.142
+%d	Entero	EVAL 5.7:%d	5
+%x	Hexadecimal minúsculas	EVAL 15:%x	f
+%X	Hexadecimal mayúsculas	EVAL 15:%X	F
+%b	Binario	EVAL 5:%b	101
+%05.2f	Con ceros izquierda	EVAL 3.14:%05.2f	03.14
+%08.2f	Más ceros izquierda	EVAL 3.14:%08.2f	00003.14
+⚠️ Manejo de Errores
+Valor personalizado por error
+
+>EVAL toker + 5:%0.2f:NA<
+Resultado: NA (variable no definida)
+
+Error por defecto
+
+>EVAL toker + 5<
+Resultado: ERR
+
+División por cero
+
+>EVAL 10 / 0<
+Resultado: Inf
+
+💬 Ejemplos Prácticos
+Rumbo GPS (HDG)
+
+>EVAL HDG<
+Retorna rumbo actual en grados (0-360°). Ejemplo: 185.00
+
+
+>EVAL HDG ge 180<
+Retorna 1.00 si el vehículo apunta hacia el sur-oeste-norte (180°-360°).
+
+
+>EVAL (HDG ge 0) && (HDG lt 90)<
+Retorna 1.00 si apunta hacia el norte-este (0°-90°).
+
+Suma de parámetros ECU
+
+>EVAL ECU(0;0) + ECU(1;0) + ECU(2;0):%0.2f<
+Suma valores ECU de los índices 0, 1 y 2.
+
+Comparación AIN
+
+>EVAL AIN(0) gt 500<
+Retorna 1.00 si AIN(0) > 500, sino 0.00.
+
+Lógica compuesta
+
+>EVAL (V gt 150) && (AIN(0) lt 100)<
+Verifica condición compuesta sobre voltaje y entrada analógica.
+
+Cálculo con formato
+
+>EVAL (10 * 5) + 3:%0.3f<
+Resultado: 53.000
+
+Expresión compleja
+
+>EVAL ((AIN(0) * 10) + (AIN(1) * 5)) / 2:%0.2f:NA<
+Calcula promedio ponderado con formato personalizado y error NA.
+
+Máscara bitwise
+
+>EVAL IN(0) & 0x0F:%X<
+Aplica máscara a entrada digital y muestra en hexadecimal.
+
+Shift bits
+
+>EVAL 8 sr 2<
+Resultado: 2.00 (8 >> 2)
+
+División con formato entero
+
+>EVAL 25 / 4:%d<
+Resultado: 6 (división entera)
+
+Conversión de temperatura
+
+>EVAL (AIN(0) * 0.1) - 40:%0.1f:ERR<
+Convierte lectura ADC a temperatura con error ERR.
+
+🔧 Resolución de Errores
+Error	Causa	Solución
+ERR	Variable no definida o sintaxis incorrecta	Verifica ortografía, usa valor_error
+Inf	División por cero	Valida divisor o usa valor_error
+Sintaxis	Paréntesis desbalanceados	Revisa estructura de expresión
+Índice	Fuera de rango (ej: AIN(9))	Consulta rangos válidos del modelo
+Compatibilidad
+ZE-IoT
+SP-IoT
+SM-IoT
+Ver también
+Lista de Disparadores - Señales disponibles
+Motor de Eventos - Uso en reglas
+Reportes de Usuario Ux - Integración con EVAL
+
+
+
+Comando UC — Reportes de Usuario Personalizados
+Permite crear reportes customizados concatenando respuestas de múltiples comandos, texto plano y campos calculados. Ideal para integrar datos específicos en formatos a medida.
+
+🎯 16 reportes disponibles (índices 00-0F), cada uno totalmente configurable e independiente.
+
+¿Para qué sirve?
+Caso de uso	Descripción
+📊 Telemetría customizada	Combinar datos de GPS, sensores y estados en un solo reporte
+🔗 Integración con servidores	Formato específico para plataformas de tracking
+📝 Reportes multi-sensor	Concatenar lecturas analógicas, digitales y CAN
+🏷️ Identificación de cargas	Incluir códigos de cliente/pedido desde buffers XB
+📋 Formato JSON/CSV	Estructurar datos para APIs o procesamiento
+Comandos
+Operación	Sintaxis	Descripción
+Configurar	SUCnn estructura	Define estructura del reporte nn
+Borrar	SUCnn*	Elimina configuración del reporte nn
+Consultar	QUCnn	Lee estructura configurada
+Parámetros
+Parámetro	Descripción	Valores
+nn	Índice de reporte	00 a 0F (16 reportes)
+estructura	Definición de campos	Campos separados por |
+Respuesta
+
+RUCnn campo1|campo2|...|campoN
+
+Sintaxis de Campos
+Extracción de comando
+
+COMANDO,inicio,longitud
+
+Elemento	Descripción
+COMANDO	Comando a ejecutar (ej: QPQ, QIO, QCQ)
+inicio	Primera posición a incluir (base 0)
+longitud	Cantidad de caracteres a extraer
+Ejemplo: QPQ,5,64 → Extrae 64 caracteres desde posición 5 de la respuesta QPQ
+
+Caracteres ASCII Especiales
+Usa códigos hexadecimales para insertar caracteres especiales en el reporte.
+
+Código	Caracter	Descripción
+\00	NULL	Terminador
+\09	TAB	Tabulación
+\0D	CR	Retorno de carro
+\0A	LF	Salto de línea
+\20	SPACE	Espacio
+\2C	,	Coma
+\3A	:	Dos puntos
+\3B	;	Punto y coma
+\5C	\	Barra invertida
+\7C	|	Pipe
+Evaluación Inline con EVAL
+Disponible desde v1.9.18 — Límite de reporte aumentado a 239 bytes.
+
+Permite insertar expresiones EVAL directamente en el reporte usando comillas simples. Las expresiones se evalúan dinámicamente al momento de enviar.
+
+Sintaxis
+
+'expresión'
+'expresión:formato'
+'expresión:formato:valor_error'
+Tokens Disponibles
+Token	Descripción
+'CHN'	Nombre del canal de comunicación (WIFI, GPRS, etc.)
+'CHC'	Código del canal
+'CSQ'	Calidad de señal celular
+'VEL'	Velocidad GPS
+'LAT'	Latitud
+'LON'	Longitud
+'V'	Tensión principal
+'TICK'	Tick del sistema
+Funciones
+Función	Descripción
+'IN(x)'	Entrada digital x
+'XP(x)'	Salida digital x
+'AIN(x)'	Entrada analógica x
+'TD(x)'	Timer/Distancia x
+'MBS(x;y)'	Sensor BLE (x=índice, y=tipo)
+Operadores Texto
+Para comparaciones dentro de comillas, usa operadores texto:
+
+Operador	Equivale	Ejemplo
+gt	>	CSQ gt 15
+ge	>=	V ge 120
+lt	<	VEL lt 80
+le	<=	AIN(0) le 500
+eq	==	IN(0) eq 1
+ne	!=	XP(0) ne 0
+Ejemplos EVAL Inline
+
+
+// Reporte con canal, señal y velocidad formateados
+>SUC00 $ID chanel:'CHN' signal:'CSQ:%02d' vel:'VEL:%d';#8002;ID=865413053386354;*61<
+>RUC00 $ID chanel:'CHN' signal:'CSQ:%02d' vel:'VEL:%d';#8002;ID=865413053386354;*60<
+
+>QU0;#8003;ID=865413053386354;*37<
+>ID chanel:TRM signal:99 vel:0;#8003;ID=865413053386354;*03<
+
+
+Máximo 20 tokens EVAL por reporte. Las expresiones se evalúan al momento de enviar, no al configurar.
+
+Ejemplos
+Reporte simple con posición
+
+>SUC00 $POS| QPQ,5,64<
+
+$POS → Texto literal “POS”
+QPQ,5,64 → Respuesta de QPQ desde posición 5, 64 caracteres
+Reporte con identificador de evento
+
+>SUC03 $EVT| #| $\3B| QPQ,5,30<
+
+El # se reemplaza por el número de evento disparador.
+
+Invocación de Reportes UC
+Consulta manual
+
+>QU0<
+
+Consulta el contenido del reporte UC00.
+
+Generación automática con eventos
+
+>SRL50E;TRG=IGN+;ACC={GU0}<
+
+Genera reporte UC00 cuando se enciende ignición.
+
+Para enviar el reporte al servidor usa GUn (Generador). QUn solo consulta localmente.
+
+Limitaciones
+Parámetro	Valor
+📦 Reportes UC disponibles	16 (00-0F)
+📏 Longitud máxima texto	239 bytes
+🔢 Campos por reporte	~20 (según longitud)
+🔢 Tokens EVAL inline	20 máximo
+🚫 Comandos anidables	No (UC no puede contener UC)
+Compatibilidad
+💾
+Firmware:
+v1.00.00
+C5
+Legacy
+SP-IOT
+SM-IOT
+ZE-IOT
+Ver También
+Reporte Ux - Consulta y generación de reportes UC
+Comando XB - Buffers de texto
+Comando EVAL - Expresiones calculadas
+Motor de Eventos - Generación automática
+
+
+
+Reporte Ux — Operaciones con Reportes de Usuario
+Permite consultar, ejecutar y generar reportes de usuario previamente configurados con el Comando UC.
+
+¿Para qué sirve?
+Caso de uso	Descripción
+📤 Envío automático	Generar y enviar reportes customizados por eventos
+🔍 Consulta local	Verificar contenido de reportes UC
+⚡ Ejecución dinámica	Ejecutar comandos embebidos en el reporte
+📊 Telemetría periódica	Enviar datos combinados a intervalos
+Comandos
+Operación	Sintaxis	Descripción
+Consultar	QUn	Lee contenido del reporte UCnn
+Ejecutar	SUn	Ejecuta el reporte como comando local
+Generar	GUn[bb][c]	Genera y envía reporte al servidor
+Diferencia clave:
+
+QUn → Solo muestra el contenido renderizado
+SUn → Ejecuta los comandos embebidos en el reporte
+GUn → Genera el reporte y lo envía a un destino IP
+Parámetros
+Parámetro	Descripción	Valores
+n	Índice de reporte	0 a F (UC00-UC0F)
+bb	Número de evento asociado (solo para G)	00-FF, XX = sin evento
+c	Tipo de reporte (solo para G)	H = alta prioridad, L = live, R = con respuesta
+Operaciones en Detalle
+QUn — Consultar Reporte
+Lee y muestra el contenido del reporte UC procesado.
+
+
+>QUn<
+
+Respuesta:
+
+
+RUn contenido_renderizado
+Donde contenido_renderizado es el resultado de procesar la estructura UC configurada (ejecuta los comandos internos y concatena resultados).
+
+Integración con Motor de Eventos
+Generar reporte por IGN ON
+
+>SRL60E;TRG=IGN+;ACC={GU0XXH}<
+
+Ejecutar macro por entrada digital
+
+>SRL61E;TRG=IN02+;ACC={SU1}<
+
+Ejecuta el contenido de UC01 cuando se activa IN02.
+
+Generar por velocidad límite
+
+>SRL62E;TRG=VL00+;ACC={GU1XXH}<
+
+Secuencia periódica con timer
+
+>STD05E00005<
+>SRL96E;TRG=TD05+;ACC={GU0XXH}<
+>SRL97E;TRG=TD05+;ACC={SU1}<
+
+Genera UC00 y ejecuta UC01 cada 5 segundos.
+
+Compatibilidad
+💾
+Firmware:
+v1.00.00
+C5
+Legacy
+SP-IOT
+SM-IOT
+ZE-IOT
+Ver También
+Comando UC - Configuración de estructura
+Comando G - Generador de reportes
+Comando XB - Buffers de texto
+Motor de Eventos - Automatización
+
+
+
+
+Reporte BQ (G-Q-R)
+Extendido FILTRADO + Batería Interna
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GBQbbc[;@dd..dd]
+
+Consultar
+
+QBQ
+
+Respuesta
+
+RBQAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTTT
+
+Campos específicos de BQ
+Campo	Descripción	Formato
+TTT	Tensión batería interna	centésimas de Volt
+El campo TTT reporta la tensión de la batería de respaldo interna. Por ejemplo: 420 = 4.20V
+
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+Reporte BR
+Reporte BR (G-Q-R)
+Extendido FILTRADO + Batería Interna + Temperatura OW0
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GBRbbc[;@dd..dd]
+
+Consultar
+
+QBR
+
+Respuesta
+
+RBRAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTTTUVVVVWW
+
+Campos específicos de BR
+Campo	Descripción	Formato
+TTT	Tensión batería interna	centésimas de Volt
+U	Signo de temperatura	+ o -
+VVVV	Temperatura OW0	centésimas de °C
+WW	Edad de lectura	segundos
+Ejemplo de interpretación
+Campo	Valor	Significado
+TTT	420	Batería = 4.20V
+U	+	Positivo
+VVVV	2350	23.50°C
+WW	05	Lectura de hace 5 segundos
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+
+Reporte BV
+Reporte BV (G-Q-R)
+Extendido FILTRADO + Batería Interna + Temperatura OW0 + Temperatura OW1
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GBVbbc[;@dd..dd]
+
+Consultar
+
+QBV
+
+Respuesta
+
+RBVAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS%%%TUUUUVVXYYYYZZ
+
+Campos específicos de BV
+Campo	Descripción	Formato
+%%%	Tensión batería interna	centésimas de Volt
+T	Signo temperatura OW0	+ o -
+UUUU	Temperatura OW0	centésimas de °C
+VV	Edad lectura OW0	segundos
+X	Signo temperatura OW1	+ o -
+YYYY	Temperatura OW1	centésimas de °C
+ZZ	Edad lectura OW1	segundos
+Ejemplo de interpretación
+Campo	Valor	Significado
+%%%	420	Batería = 4.20V
+T	+	OW0 positivo
+UUUU	2350	OW0 = 23.50°C
+VV	02	OW0 hace 2 seg
+X	-	OW1 negativo
+YYYY	1825	OW1 = -18.25°C
+ZZ	03	OW1 hace 3 seg
+Ideal para aplicaciones de cadena de frío con dos puntos de medición (ej: compartimento congelado y refrigerado).
+
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+
+Reporte CP
+Reporte CP (G-Q-R)
+Extendido con GPS sin Filtro (datos GPS raw)
+
+Ver Reportes Extendidos para estructura común.
+
+A diferencia de CQ, el reporte CP envía los datos GPS sin filtrar, incluyendo posiciones con PDOP alto o pocos satélites.
+
+Generar reporte
+
+GCPbbc[;@dd..dd]
+
+Consultar
+
+QCP
+
+Respuesta
+
+RCPAABBBBBCCCCCCDDDDDDDDEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS
+
+Diferencia CP vs CQ
+Característica	CP	CQ
+Filtro GPS	❌ No	✅ Sí
+Reporta posición inválida	✅ Sí	❌ No
+Usa CXCQ	❌ No	✅ Sí
+Casos de uso
+Diagnóstico: Ver datos GPS raw para detectar problemas
+Tracking continuo: Cuando se necesita posición aunque sea imprecisa
+Debug: Análisis de calidad de señal GPS
+Campos incluidos
+Ver Reportes Extendidos para descripción completa de todos los campos.
+
+Reporte CQ (G-Q-R)
+Reporte compacto extendido filtrado con odómetro, tensión de batería, estado GPS y estado celular. Es uno de los reportes más utilizados por su balance entre información y tamaño.
+
+El reporte CQ incluye filtrado de calidad GPS configurable mediante Comando CXCQ.
+
+Generar reporte
+
+GCQbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QCQ
+
+Respuesta
+
+RCQAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS
+
+Estructura de campos
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (±DDMMMMM)
+EEEEEEEEE	9	Longitud (±DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+Estado de registro GSM (R)
+Valor	Descripción
+0	No registrado, sin búsqueda activa
+1	Registrado, red local
+2	No registrado, buscando operador
+3	Registro denegado
+4	Desconocido
+5	Registrado, roaming
+Nivel de señal CSQ (SS)
+Valor	Descripción
+99	Sin señal / Open
+0-30	Nivel de señal (mayor = mejor)
+Ejemplo de reporte
+
+>RCQ00291224153045-2778467-0642565804518081011270003A980130412000110115;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Nro Reporte	00	Reporte 00
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Latitud	-2778467	27°78.467’S
+Longitud	-06425658	64°25.658’W
+Velocidad	045	45 km/h
+Rumbo	180	180° (Sur)
+IGN+IN	81	IGN=1, IN0=1
+XP	01	XP0=1
+Tensión	127	12.7V
+Odómetro	0003A980	240,000 metros = 240 km
+GPS Power	1	GPS encendido
+Fix Mode	3	3D Fix
+PDOP	04	PDOP = 4
+Satélites	12	12 satélites
+Edad GPS	0001	1 segundo
+Modem Power	1	Modem encendido
+Registro GSM	0	No registrado
+CSQ	15	Señal nivel 15
+Filtrado de calidad GPS
+El reporte CQ aplica filtrado configurable mediante CXCQ:
+
+Fix Mode: 2D o 3D requerido
+PDOP: Máximo configurable (≤50)
+Satélites: Mínimo configurable (3-24)
+Si las condiciones de calidad GPS no se cumplen, el reporte se genera con los datos de la última posición válida y el campo PPPP indicará el tiempo transcurrido.
+
+Uso típico en reglas
+
+// Reporte periódico cada 5 minutos con motor encendido
+>STD01E00300<
+>SRL01E;TRG=TD01+;CND=IGN;ACC={GCQ01L}<
+
+// Reporte por exceso de velocidad
+>SVL00E01100000<
+>SRL35E;TRG=VL00+;ACC={GCQ35H}<
+
+// Reporte por cambio de rumbo
+>SDC00*045<
+>SRL16E;TRG=DC00+;ACC={GCQ16H}{STD01R}<
+
+
+Reporte CR (G-Q-R)
+Extendido FILTRADO + Temperatura sensor OW0
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GCRbbc[;@dd..dd]
+
+Consultar
+
+QCR
+
+Respuesta
+
+RCRAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTUUUUVV
+
+Campos específicos de CR
+Campo	Descripción	Formato
+T	Signo de temperatura	+ o -
+UUUU	Temperatura	centésimas de °C
+VV	Edad de lectura	segundos
+Ejemplos de temperatura
+Valor	Significado
++2350	+23.50°C
+-0550	-5.50°C
++0000	0.00°C
+El campo VV indica cuántos segundos han pasado desde la última lectura del sensor digital OW0.
+
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+
+Reporte CT (G-Q-R)
+Extendido FILTRADO + IButton Leído
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GCTbbc[;@dd..dd]
+
+Consultar
+
+QCT
+
+Respuesta
+
+RCTAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS;TTTTTTTTTTTTTTTT
+
+Campos específicos de CT
+Campo	Descripción
+TTTTTTTTTTTTTTTT	Último IButton leído (16 caracteres)
+El campo de IButton reporta el último código leído independientemente de si pertenece al listado de gestión de choferes. Si no hay lectura, el campo permanece vacío.
+
+Ejemplo de reporte
+
+>RCT00120520143022-2778467-0642565800007799001240000000013020700011;0100000012345678;#0100;ID=1234;*3A<
+
+Donde 0100000012345678 es el ID del IButton DS1990 leído.
+
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+
+Reporte CU (G-Q-R)
+Reporte extendido filtrado con identificación de chofer activo del listado ICL. Ideal para control de acceso, gestión de flotas y seguimiento de conductores autorizados.
+
+Los choferes deben estar previamente registrados en el listado ICL. Ver Comando ICL para configuración.
+
+Generar reporte
+
+GCUbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QCU
+
+Respuesta
+
+RCUAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSST;UUUUUUUUUUUUUUUU
+
+Estructura de campos
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (±DDMMMMM)
+EEEEEEEEE	9	Longitud (±DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+T	1	Estado sesión choferes
+UUUU…	16	Código iButton del chofer activo
+Campo de sesión de choferes (T)
+Valor	Descripción
+0	Sesión cerrada (sin chofer activo)
+1	Sesión abierta (chofer identificado)
+Campo iButton (UUUU…)
+El campo de 16 caracteres contiene el código del último iButton leído que pertenece al listado de gestión de choferes (ICL).
+
+Si no hay lectura válida de iButton, el campo permanecerá vacío. El código solo se muestra si el iButton está registrado en el listado ICL.
+
+Estado de registro GSM (R)
+Valor	Descripción
+0	No registrado, sin búsqueda activa
+1	Registrado, red local
+2	No registrado, buscando operador
+3	Registro denegado
+4	Desconocido
+5	Registrado, roaming
+Nivel de señal CSQ (SS)
+Valor	Descripción
+99	Sin señal / Open
+0-30	Nivel de señal (mayor = mejor)
+Ejemplo de reporte
+
+>RCU00291224153045-2778467-0642565804518081011270003A9801304120001101151;01000012AB34CD56;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Nro Reporte	00	Reporte 00
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Latitud	-2778467	27°78.467’S
+Longitud	-06425658	64°25.658’W
+Velocidad	045	45 km/h
+Sesión	1	Sesión abierta
+iButton	01000012AB34CD56	Código del chofer activo
+Uso típico - Control de choferes
+
+// Reporte al iniciar sesión de chofer
+>SRL10E;TRG=DRV+;ACC={GCU10H}<
+
+// Reporte periódico con identificación de chofer
+>STD01E00120<
+>SRL01E;TRG=TD01+;ACC={GCU01L}<
+
+
+Reporte CV (G-Q-R)
+Reporte extendido filtrado con datos de dos sensores de temperatura (OW0 y OW1). Ideal para aplicaciones de cadena de frío, transporte refrigerado o monitoreo ambiental.
+
+Los sensores de temperatura utilizan el protocolo 1-Wire (Dallas). Para configurar los sensores, ver Comandos de Temperatura.
+
+Generar reporte
+
+GCVbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QCV
+
+Respuesta
+
+RCVAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTUUUUVVXYYYYZZ
+
+Estructura de campos
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (DDMMMMM)
+EEEEEEEEE	9	Longitud (DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+T	1	Signo temperatura OW0 (+ o -)
+UUUU	4	Temperatura OW0 (centésimas C)
+VV	2	Antigüedad lectura OW0 (seg)
+X	1	Signo temperatura OW1 (+ o -)
+YYYY	4	Temperatura OW1 (centésimas C)
+ZZ	2	Antigüedad lectura OW1 (seg)
+Campos de temperatura
+Temperatura OW0
+Campo	Descripción
+T	Signo de la temperatura: + (positiva) o - (negativa)
+UUUU	Valor en centésimas de grado Celsius (ej: 2350 = 23.50C)
+VV	Segundos transcurridos desde la última lectura válida
+Temperatura OW1
+Campo	Descripción
+X	Signo de la temperatura: + (positiva) o - (negativa)
+YYYY	Valor en centésimas de grado Celsius (ej: -0520 = -5.20C)
+ZZ	Segundos transcurridos desde la última lectura válida
+Si el campo de antigüedad (VV o ZZ) muestra un valor alto, indica que el sensor puede estar desconectado o con problemas de comunicación.
+
+Estado de registro GSM (R)
+Valor	Descripción
+0	No registrado, sin búsqueda activa
+1	Registrado, red local
+2	No registrado, buscando operador
+3	Registro denegado
+4	Desconocido
+5	Registrado, roaming
+Nivel de señal CSQ (SS)
+Valor	Descripción
+99	Sin señal / Open
+0-30	Nivel de señal (mayor = mejor)
+Ejemplo de reporte
+
+>RCV00291224153045-2778467-0642565804518081011270003A980130412000110115+235005-052010;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Temp OW0 Signo	+	Positiva
+Temp OW0 Valor	2350	23.50C
+Temp OW0 Edad	05	5 segundos
+Temp OW1 Signo	-	Negativa
+Temp OW1 Valor	0520	-5.20C
+Temp OW1 Edad	10	10 segundos
+Uso típico - Cadena de frío
+
+// Reporte periódico cada 2 minutos para monitoreo de temperatura
+>STD01E00120<
+>SRL01E;TRG=TD01+;ACC={GCV01L}<
+
+// Alarma por temperatura fuera de rango (usar con regla de umbral)
+>SRL35E;TRG=TH00+;ACC={GCV35H}<
+
+
+Reporte CW (G-Q-R)
+Reporte compacto optimizado con odómetro en decimal y orden de campos reorganizado. Diseñado para facilitar el parsing y la integración con plataformas que requieren odómetro en formato decimal.
+
+A diferencia del reporte CQ, el reporte CW incluye el odómetro en formato decimal (metros) en lugar de hexadecimal, simplificando el procesamiento en la plataforma.
+
+Generar reporte
+
+GCWbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QCW
+
+Respuesta
+
+RCWAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEGGGFFFLOOPPPPMNNQRSSKKKKKKKKKKHH
+
+Estructura de campos
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (DDMMMMM)
+EEEEEEEEE	9	Longitud (DDDMMMMM)
+GGG	3	Rumbo (grados)
+FFF	3	Velocidad (km/h)
+L	1	GPS Power: 0=Off, 1=On
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (decimal)
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+KKKKKKKKKK	10	Odómetro total (metros, decimal)
+HH	2	Entradas IGN+IN (hex)
+Diferencias con CQ: El orden de campos es diferente. Nota que velocidad y rumbo están intercambiados, y el odómetro está al final en formato decimal de 10 dígitos.
+
+Diferencias con reporte CQ
+Característica	CQ	CW
+Odómetro	8 dígitos hex	10 dígitos decimal
+Edad GPS	Hexadecimal	Decimal
+Tensión batería	Incluida	No incluida
+Salidas XP	Incluidas	No incluidas
+Orden campos	Estándar	Reorganizado
+Estado de registro GSM (R)
+Valor	Descripción
+0	No registrado, sin búsqueda activa
+1	Registrado, red local
+2	No registrado, buscando operador
+3	Registro denegado
+4	Desconocido
+5	Registrado, roaming
+Nivel de señal CSQ (SS)
+Valor	Descripción
+99	Sin señal / Open
+0-30	Nivel de señal (mayor = mejor)
+Ejemplo de reporte
+
+>RCW00291224153045-2778467-06425658180045112000130411150000240000081;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Nro Reporte	00	Reporte 00
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Latitud	-2778467	2778.467’S
+Longitud	-06425658	6425.658’W
+Rumbo	180	180 (Sur)
+Velocidad	045	45 km/h
+GPS Power	1	GPS encendido
+Satélites	12	12 satélites
+Edad GPS	0001	1 segundo (decimal)
+Fix Mode	3	3D Fix
+PDOP	04	PDOP = 4
+Modem Power	1	Modem encendido
+Registro GSM	1	Registrado, red local
+CSQ	15	Señal nivel 15
+Odómetro	0000240000	240,000 metros = 240 km
+IGN+IN	81	IGN=1, IN0=1
+Uso típico
+
+// Reporte periódico cada 5 minutos
+>STD01E00300<
+>SRL01E;TRG=TD01+;CND=IGN;ACC={GCW01L}<
+
+// Reporte por evento con odómetro en decimal
+>SRL35E;TRG=IN00+;ACC={GCW35H}<
+
+
+Reporte EQ (G-Q-R)
+Reporte extendido con datos CAN OBD-II (CAN01). Combina la información del reporte CQ con parámetros de la ECU del vehículo.
+
+Uso recomendado: Vehículos livianos con protocolo OBD-II. Para vehículos pesados con J1939, usar Reporte ER.
+
+Plataformas compatibles: Wialon y RedGPS tienen soporte nativo para el formato EQ, permitiendo integración sin desarrollo adicional.
+
+Generar reporte
+
+GEQbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QEQ
+
+Respuesta
+
+REQAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS;CANFIELD1=VALUE1,...,CANFIELDn=VALUEn
+
+Estructura de campos GPS (base CQ)
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (DDMMMMM)
+EEEEEEEEE	9	Longitud (DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+Campos CAN OBD-II
+Los datos CAN se agregan al final de la trama, separados por ; y en formato ID=VALOR:
+
+ID	Parámetro	Unidad	Descripción
+1	VIN	-	Número de chasis/identificación
+2	RPM	rpm	Revoluciones por minuto del motor
+3	Velocidad en rueda	km/h	Velocidad reportada por ECU
+B	Odómetro	km	Odómetro total del vehículo
+14	Odolitro	L	Consumo total de combustible
+15	Nivel de combustible	%	Porcentaje del tanque
+2A	Temp. refrigerante	C	Temperatura del líquido refrigerante
+2C	Presión de aceite	kPa	Presión del aceite de motor
+Los campos CAN son opcionales. Si la ECU no proporciona un parámetro, el campo aparecerá vacío (ID=).
+
+Ejemplo con datos válidos
+
+>REQ00210918170359-2778100-064258570001517F000000000049D13010900001516;1=1M8GDM9A_KP042788,2=2200,3=45,B=66010,14=30000,15=75,2A=90,2C=340;ID=037883;*01<
+
+Datos GPS
+Campo	Valor	Interpretación
+Fecha	210918	21/09/2018
+Hora	170359	17:03:59
+Latitud	-2778100	2778.100’S
+Longitud	-06425857	6425.857’W
+Velocidad	000	0 km/h
+Rumbo	151	151
+Datos CAN extraídos
+ID	Valor	Interpretación
+1	1M8GDM9A_KP042788	VIN del vehículo
+2	2200	2200 RPM
+3	45	45 km/h (velocidad ECU)
+B	66010	66,010 km odómetro
+14	30000	30,000 L consumidos
+15	75	75% combustible
+2A	90	90C refrigerante
+2C	340	340 kPa aceite
+Ejemplo con datos inválidos
+Cuando la ECU no responde o no tiene datos disponibles:
+
+
+>REQ00000000000000-2780656-064296830000117F00000010836F1130112FFFF1117;1=,2=,3=,B=,14=,15=,2A=,2C=;ID=2326;*01<
+
+Los campos vacíos (1=,2=,...) indican que la ECU no proporcionó esos valores.
+
+Comparación con Reporte ER
+Característica	EQ	ER
+Protocolo CAN	CAN01 (OBD-II)	CAN00 (J1939)
+Vehículos	Livianos	Pesados
+Campos CAN	VIN, RPM, velocidad, etc.	RPM, acelerador, horómetro, etc.
+Formato valores	Enteros/String	Decimales con 2 dígitos
+Configuración CAN
+Para habilitar la lectura de datos OBD-II, configurar el módulo CAN:
+
+
+>CAN01,1<
+Ver Comandos CAN para configuración detallada.
+
+Uso típico
+
+// Reporte periódico con datos de ECU cada 30 segundos
+>STD01E00030<
+>SRL01E;TRG=TD01+;CND=IGN;ACC={GEQ01L}<
+
+// Reporte por evento con datos CAN
+>SRL35E;TRG=IN00+;ACC={GEQ35H}<
+
+Alternativa recomendada
+Para nuevos proyectos donde necesite mayor control sobre los parámetros reportados, considere usar reportes personalizados Ux + UC + ECU. Esto permite:
+
+Seleccionar solo los parámetros necesarios
+Reducir el tamaño de trama
+Usar nombres de campo descriptivos
+
+Reporte ER (G-Q-R)
+Reporte extendido con datos CAN J1939 (CAN00). Combina la información del reporte CQ con parámetros de la ECU del vehículo.
+
+Uso recomendado: Vehículos pesados (camiones, buses, maquinaria) con protocolo J1939. Para vehículos livianos con OBD-II, usar Reporte EQ.
+
+Plataformas compatibles: Wialon y RedGPS tienen soporte nativo para el formato ER, permitiendo integración sin desarrollo adicional.
+
+Generar reporte
+
+GERbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QER
+
+Respuesta
+
+RERAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS;CANFIELD1=VALUE1,...,CANFIELDn=VALUEn
+
+Estructura de campos GPS (base CQ)
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (DDMMMMM)
+EEEEEEEEE	9	Longitud (DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+Campos CAN J1939
+Los datos CAN se agregan al final de la trama, separados por ; y en formato ID=VALOR:
+
+ID	Parámetro	Unidad	Descripción
+2010	RPM	rpm	Revoluciones por minuto del motor
+5000	Posición acelerador	%	Porcentaje de acelerador presionado
+1030	Odolitro	L	Consumo total de combustible
+4201	Nivel de combustible	%	Porcentaje del tanque
+1020	Odómetro	km	Odómetro total del vehículo
+1010	Velocidad en rueda	km/h	Velocidad reportada por ECU
+2012	Temp. refrigerante	C	Temperatura del líquido refrigerante
+2013	Presión de aceite	kPa	Presión del aceite de motor
+2020	Horas de motor	h	Engine Hours / Horómetro
+3010	Combustible del trip	L	Combustible consumido en el viaje actual
+Los valores CAN se reportan con decimales (ej: 1000.00). Si la ECU no proporciona un parámetro, el campo mostrará el código de error !3.
+
+Códigos de estado CAN
+Código	Significado
+=VALOR	Dato válido recibido de la ECU
+!3	Sin información (ECU no respondió)
+Ejemplo con datos válidos
+
+>RER00090719144856-2778101-06425853000214FF00115000000AD13011000001511;2010=1000.00,5000=0.00,1030=10000.00,4201=50.00,1020=20000.00,1010=60.00,2012=15.00,2013=100.00,2020=13.00,3010=0.13;#0009;ID=037222;*5A<
+
+Datos GPS
+Campo	Valor	Interpretación
+Fecha	090719	09/07/2019
+Hora	144856	14:48:56
+Latitud	-2778101	2778.101’S
+Longitud	-06425853	6425.853’W
+Velocidad	000	0 km/h
+Rumbo	214	214
+Datos CAN J1939 extraídos
+ID	Valor	Interpretación
+2010	1000.00	1000 RPM
+5000	0.00	0% acelerador (pie levantado)
+1030	10000.00	10,000 L consumidos total
+4201	50.00	50% combustible en tanque
+1020	20000.00	20,000 km odómetro
+1010	60.00	60 km/h (velocidad ECU)
+2012	15.00	15C refrigerante
+2013	100.00	100 kPa presión aceite
+2020	13.00	13 horas de motor
+3010	0.13	0.13 L en trip actual
+Ejemplo con datos inválidos
+Cuando la ECU no responde o no tiene datos disponibles:
+
+
+>RER00000000000000-2780656-064296830000117F00000010836F1130112FFFF1118;2010!3,5000!3,1030!3,4201!3,1020!3,1010!3,2012!3,2013!3,2020!3,3010!3;ID=2326;*7F<
+
+El código !3 en cada campo indica que la ECU no proporcionó información para ese parámetro.
+
+Comparación EQ vs ER
+Característica	EQ (OBD-II)	ER (J1939)
+Protocolo	CAN01	CAN00
+Vehículos	Livianos (autos, SUV)	Pesados (camiones, buses)
+Formato valores	Enteros/String	Decimales (2 dígitos)
+Horas de motor	No	Sí (2020)
+Posición acelerador	No	Sí (5000)
+Trip fuel	No	Sí (3010)
+VIN	Sí	No
+Configuración CAN
+Para habilitar la lectura de datos J1939, configurar el módulo CAN:
+
+
+>CAN00,1<
+Ver Comandos CAN para configuración detallada.
+
+Uso típico - Flotas de camiones
+
+// Reporte periódico con datos de ECU cada 30 segundos
+>STD01E00030<
+>SRL01E;TRG=TD01+;CND=IGN;ACC={GER01L}<
+
+// Reporte por evento de ralentí prolongado
+>SRL35E;TRG=RL00+;ACC={GER35H}<
+
+// Reporte al apagar motor (para capturar totales)
+>SRL40E;TRG=IGN-;ACC={GER40H}<
+
+Alternativa recomendada
+Para nuevos proyectos donde necesite mayor control sobre los parámetros reportados, considere usar reportes personalizados Ux + UC + ECU. Esto permite:
+
+Seleccionar solo los parámetros necesarios
+Reducir el tamaño de trama
+Usar nombres de campo descriptivos
+
+Reporte HQ (G-Q-R)
+Extendido FILTRADO + Horómetro + Batería Interna
+
+Ver Reportes Extendidos para estructura común.
+
+Generar reporte
+
+GHQbbc[;@dd..dd]
+
+Consultar
+
+QHQ
+
+Respuesta
+
+RHQAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTTT@@@@@@@@
+
+Campos específicos de HQ
+Campo	Descripción	Formato
+TTT	Tensión batería interna	centésimas de Volt
+@@@@@@@@	Horómetro	segundos (hex)
+Horómetro
+El campo de 8 dígitos hexadecimales representa el contador de segundos de operación.
+
+Ejemplo	Decimal	Tiempo aproximado
+00000E10	3,600	1 hora
+00015180	86,400	1 día
+00093A80	604,800	1 semana
+Para iniciar, detener o resetear el horómetro, ver Comando HO.
+
+Campos base incluidos
+Ver Reportes Extendidos para descripción completa de campos AA-SS.
+
+Reporte HR
+Reporte extendido filtrado con horómetro, batería interna y temperatura OW0.
+
+Ver también: Reportes Extendidos
+
+Generar Reporte
+
+>GHRbbc[;@dd..dd]<
+
+Parámetro	Descripción
+bb	Número de disparador (00-FF)
+c	Prioridad: H, M, L
+@dd..dd	Destino opcional
+Ver Comando G para más detalles.
+
+Consultar
+
+>QHR<
+
+Respuesta
+
+>RHRAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSSTTT@@@@@@@@UVVVVWW<
+
+Estructura del Reporte
+Campo	Tamaño	Descripción
+AA	2	Número de reporte (00-FF hex)
+BBBBBB	6	Fecha DDMMAA
+CCCCCC	6	Hora HHMMSS
+DDDDDDDD	8	Latitud (grados 100000)
+EEEEEEEEE	9	Longitud (grados 100000)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Estado entradas IGN+IN (hex)
+II	2	Estado salidas XP (hex)
+JJJ	3	Tensión batería (décimas de volt)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS power: 0=Off, 1=On
+M	1	GPS fix: 2=2D, 3=3D
+NN	2	PDOP (parte entera)
+OO	2	Cantidad de satélites (decimal)
+PPPP	4	Segundos desde último fix (hex)
+Q	1	Módem power: 0=Off, 1=On
+R	1	Estado registro GSM*
+SS	2	Nivel señal (CSQ)**
+TTT	3	Batería interna (centésimas volt)
+@@@@@@@@	8	Horómetro (segundos, hex)
+U	1	Signo temperatura (+ o -)
+VVVV	4	Temperatura OW0 (centésimas C)
+WW	2	Segundos desde última lectura temp
+* Estado registro GSM:
+
+0 = No registrado, no buscando
+1 = Registrado, red local
+2 = No registrado, buscando
+3 = Registro denegado
+4 = Desconocido
+5 = Registrado, roaming
+** Nivel de señal (CSQ):
+
+99 = Sin señal
+0-30 = Nivel de señal
+Horómetro
+El campo @@@@@@@@ contiene un contador de segundos en formato hexadecimal.
+
+Para iniciar, detener o resetear la cuenta, usar el Comando HO.
+
+Reporte HV (G-Q-R)
+Reporte extendido filtrado con horómetro, batería interna y dos sensores de temperatura (OW0 y OW1). Ideal para monitoreo de maquinaria, equipos con batería de respaldo y control de temperatura simultáneo.
+
+Este reporte combina múltiples métricas útiles para maquinaria industrial y vehículos especiales: tiempo de operación, estado de batería backup y monitoreo de temperatura.
+
+Generar reporte
+
+GHVbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QHV
+
+Respuesta
+
+RHVAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHIIJJJKKKKKKKKLMNNOOPPPPQRSS%%%$$$$$$$$TUUUUVVXYYYYZZ
+
+Estructura de campos
+Campo	Long.	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha (DDMMAA)
+CCCCCC	6	Hora (HHMMSS)
+DDDDDDDD	8	Latitud (DDMMMMM)
+EEEEEEEEE	9	Longitud (DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados)
+HH	2	Entradas IGN+IN (hex)
+II	2	Salidas XP (hex)
+JJJ	3	Tensión batería vehículo (décimas de V)
+KKKKKKKK	8	Odómetro total (metros, hex)
+L	1	GPS Power: 0=Off, 1=On
+M	1	GPS Fix Mode: 2=2D, 3=3D
+NN	2	PDOP (entero decimal)
+OO	2	Cantidad de satélites
+PPPP	4	Segundos desde última pos. (hex)
+Q	1	Modem Power: 0=Off, 1=On
+R	1	Estado registro GSM
+SS	2	Nivel señal CSQ
+%%%	3	Tensión batería interna (centésimas de V)
+$$$$$$$$	8	Horómetro (segundos, hex)
+T	1	Signo temperatura OW0 (+ o -)
+UUUU	4	Temperatura OW0 (centésimas C)
+VV	2	Antigüedad lectura OW0 (seg)
+X	1	Signo temperatura OW1 (+ o -)
+YYYY	4	Temperatura OW1 (centésimas C)
+ZZ	2	Antigüedad lectura OW1 (seg)
+Campos específicos del reporte HV
+Batería interna (%%%)
+Campo	Descripción
+%%%	Tensión en centésimas de Volt (ej: 420 = 4.20V)
+La batería interna permite al equipo seguir operando durante cortes de energía del vehículo, ideal para detectar desconexiones.
+
+Horómetro ($$$$$$$$)
+Campo	Descripción
+$$$$$$$$	Contador de segundos en hexadecimal
+Conversión:
+
+Para obtener horas: valor_decimal / 3600
+Ejemplo: 0000E10C = 57612 seg = 16.003 horas
+Para controlar el horómetro, ver Comando HO.
+
+Temperatura OW0
+Campo	Descripción
+T	Signo: + (positiva) o - (negativa)
+UUUU	Valor en centésimas de grado (ej: 2350 = 23.50C)
+VV	Segundos desde última lectura válida
+Temperatura OW1
+Campo	Descripción
+X	Signo: + (positiva) o - (negativa)
+YYYY	Valor en centésimas de grado (ej: -0520 = -5.20C)
+ZZ	Segundos desde última lectura válida
+Estado de registro GSM (R)
+Valor	Descripción
+0	No registrado, sin búsqueda activa
+1	Registrado, red local
+2	No registrado, buscando operador
+3	Registro denegado
+4	Desconocido
+5	Registrado, roaming
+Nivel de señal CSQ (SS)
+Valor	Descripción
+99	Sin señal / Open
+0-30	Nivel de señal (mayor = mejor)
+Ejemplo de reporte
+
+>RHV00291224153045-2778467-06425658045180810112700003A980130412000110115420000E10C+235005-052010;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Nro Reporte	00	Reporte 00
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Latitud	-2778467	2778.467’S
+Longitud	-06425658	6425.658’W
+Velocidad	045	45 km/h
+Rumbo	180	180 (Sur)
+Tensión vehículo	127	12.7V
+Bat. interna	420	4.20V
+Horómetro	0000E10C	57,612 seg = 16.0 h
+Temp OW0	+2350	23.50C
+Edad OW0	05	5 segundos
+Temp OW1	-0520	-5.20C
+Edad OW1	10	10 segundos
+Control del horómetro
+El horómetro puede controlarse mediante el Comando HO:
+
+
+// Iniciar horómetro
+>SHO01<
+
+// Detener horómetro
+>SHO00<
+
+// Resetear horómetro
+>SHO02<
+
+// Consultar valor actual
+>QHO<
+
+El horómetro cuenta tiempo mientras esté activo, independientemente del estado del motor. Configúrelo correctamente según su aplicación.
+
+Uso típico - Maquinaria
+
+// Reporte periódico cada 5 minutos con horómetro
+>STD01E00300<
+>SRL01E;TRG=TD01+;ACC={GHV01L}<
+
+// Reporte al encender equipo (iniciar horómetro)
+>SRL10E;TRG=IGN+;ACC={SHO01}{GHV10H}<
+
+// Reporte al apagar equipo (capturar horas trabajadas)
+>SRL11E;TRG=IGN-;ACC={GHV11H}{SHO00}<
+
+// Alarma por batería interna baja
+>SRL35E;TRG=BL00+;ACC={GHV35H}<
+
+Comparación con otros reportes
+Reporte	Horómetro	Bat. Interna	Temp OW0	Temp OW1
+CQ	No	No	No	No
+CV	No	No	Sí	Sí
+HV	Sí	Sí	Sí	Sí
+
+
+Reportes Standards
+Los reportes de estructura “standard” incorporan una estructura de datos fácilmente legible a primera vista. El formato binario del estado de entradas y salidas denota esta facultad.
+
+Reportes Disponibles
+📍
+GP - General Position
+Reporte básico de posicionamiento AVL.
+
+→
+🌄
+CY - Con Altitud
+Único reporte que incluye altura sobre el nivel del mar.
+
+→
+El reporte CY es recomendado cuando el estado de I/O debe identificarse fácilmente en la cadena de datos, por ejemplo vía SMS.
+
+Comparativa
+Reporte	Altitud	Uso Típico
+GP	No	Tracking básico GPRS
+CY	Sí	SMS, aplicaciones con altitud
+
+Reporte CY (G-Q-R)
+Mensaje de posición estándar que incluye fecha, hora, latitud, longitud, velocidad, rumbo, altitud, estado del GPS, ignición (IGN), entradas (IN), salidas digitales (XP) y campo de texto opcional.
+
+Generar reporte
+
+GCYbbc[;@dd..dd][;TXT=ee..ee]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QCY
+
+Respuesta
+
+RCYAABBBBBBCCCCCCDDDDDDDDEEEEEEEEEFFFGGGHHHHHIJ[;DPPPPPP];IGNK;INLL;XPMM[;TXT=R...][;#QQQQ]
+
+Los corchetes [ ] delimitan fragmentos opcionales.
+
+Estructura de campos
+Campo	Longitud	Descripción
+AA	2	Número de reporte (00-FF)
+BBBBBB	6	Fecha - DDMMAA
+CCCCCC	6	Hora - HHMMSS
+DDDDDDDD	8	Latitud (±DDMMMMM)
+EEEEEEEEE	9	Longitud (±DDDMMMMM)
+FFF	3	Velocidad (km/h)
+GGG	3	Rumbo (grados 000-359)
+HHHHH	5	Altitud (metros, con signo)
+I	1	GPS Status 1
+J	1	GPS Status 2
+PPPPPP	6	Tiempo diferencial (hex, segundos)
+K	1	Estado ignición (0/1)
+LL	2	Entradas digitales IN (hex)
+MM	2	Salidas digitales XP (hex)
+R…	var	Texto opcional (hasta 150 caracteres)
+QQQQ	4	Número de mensaje (hex)
+Campos opcionales
+Campo Diferencial (;DPPPPPP)
+Indica el tiempo transcurrido (en segundos, formato hexadecimal) desde la última posición válida hasta la generación del mensaje.
+
+Valor	Significado
+FFFFFF	Sin posición GPS desde encendido
+00001E	30 segundos desde última posición
+(omitido)	Menos de 1 segundo desde última posición
+Campo Número de Mensaje (;#QQQQ)
+Se añade a los mensajes CY descargados del buffer de reportes. Permite identificar el orden de los reportes.
+
+Campo de Texto (;TXT=R…)
+Texto opcional de hasta 150 caracteres, añadido al reporte mediante el parámetro TXT del Comando G.
+
+Status GPS
+Una posición se considera válida cuando los campos I=1 y J=2.
+
+Campo I	Campo J	Estado
+1	2	Posición válida (3D Fix)
+0	x	Sin fix GPS
+x	0	Sin fix GPS
+Ejemplos
+Reporte básico
+
+>RCY00020205000000-2778467-06425658000000-000090;DFFFFFF;IGN1;IN00;XP00;ID=1234;*1E<
+
+Campo	Valor	Interpretación
+Nro Reporte	00	Reporte 00
+Fecha	020205	02/02/2005
+Hora	000000	00:00:00
+Latitud	-2778467	27°78.467’S
+Longitud	-06425658	64°25.658’W
+Velocidad	000	0 km/h
+Rumbo	000	0°
+Altitud	-0009	-9 metros
+GPS Status	0	Sin fix
+Diferencial	FFFFFF	Sin posición previa
+IGN	1	Ignición ON
+IN	00	Todas las entradas en 0
+XP	00	Todas las salidas en 0
+Reporte con texto
+
+>RCY33291224153045-2778467-064256580451800302;D00001E;IGN1;IN81;XP01;TXT=Exceso velocidad;#0022;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Nro Reporte	33	Reporte 33 (desde regla RL33)
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Diferencial	00001E	30 segundos desde última posición
+IGN	1	Ignición ON
+IN	81	IGN=1, IN0=1
+XP	01	XP0=1
+TXT	Exceso velocidad	Texto personalizado
+Nro Mensaje	0022	Mensaje #34
+Generación desde regla
+
+>SRL33E;TRG=VL00+;ACC={GCY33H;TXT=Exceso velocidad}<
+
+Genera reporte CY #33 de alta prioridad cuando se supera el límite de velocidad VL00.
+
+Comparación GP vs CY
+Característica	GP	CY
+Altitud	❌	✅
+Campo texto	❌	✅
+Campo diferencial	❌	✅
+Tamaño	Menor	Mayor
+Uso recomendado	Tracking básico	Eventos con contexto
+
+
+Reporte GP (G-Q-R)
+General Position - Mensaje de posición que incluye fecha, hora, latitud, longitud, velocidad, rumbo, estado del GPS, ignición (IGN), entradas (IN) y salidas digitales (XP).
+
+Generar reporte
+
+GGPbbc[;@dd..dd]
+
+Ver Comando G para detalles de parámetros.
+
+Consultar posición actual
+
+QGP
+
+Respuesta
+
+RGPAAAAAABBBBBBCCCCCCCCDDDDDDDDDEEEFFFGHHIIJJKK[;LLLL]
+
+Estructura de campos
+Campo	Longitud	Descripción
+AAAAAA	6	Fecha (RTC) - formato DDMMAA
+BBBBBB	6	Hora (RTC) - formato HHMMSS
+CCCCCCCC	8	Latitud (±DDMMMMM)
+DDDDDDDDD	9	Longitud (±DDDMMMMM)
+EEE	3	Velocidad (km/h)
+FFF	3	Rumbo (grados 000-359)
+G	1	GPS Fix Mode: 2=2D FIX, 3=3D FIX
+HH	2	Segundos desde última posición válida (hex)
+II	2	Estado entradas digitales IGN+IN (hex)
+JJ	2	Número de reporte (00-FF)
+KK	2	PDOP (parte entera decimal)
+LLLL	4	Número de mensaje (hex) - solo en descarga de buffer
+Interpretación de campos
+Entradas digitales (II)
+El byte II contiene el estado de IGN y las entradas IN en formato hexadecimal:
+
+Bit	7 (MSB)	6	5	4	3	2	1	0 (LSB)
+Señal	IGN	IN6	IN5	IN4	IN3	IN2	IN1	IN0
+Ejemplo: II = 81 (hex) = 10000001 (bin) → IGN=1, IN0=1, resto=0
+
+Coordenadas
+Latitud: Formato ±DDMMMMM (grados + minutos×1000)
+Longitud: Formato ±DDDMMMMM (grados + minutos×1000)
+Signo + = Norte/Este, Signo - = Sur/Oeste
+Ejemplo de reporte
+
+>RGP291224153045-2778467-064256580451800302810012;#0001;ID=974862;*5E<
+
+Campo	Valor	Interpretación
+Fecha	291224	29/12/2024
+Hora	153045	15:30:45
+Latitud	-2778467	27°78.467’S = -27.80778°
+Longitud	-06425658	64°25.658’W = -64.42763°
+Velocidad	045	45 km/h
+Rumbo	180	180° (Sur)
+Fix Mode	3	3D FIX
+Edad GPS	02	2 segundos
+Entradas	81	IGN=1, IN0=1
+Nro Reporte	00	Reporte 00
+PDOP	12	PDOP = 1.2
+Nro Mensaje	0001	Mensaje #1
+Comportamiento sin GPS
+Ante la carencia de señal GPS, los campos de fecha (AAAAAA) y hora (BBBBBB) tomarán el valor del momento de generación del mensaje desde el reloj de tiempo real (RTC), en lugar de los datos de posición GPS.
+
+Número de mensaje (LLLL)
+Este campo se añade únicamente a los mensajes GP que se descargan del buffer de reportes del equipo. Permite identificar el orden de los reportes en la cola.
+
+
+Reportes Extendidos
+Los reportes extendidos incluyen información adicional al reporte básico GP/CY: datos de GPS, GSM, batería, temperatura, horómetro, CAN, etc.
+
+
+

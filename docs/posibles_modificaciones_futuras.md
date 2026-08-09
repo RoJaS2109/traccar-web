@@ -35,16 +35,9 @@ items.slice(0, 4000).map((item) => ...
 
 ---
 
-## 3. Descripción de eventos en la UI
+## 3. Descripción de eventos en la UI ✅ RESUELTO (9 ago 2026)
 
-**Problema:** Después del deploy con 44+ códigos de alarma y `getEventDescription()` en el decoder Rinho, las descripciones de eventos no se muestran como se esperaba en la interfaz.
-
-**Posibles causas:**
-- `eventDescription` no se está mostrando en la columna/tarjeta de eventos
-- El texto no coincide con lo esperado
-- Eventos informativos (`ALARM_GENERAL`) no se renderizan como "avisos"
-
-**Ver:** [`../../CLAUDE.md`](../../CLAUDE.md) sección "Protocolo Rinho" y archivos de memoria.
+**Fix:** `AlarmEventHandler.java` no propagaba `eventDescription` de la posición al evento. El frontend traducía el tipo genérico de alarma (`ALARM_GENERAL` → "General"). Solución en 7 archivos (backend + frontend + Dockerfile). Ver commits `c3a687c0` (frontend) y `20a66b724` (backend).
 
 ---
 

@@ -1,0 +1,100 @@
+Categoría,,Alarma/Warning,Descripción,Aplica a,Prioridad
+Carrocería,0x01,Vibración,Vibración sostenida del vehículo >5Hz,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Carrocería,0x02,Capó Abierto,Capó del motor abierto,Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Carrocería,0x03,Capó Cerrado,Capó del motor cerrado (confirmación de estado),Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Carrocería,0x04,Puerta Del. Izq. Abierta,Puerta delantera izquierda abierta,Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x05,Puerta Del. Izq. Cerrada,Puerta delantera izquierda cerrada (confirmación),Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x06,Puerta Del. Der. Abierta,Puerta delantera derecha abierta,Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x07,Puerta Del. Der. Cerrada,Puerta delantera derecha cerrada (confirmación),Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x08,Puerta Tras. Izq. Abierta,Puerta trasera izquierda abierta,Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x09,Puerta Tras. Izq. Cerrada,Puerta trasera izquierda cerrada (confirmación),Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x10,Puerta Tras. Der. Abierta,Puerta trasera derecha abierta,Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x11,Puerta Tras. Der. Cerrada,Puerta trasera derecha cerrada (confirmación),Flotas de Trabajo | Transporte,Aviso
+Carrocería,0x12,RES.,,,
+Carrocería,0x13,RES.,,,
+Carrocería,0x14,RES.,,,
+Carrocería,0x15,RES.,,,
+Carrocería,0x16,RES.,,,
+Carrocería,0x17,RES.,,,
+Carrocería,0x18,RES.,,,
+Carrocería,0x19,RES.,,,
+Conectividad,0x20,Reconección GPS,Restauración de conexión GPS después de pérdida,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Aviso
+Conectividad,0x21,Reconección GPRS,Restauración de conexión GPRS después de pérdida,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Aviso
+Conectividad,0x22,Pérdida Conec. WiFi,Desconexión de red WiFi,Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Conectividad,0x23,Reconección WiFi,Restauración de conexión WiFi,Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Conectividad,0x24,Batería Tracker – Baja,Batería interna del tracker <15%,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Aviso
+Conectividad,0x25,Corte Antena GPS,Antena GPS desconectada o cortada,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Crítica
+Conectividad,0x26,Tracker Offline,Dispositivo GPS sin comunicación >10min,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Crítica
+Conectividad,0x27,Pérdida Conec. GPS,Pérdida de conexión GPS (sin satélites disponibles),Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Urgente
+Conectividad,0x28,Pérdida Conec. GPRS,Pérdida de conexión GPRS/3G/4G con servidor,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Urgente
+Conectividad,0x29,RES.,,,
+Conectividad,0x30,RES.,,,
+Conectividad,0x31,RES.,,,
+Conectividad,0x32,RES.,,,
+Conectividad,0x33,RES.,,,
+Conectividad,0x34,RES.,,,
+Geolocalización,0x35,Entrada Geocerca,Ingreso a zona geográfica permitida (confirmación positiva),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Geolocalización,0x36,Salida Geocerca,Salida de zona geográfica permitida (confirmación positiva),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Geolocalización,0x37,Entrada Zona Restricta,Ingreso a geocerca prohibida o zona de riesgo,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Geolocalización,0x38,RES.,,,
+Geolocalización,0x39,RES.,,,
+Motor,0x40,Consumo Anómalo,Consumo de combustible inconsistente con distancia/tiempo,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Motor,0x41,SERVICE – Motor,Mantenimiento del motor vencido o próximo,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Aviso
+Motor,0x42,SERVICE – Transmisión,Mantenimiento de transmisión/caja de cambios vencido,Flotas de Trabajo | Transporte | Vehículos Particulares | Maquinaria Agrícola,Aviso
+Motor,0x43,Horas Motor – Crítico,Contador de horas motor excede intervalo de mantenimiento,Maquinaria Agrícola | Flotas de Trabajo,Aviso
+Motor,0x44,Temp. Motor – Baja,Temperatura del motor <40°C (motor frío o falla sensor),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Motor,0x45,Ralentí,Motor en ralentí prolongado o fuera de rango RPM normal,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
+Motor,0x46,Fuga Combustible,Pérdida de combustible detectada o consumo anómalo acelerado,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Motor,0x47,Temp. Motor – Alta,Temperatura del motor >95°C indicando sobrecalentamiento,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Motor,0x48,Presión de Aceite – Baja,Presión de aceite del motor por debajo de rango normal,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Motor,0x49,RPM – Altas,Revoluciones del motor excesivas (>3000 en operación normal),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Motor,0x50,Fuga Refrigerante,Pérdida de líquido refrigerante del motor,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Motor,0x51,RES.,,,
+Motor,0x52,RES.,,,
+Motor,0x53,RES.,,,
+Motor,0x54,RES.,,,
+Motor,0x55,RES.,,,
+Motor,0x56,RES.,,,
+Motor,0x57,RES.,,,
+Motor,0x58,RES.,,,
+Motor,0x59,RES.,,,
+Seguridad Patrimonial,0x60,Desbloqueo,Vehículo desbloqueado (si sistema de bloqueo remoto),Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Seguridad Patrimonial,0x61,Bloqueo,Vehículo bloqueado (si sistema de bloqueo remoto),Flotas de Trabajo | Transporte | Vehículos Particulares,Aviso
+Seguridad Patrimonial,0x62,Inhibidor Señal,Bloqueador de señal GPS/GPRS detectado,Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
+Seguridad Patrimonial,0x63,Manipulación / Sabotaje,Intento de manipulación del dispositivo o sabotaje detectado,Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
+Seguridad Patrimonial,0x64,Remoción,Vehículo removido de ubicación sin autorización,Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
+Seguridad Patrimonial,0x65,Grúa / Remolque / Robo,Detección de grúa/sistema de carga en movimiento o acoplamiento anómalo,Flotas de Trabajo,Urgente
+Seguridad Patrimonial,0x66,RES.,,,
+Seguridad Patrimonial,0x67,RES.,,,
+Seguridad Patrimonial,0x68,RES.,,,
+Seguridad Patrimonial,0x69,RES.,,,
+Seguridad Vial,0x70,Baja Velocidad,Velocidad anómalmente baja para contexto de ruta (<20km/h),Flotas de Trabajo | Transporte,Aviso
+Seguridad Vial,0x71,Cambio Carril,Cambio de carril detectado (si sensor disponible),Flotas de Trabajo | Transporte,Aviso
+Seguridad Vial,0x72,Posible Accidente,Detección de patrón consistente con accidente (impacto + inmovilidad),Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
+Seguridad Vial,0x73,Vuelco,Evento de vuelco detectado por acelerómetro del tracker,Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
+Seguridad Vial,0x74,Velocidad Anómala Agrícola,Velocidad excesiva para tipo de maquinaria (ej: cosechadora >15km/h),Maquinaria Agrícola,Urgente
+Seguridad Vial,0x75,Desplazamiento Nocturno,Movimiento de maquinaria agrícola en horario prohibido (21-6h),Maquinaria Agrícola,Urgente
+Seguridad Vial,0x76,Aceleración Brusca,Aceleración instantánea >0.7G,Flotas de Trabajo | Transporte | Vehículos Particulares,Urgente
+Seguridad Vial,0x77,Exceso Velocidad,Velocidad superior al límite permitido o configurado,Flotas de Trabajo | Transporte | Vehículos Particulares,Urgente
+Seguridad Vial,0x78,Frenada Brusca,Frenada instantánea >0.8G,Flotas de Trabajo | Transporte | Vehículos Particulares,Urgente
+Seguridad Vial,0x79,Curva Brusca,Cambio de dirección brusco >0.7G lateral,Flotas de Trabajo | Transporte | Vehículos Particulares,Urgente
+Seguridad Vial,0x80,Tiempo Conducción – Crítico,Conducción continua sin pausa >4h,Flotas de Trabajo | Transporte,Urgente
+Seguridad Vial,0x81,Fatiga Conductor,Conducción continua >6h o patrones de fatiga detectados,Flotas de Trabajo | Transporte,Urgente
+Seguridad Vial,0x82,Conducción Nocturna,Circulación en horario nocturno prohibido (23-6h),Flotas de Trabajo | Transporte | Vehículos Particulares,Urgente
+Seguridad Vial,0x83,Caída,Aceleración vertical anómala detectando caída o impacto,Flotas de Trabajo | Transporte,Urgente
+Seguridad Vial,0x84,RES.,,,
+Seguridad Vial,0x85,RES.,,,
+Seguridad Vial,0x86,RES.,,,
+Seguridad Vial,0x87,RES.,,,
+Seguridad Vial,0x88,RES.,,,
+Seguridad Vial,0x89,RES.,,,
+Sistema de Frenos,0x90,Presión de Aire – Baja,Presión de aire en circuito neumático o frenos baja,Flotas de Trabajo | Transporte,Urgente
+Sistema de Frenos,0x91,Freno de Pie,Frenado detectado por sensor de pedal o aceleración negativa,Flotas de Trabajo | Transporte,Aviso
+Sistema de Frenos,0x92,RES.,,,
+Sistema de Frenos,0x93,RES.,,,
+Sistema de Frenos,0x94,RES.,,,
+Sistema de Frenos,0x95,RES.,,,
+Sistema de Frenos,0x96,RES.,,,
+Sistema de Frenos,0x97,RES.,,,
+Sistema de Frenos,0x98,RES.,,,
+Sistema de Emergencia,0x99,SOS,Botón de pánico activado,Flotas de Trabajo | Transporte | Vehículos Particulares,Crítica
