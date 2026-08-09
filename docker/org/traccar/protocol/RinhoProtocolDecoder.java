@@ -23,6 +23,7 @@ import org.traccar.helper.DateBuilder;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
 import org.traccar.helper.UnitsConverter;
+import org.traccar.model.Event;
 import org.traccar.model.Position;
 import org.traccar.session.DeviceSession;
 
@@ -624,6 +625,18 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         };
     }
 
+    // ── Tipo de evento Traccar nativo ──────────────────────────
+    private String getEventType(int eventCode) {
+        return switch (eventCode) {
+            case 0x35 -> Event.TYPE_GEOFENCE_ENTER;     // Entrada Geocerca
+            case 0x36 -> Event.TYPE_GEOFENCE_EXIT;      // Salida Geocerca
+            case 0x40, 0x46 -> Event.TYPE_DEVICE_FUEL_DROP; // Consumo Anómalo / Fuga Combustible
+            case 0x74, 0x77 -> Event.TYPE_DEVICE_OVERSPEED;  // Velocidad Anómala / Exceso Velocidad
+            case 0x24, 0x41, 0x42, 0x43, 0x44 -> Event.TYPE_MAINTENANCE;
+            default -> Event.TYPE_ALARM;
+        };
+    }
+
     // ── Extraer ID de dispositivo del mensaje ──────────────────
     private String extractDeviceId(String sentence) {
         Matcher matcher = DEVICE_ID_PATTERN.matcher(sentence);
@@ -910,6 +923,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             position.set("eventDescription", desc);
         }
         position.set("eventCategory", getEventCategory(eventCode));
+        position.set("eventType", getEventType(eventCode));
 
         return position;
     }
@@ -964,6 +978,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             position.set("eventDescription", desc);
         }
         position.set("eventCategory", getEventCategory(eventCode));
+        position.set("eventType", getEventType(eventCode));
 
         return position;
     }
@@ -1018,6 +1033,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             position.set("eventDescription", desc);
         }
         position.set("eventCategory", getEventCategory(eventCode));
+        position.set("eventType", getEventType(eventCode));
 
         return position;
     }
@@ -1098,6 +1114,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             position.set("eventDescription", desc);
         }
         position.set("eventCategory", getEventCategory(eventCode));
+        position.set("eventType", getEventType(eventCode));
 
         return position;
     }
@@ -1290,6 +1307,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             position.set("eventDescription", desc);
         }
         position.set("eventCategory", getEventCategory(eventCode));
+        position.set("eventType", getEventType(eventCode));
 
         return position;
     }

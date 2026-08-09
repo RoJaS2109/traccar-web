@@ -63,7 +63,10 @@ public class AlarmEventHandler extends BaseEventHandler {
             }
             for (String alarm : alarms) {
                 String eventCategory = position.getString("eventCategory");
-                String eventType = "aviso".equals(eventCategory) ? Event.TYPE_MAINTENANCE : Event.TYPE_ALARM;
+                String eventType = position.getString("eventType");
+                if (eventType == null) {
+                    eventType = Event.TYPE_ALARM;
+                }
                 Event event = new Event(eventType, position);
                 event.set(Position.KEY_ALARM, alarm);
                 String eventDescription = position.getString("eventDescription");

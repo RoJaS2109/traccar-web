@@ -213,6 +213,8 @@ const EventReportPage = () => {
         switch (item.type) {
           case 'alarm':
           case 'maintenance':
+          case 'geofenceEnter':
+          case 'geofenceExit':
             if (item.attributes.eventDescription) {
               return item.attributes.eventDescription;
             }
@@ -221,11 +223,17 @@ const EventReportPage = () => {
             }
             return '';
           case 'deviceOverspeed':
+            if (item.attributes.eventDescription) {
+              return item.attributes.eventDescription;
+            }
             return formatSpeed(item.attributes.speed, speedUnit, t);
           case 'driverChanged':
             return item.attributes.driverUniqueId;
           case 'deviceFuelDrop':
           case 'deviceFuelIncrease':
+            if (item.attributes.eventDescription) {
+              return item.attributes.eventDescription;
+            }
             return formatNumber(Math.abs(item.attributes.after - item.attributes.before));
           case 'media':
             return (
