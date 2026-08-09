@@ -192,6 +192,9 @@ const EventReportPage = () => {
         }
         return null;
       case 'maintenanceId':
+        if (item.attributes.eventCategory === 'aviso') {
+          return item.attributes.eventDescription || t(prefixString('alarm', item.attributes.alarm));
+        }
         return value > 0 ? value : null;
       case 'address': {
         const position = positions[item.positionId];
