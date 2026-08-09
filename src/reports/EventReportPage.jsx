@@ -181,7 +181,7 @@ const EventReportPage = () => {
       case 'eventTime':
         return formatTime(value, 'seconds');
       case 'type':
-        if (value === 'alarm' && item.attributes.eventCategory === 'aviso') {
+        if (item.attributes.eventCategory === 'aviso') {
           return t('eventAviso');
         }
         return t(prefixString('event', value));
@@ -209,10 +209,14 @@ const EventReportPage = () => {
       case 'attributes':
         switch (item.type) {
           case 'alarm':
+          case 'maintenance':
             if (item.attributes.eventDescription) {
               return item.attributes.eventDescription;
             }
-            return t(prefixString('alarm', item.attributes.alarm));
+            if (item.attributes.alarm) {
+              return t(prefixString('alarm', item.attributes.alarm));
+            }
+            return '';
           case 'deviceOverspeed':
             return formatSpeed(item.attributes.speed, speedUnit, t);
           case 'driverChanged':

@@ -165,21 +165,25 @@ export const formatNotificationTitle = (t, notification, includeId) => {
     return notification.description;
   }
   let title;
-  if (notification.type === 'alarm') {
-    const eventDescription = notification.attributes?.eventDescription;
-    const eventCategory = notification.attributes?.eventCategory;
-    if (eventDescription) {
-      title = eventDescription;
+  const eventDescription = notification.attributes?.eventDescription;
+  const eventCategory = notification.attributes?.eventCategory;
+  if (eventDescription) {
+    title = eventDescription;
+  } else if (notification.type === 'alarm' || notification.type === 'maintenance') {
+    if (eventCategory === 'aviso') {
+      title = t('eventAviso');
+    } else if (notification.type === 'maintenance') {
+      title = t('eventMaintenance');
     } else {
-      title = eventCategory === 'aviso' ? t('eventAviso') : t(prefixString('event', notification.type));
-      const alarmString = notification.attributes.alarms;
-      if (alarmString) {
-        const alarms = alarmString.split(',');
-        if (alarms.length > 1) {
-          title += ` (${alarms.length})`;
-        } else {
-          title += ` ${formatAlarm(alarms[0], t)}`;
-        }
+      title = t(prefixString('event', notification.type));
+    }
+    const alarmString = notification.attributes?.alarms;
+    if (alarmString) {
+      const alarms = alarmString.split(',');
+      if (alarms.length > 1) {
+        title += ` (${alarms.length})`;
+      } else {
+        title += ` ${formatAlarm(alarms[0], t)}`;
       }
     }
   } else {
