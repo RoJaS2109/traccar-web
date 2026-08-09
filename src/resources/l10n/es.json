@@ -523,6 +523,7 @@
     "eventProximityExit": "Dispositivo vinculado alejado",
     "eventUnaccompaniedMotion": "Moviéndose sin acompañar",
     "eventAlarm": "Alarma ",
+    "eventAviso": "Aviso",
     "eventIgnitionOn": "Llave encendido ON",
     "eventIgnitionOff": "Llave encendido OFF",
     "eventMaintenance": "Se requiere mantenimiento",

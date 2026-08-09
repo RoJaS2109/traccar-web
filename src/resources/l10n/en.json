@@ -523,6 +523,7 @@
     "eventProximityExit": "Linked device away",
     "eventUnaccompaniedMotion": "Moving unaccompanied",
     "eventAlarm": "Alarm",
+    "eventAviso": "Notice",
     "eventIgnitionOn": "Ignition on",
     "eventIgnitionOff": "Ignition off",
     "eventMaintenance": "Maintenance required",

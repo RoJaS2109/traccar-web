@@ -164,12 +164,14 @@ export const formatNotificationTitle = (t, notification, includeId) => {
   if (notification.description) {
     return notification.description;
   }
-  let title = t(prefixString('event', notification.type));
+  let title;
   if (notification.type === 'alarm') {
     const eventDescription = notification.attributes?.eventDescription;
+    const eventCategory = notification.attributes?.eventCategory;
     if (eventDescription) {
       title = eventDescription;
     } else {
+      title = eventCategory === 'aviso' ? t('eventAviso') : t(prefixString('event', notification.type));
       const alarmString = notification.attributes.alarms;
       if (alarmString) {
         const alarms = alarmString.split(',');
@@ -180,6 +182,8 @@ export const formatNotificationTitle = (t, notification, includeId) => {
         }
       }
     }
+  } else {
+    title = t(prefixString('event', notification.type));
   }
   if (includeId) {
     title += ` [${notification.id}]`;

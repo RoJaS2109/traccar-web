@@ -44,6 +44,7 @@ const EventsDrawer = ({ open, onClose }) => {
       attributes: {
         alarms: event.attributes.alarm,
         eventDescription: event.attributes.eventDescription,
+        eventCategory: event.attributes.eventCategory,
       },
     });
 

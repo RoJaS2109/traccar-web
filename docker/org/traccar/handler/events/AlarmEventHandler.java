@@ -59,6 +59,10 @@ public class AlarmEventHandler extends BaseEventHandler {
                 if (eventDescription != null) {
                     event.set("eventDescription", eventDescription);
                 }
+                String eventCategory = position.getString("eventCategory");
+                if (eventCategory != null) {
+                    event.set("eventCategory", eventCategory);
+                }
                 callback.eventDetected(event);
             }
         }

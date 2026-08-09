@@ -615,6 +615,15 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         };
     }
 
+    // ── Categoría del evento: "alarma" o "aviso" ────────────────
+    private String getEventCategory(int eventCode) {
+        return switch (eventCode) {
+            // Avisos (eventos informativos que no son alarmas críticas)
+            case 0x41, 0x42 -> "aviso";              // SERVICE – Motor / Transmisión
+            default          -> "alarma";
+        };
+    }
+
     // ── Extraer ID de dispositivo del mensaje ──────────────────
     private String extractDeviceId(String sentence) {
         Matcher matcher = DEVICE_ID_PATTERN.matcher(sentence);
@@ -900,6 +909,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (desc != null) {
             position.set("eventDescription", desc);
         }
+        position.set("eventCategory", getEventCategory(eventCode));
 
         return position;
     }
@@ -953,6 +963,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (desc != null) {
             position.set("eventDescription", desc);
         }
+        position.set("eventCategory", getEventCategory(eventCode));
 
         return position;
     }
@@ -1006,6 +1017,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (desc != null) {
             position.set("eventDescription", desc);
         }
+        position.set("eventCategory", getEventCategory(eventCode));
 
         return position;
     }
@@ -1085,6 +1097,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (desc != null) {
             position.set("eventDescription", desc);
         }
+        position.set("eventCategory", getEventCategory(eventCode));
 
         return position;
     }
@@ -1276,6 +1289,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
         if (desc != null) {
             position.set("eventDescription", desc);
         }
+        position.set("eventCategory", getEventCategory(eventCode));
 
         return position;
     }

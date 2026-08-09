@@ -46,6 +46,7 @@ const EventPage = () => {
       attributes: {
         alarms: event.attributes.alarm,
         eventDescription: event.attributes.eventDescription,
+        eventCategory: event.attributes.eventCategory,
       },
     });
 
