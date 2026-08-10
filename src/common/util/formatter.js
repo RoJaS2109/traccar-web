@@ -170,7 +170,7 @@ export const formatNotificationTitle = (t, notification, includeId) => {
   if (eventDescription) {
     title = eventDescription;
   } else if (notification.type === 'alarm' || notification.type === 'maintenance') {
-    if (eventCategory === 'aviso') {
+    if (notification.type === 'alarm' && eventCategory === 'aviso') {
       title = t('eventAviso');
     } else if (notification.type === 'maintenance') {
       title = t('eventMaintenance');

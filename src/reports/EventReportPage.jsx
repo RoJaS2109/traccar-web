@@ -181,7 +181,7 @@ const EventReportPage = () => {
       case 'eventTime':
         return formatTime(value, 'seconds');
       case 'type':
-        if (item.attributes.eventCategory === 'aviso') {
+        if (value === 'alarm' && item.attributes.eventCategory === 'aviso') {
           return t('eventAviso');
         }
         return t(prefixString('event', value));
