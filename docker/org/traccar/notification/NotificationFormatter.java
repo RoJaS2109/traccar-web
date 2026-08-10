@@ -32,6 +32,7 @@ import org.traccar.session.cache.CacheManager;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.text.SimpleDateFormat;
 
 @Singleton
 public class NotificationFormatter {
@@ -76,11 +77,17 @@ public class NotificationFormatter {
             String eventDescription = event.getString("eventDescription");
             String maintenanceName;
             if (eventDescription != null) {
-                maintenanceName = eventDescription
-                        .replace("SERVICE – Motor", "del motor")
-                        .replace("SERVICE – Transmisión", "de la transmisión");
+                // Usar contains() para evitar problemas de encoding con caracteres especiales
+                if (eventDescription.toLowerCase().contains("motor")) {
+                    maintenanceName = "del motor";
+                } else if (eventDescription.toLowerCase().contains("transmisión")
+                        || eventDescription.toLowerCase().contains("transmision")) {
+                    maintenanceName = "de la transmisión";
+                } else {
+                    maintenanceName = eventDescription.toLowerCase();
+                }
             } else {
-                maintenanceName = "Required";
+                maintenanceName = "requerido";
             }
             fallback.setName(maintenanceName);
             velocityContext.put("maintenance", fallback);
@@ -92,7 +99,23 @@ public class NotificationFormatter {
         }
 
         boolean priority = notification != null && notification.getBoolean("priority");
-        return textTemplateFormatter.formatMessage(velocityContext, event.getType(), priority);
+        var message = textTemplateFormatter.formatMessage(velocityContext, event.getType(), priority);
+
+        // Para eventos maintenance del decoder Rinho (sin Maintenance record vinculado),
+        // generar un digest en español natural en vez del template inglés del JAR original
+        if (event.getType().equals(Event.TYPE_MAINTENANCE) && event.getMaintenanceId() == 0) {
+            Maintenance fallback = (Maintenance) velocityContext.get("maintenance");
+            if (fallback != null && device != null) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+                String fecha = dateFormat.format(event.getEventTime());
+                String subject = device.getName() + ": " + fallback.getName() + " requerido";
+                String digest = "Se requiere mantenimiento " + fallback.getName()
+                        + " de " + device.getName() + " para el " + fecha;
+                message = new NotificationMessage(subject, digest, message.body(), priority);
+            }
+        }
+
+        return message;
     }
 
 }
