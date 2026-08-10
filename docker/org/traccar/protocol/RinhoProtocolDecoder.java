@@ -624,7 +624,7 @@ public class RinhoProtocolDecoder extends BaseProtocolDecoder {
             case 0x20, 0x21, 0x22, 0x23 -> "aviso";            // Reconexiones / Pérdida WiFi
             case 0x25 -> "aviso";                               // Corte Antena GPS
             case 0x26, 0x27, 0x28 -> "aviso";                   // Offline / Pérdidas
-            case 0x41, 0x42 -> "aviso";                         // SERVICE – Motor / Transmisión
+            // 0x41, 0x42 ya son TYPE_MAINTENANCE — no necesitan "aviso"
             default -> "alarma";
         };
     }
