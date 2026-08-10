@@ -266,6 +266,8 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 
 **AlarmEventHandler:** `docker/org/traccar/handler/events/AlarmEventHandler.java` — copia del handler que propaga `eventDescription` de la posición al evento. Debe sincronizarse con `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java`. Sin este parche, la UI muestra el tipo genérico de alarma ("General", "Alarma de fallo") en vez de la descripción en español del decoder Rinho.
 
+**NotificationFormatter:** `docker/org/traccar/notification/NotificationFormatter.java` — copia del formateador que provee un fallback para eventos `maintenance` sin `Maintenance` record vinculado. Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/NotificationFormatter.java`. Sin este parche, los eventos maintenance del decoder Rinho (0x41, 0x42) muestran `$maintenance.name` literal en las notificaciones.
+
 ### docker-compose.yml
 
 - `traccar`: imagen `rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
@@ -281,4 +283,5 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 - **Primer build lento:** `docker build` descarga `eclipse-temurin:21-jdk` (~400 MB) la primera vez. Builds posteriores usan la capa cacheada.
 - **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
 - **AlarmEventHandler no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java` y la copia para Docker está en `docker/org/traccar/handler/events/AlarmEventHandler.java`. Sin sync, `eventDescription` no se propaga de la posición al evento.
+- **NotificationFormatter no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/notification/NotificationFormatter.java` y la copia para Docker está en `docker/org/traccar/notification/NotificationFormatter.java`. Sin sync, los eventos maintenance de Rinho muestran `$maintenance.name` sin resolver en el snackbar negro de notificaciones.
 - **Fuentes/glyphs en Android:** `cdn.traccar.com/map/fonts/` a veces no es accesible desde Android. El texto de capas symbol no se renderiza sin glyphs. `localIdeographFontFamily: 'sans-serif'` ayuda con caracteres CJK. Para texto latino, el popup HTML es el mecanismo confiable para mostrar información.

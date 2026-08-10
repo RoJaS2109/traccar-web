@@ -15,7 +15,8 @@ RUN javac -cp "original.jar:lib/*" -d /build/classes \
         /build/src/org/traccar/protocol/RinhoProtocol.java \
         /build/src/org/traccar/protocol/RinhoProtocolDecoder.java \
         /build/src/org/traccar/protocol/RinhoProtocolEncoder.java \
-        /build/src/org/traccar/handler/events/AlarmEventHandler.java && \
+        /build/src/org/traccar/handler/events/AlarmEventHandler.java \
+        /build/src/org/traccar/notification/NotificationFormatter.java && \
     cp original.jar patched.jar && \
     jar uf patched.jar -C /build/classes org/ && \
     jar uf patched.jar -C /build/src META-INF/
