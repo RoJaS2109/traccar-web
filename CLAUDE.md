@@ -63,6 +63,26 @@ Redux Toolkit with slices: `session`, `devices`, `events`, `geofences`, `groups`
 
 A persistent WebSocket to `/api/socket` receives JSON messages with `{devices, positions, events, logs}` keys and dispatches them to Redux. Reconnects after 60s on close, and when the tab becomes visible or the browser goes online. Logout sends close code 4000.
 
+**Notificaciones toast (snackbar):** Los eventos que llegan con `attributes.message` (inyectado por `NotificatorWeb`) se muestran en un `<Snackbar>` negro en la parte inferior. El cierre se controla con `setTimeout` manual de 15 segundos (no con `autoHideDuration` de MUI, para evitar problemas de caché del service worker). El snackbar también se cierra al hacer clic fuera (`clickaway`).
+
+### Sistema de eventos Rinho (`eventCategory`, `eventDescription`)
+
+Los eventos del decoder Rinho usan atributos personalizados que el frontend interpreta para mostrar información más rica:
+
+| Atributo | Origen | Uso en frontend |
+|----------|--------|-----------------|
+| `eventDescription` | `RinhoProtocolDecoder.getEventDescription()` | Texto descriptivo en español (prioridad sobre `formatAlarm()`) |
+| `eventCategory` | `RinhoProtocolDecoder.getEventCategory()` | `"aviso"` → label "Aviso"; `"alarma"` → label "Alarma" |
+| `eventType` | `RinhoProtocolDecoder.getEventType()` | Enruta el evento al tipo nativo Traccar para filtros |
+
+**Archivos que usan estos atributos:**
+- `src/common/util/formatter.js:formatNotificationTitle()` — prioriza `eventDescription` sobre el tipo genérico
+- `src/main/DeviceRow.jsx` — tooltip del ícono de alarma usa `eventDescription` primero
+- `src/reports/EventReportPage.jsx` — columna Type muestra "Aviso" para `alarm` + `eventCategory=aviso`; columna Attributes prioriza `eventDescription`
+- `src/main/EventsDrawer.jsx`, `src/other/EventPage.jsx` — pasan `eventCategory` a `formatNotificationTitle`
+
+**Regla:** `eventCategory === 'aviso'` solo aplica cuando `eventType === 'alarm'`. Eventos `maintenance` (0x41, 0x42) tienen su propio label "Se requiere mantenimiento".
+
 ### Data fetching patterns (`src/reactHelper.js`)
 
 - **`useAsyncTask(effect, deps)`** — runs an async effect with automatic `AbortController`. Errors (except AbortError) are dispatched to the `errors` slice. The effect can return a cleanup function.
@@ -242,16 +262,23 @@ Ver [`../CLAUDE.md`](../CLAUDE.md) y [`docs/deploy.md`](docs/deploy.md) para el 
 **Multi-stage build** — compila y parchea el backend sin requerir JDK en el host:
 
 ```dockerfile
-# Stage 1: Compilar OverrideTextFilter.java con defaults RudaTrak
+# Stage 1: Compilar clases Java personalizadas
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 COPY --from=traccar/traccar:latest /opt/traccar/tracker-server.jar /build/original.jar
 COPY --from=traccar/traccar:latest /opt/traccar/lib /build/lib
 COPY docker/ /build/src/
 RUN javac -cp "original.jar:lib/*" -d /build/classes \
-        /build/src/org/traccar/web/OverrideTextFilter.java && \
+        /build/src/org/traccar/web/OverrideTextFilter.java \
+        /build/src/org/traccar/protocol/RinhoProtocol.java \
+        /build/src/org/traccar/protocol/RinhoProtocolDecoder.java \
+        /build/src/org/traccar/protocol/RinhoProtocolEncoder.java \
+        /build/src/org/traccar/handler/events/AlarmEventHandler.java \
+        /build/src/org/traccar/notification/NotificationFormatter.java && \
     cp original.jar patched.jar && \
-    jar uf patched.jar -C /build/classes org/traccar/web/OverrideTextFilter.class
+    jar uf patched.jar -C /build/classes org/ && \
+    jar uf patched.jar -C /build/src META-INF/ && \
+    jar uf patched.jar -C /build/src templates/
 
 # Stage 2: Imagen final
 FROM traccar/traccar:latest
@@ -264,9 +291,14 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 
 **Decoder Rinho:** `docker/org/traccar/protocol/RinhoProtocolDecoder.java` — copia del decoder que debe mantenerse sincronizada con `traccar/src/main/java/org/traccar/protocol/RinhoProtocolDecoder.java`. Si se modifica el decoder en el repo `traccar` y no se sincroniza esta copia, el deploy usará el decoder antiguo. Ver [`docs/GPS_RINHO/protocolo-rinho.md`](docs/GPS_RINHO/protocolo-rinho.md) para documentación completa del protocolo.
 
-**AlarmEventHandler:** `docker/org/traccar/handler/events/AlarmEventHandler.java` — copia del handler que propaga `eventDescription` de la posición al evento. Debe sincronizarse con `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java`. Sin este parche, la UI muestra el tipo genérico de alarma ("General", "Alarma de fallo") en vez de la descripción en español del decoder Rinho.
+**AlarmEventHandler:** `docker/org/traccar/handler/events/AlarmEventHandler.java` — copia del handler que propaga `eventDescription`, `eventCategory` y `eventType` de la posición al evento, y evita deduplicación incorrecta comparando `Position.KEY_EVENT`. Debe sincronizarse con `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java`. Sin este parche: la UI muestra el tipo genérico de alarma en vez de la descripción en español, y eventos Rinho distintos con mismo tipo Traccar se pierden por dedup.
 
-**NotificationFormatter:** `docker/org/traccar/notification/NotificationFormatter.java` — copia del formateador que provee un fallback para eventos `maintenance` sin `Maintenance` record vinculado. Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/NotificationFormatter.java`. Sin este parche, los eventos maintenance del decoder Rinho (0x41, 0x42) muestran `$maintenance.name` literal en las notificaciones.
+**NotificationFormatter:** `docker/org/traccar/notification/NotificationFormatter.java` — copia del formateador que:
+1. Crea un `Maintenance` de respaldo cuando `maintenanceId == 0` (eventos Rinho), usando `contains()` para extraer el componente ("del motor", "de la transmisión")
+2. Sobreescribe el digest con texto en español natural construido en Java: `"Se requiere mantenimiento del motor de Sprinter para el 09/08/2026"`
+Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/NotificationFormatter.java`. Sin este parche: `$maintenance.name` literal y mensajes en inglés.
+
+**Templates:** `docker/templates/notifications/{es,en}/maintenance.vm` — templates de respaldo con fraseo en español y fecha DD/MM/YYYY. El digest se construye en Java para eventos Rinho, así que estas plantillas aplican solo al cuerpo HTML del email.
 
 ### docker-compose.yml
 
@@ -283,5 +315,6 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 - **Primer build lento:** `docker build` descarga `eclipse-temurin:21-jdk` (~400 MB) la primera vez. Builds posteriores usan la capa cacheada.
 - **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
 - **AlarmEventHandler no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java` y la copia para Docker está en `docker/org/traccar/handler/events/AlarmEventHandler.java`. Sin sync, `eventDescription` no se propaga de la posición al evento.
-- **NotificationFormatter no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/notification/NotificationFormatter.java` y la copia para Docker está en `docker/org/traccar/notification/NotificationFormatter.java`. Sin sync, los eventos maintenance de Rinho muestran `$maintenance.name` sin resolver en el snackbar negro de notificaciones.
+- **NotificationFormatter no se actualiza:** ídem anterior. Sin sync, el snackbar muestra `$maintenance.name` literal o texto en inglés. El digest ahora se construye en Java (no depende de plantillas Velocity del JAR), usando `contains()` para detectar componentes y `SimpleDateFormat("dd/MM/yyyy")` para la fecha en formato latino.
+- **Templates no se actualizan:** si `jar uf patched.jar -C /build/src templates/` no sobrescribe las plantillas en el JAR, el cuerpo HTML del email usará las plantillas originales en inglés. El digest del snackbar no se ve afectado porque se construye en Java.
 - **Fuentes/glyphs en Android:** `cdn.traccar.com/map/fonts/` a veces no es accesible desde Android. El texto de capas symbol no se renderiza sin glyphs. `localIdeographFontFamily: 'sans-serif'` ayuda con caracteres CJK. Para texto latino, el popup HTML es el mecanismo confiable para mostrar información.
