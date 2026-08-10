@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Snackbar } from '@mui/material';
 import { devicesActions, sessionActions } from './store';
 import { useCatchCallback, useAsyncTask } from './reactHelper';
-import { snackBarDurationLongMs } from './common/util/duration';
 import alarm from './resources/alarm.mp3';
 import { eventsActions } from './store/events';
 import useFeatures from './common/util/useFeatures';
@@ -52,6 +51,16 @@ const SocketController = () => {
 
   const features = useFeatures();
 
+  const timerRef = useRef({});
+
+  const removeNotification = useCallback((id) => {
+    if (timerRef.current[id]) {
+      clearTimeout(timerRef.current[id]);
+      delete timerRef.current[id];
+    }
+    setNotifications((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
   const handleEvents = useCallback(
     (events) => {
       if (!features.disableEvents) {
@@ -66,15 +75,22 @@ const SocketController = () => {
       ) {
         playAlarm();
       }
-      setNotifications(
-        events.map((event) => ({
-          id: event.id,
-          message: event.attributes.message,
-          show: true,
-        })),
-      );
+      const newNotifications = events.map((event) => ({
+        id: event.id,
+        message: event.attributes.message,
+        show: true,
+      }));
+      setNotifications(newNotifications);
+      newNotifications.forEach((n) => {
+        if (timerRef.current[n.id]) {
+          clearTimeout(timerRef.current[n.id]);
+        }
+        timerRef.current[n.id] = setTimeout(() => {
+          removeNotification(n.id);
+        }, 15000);
+      });
     },
-    [features, dispatch, soundEvents, soundAlarms],
+    [features, dispatch, soundEvents, soundAlarms, removeNotification],
   );
 
   const handleEventsRef = useRef(handleEvents);
@@ -242,8 +258,12 @@ const SocketController = () => {
           key={notification.id}
           open={notification.show}
           message={notification.message}
-          autoHideDuration={15000}
-          onClose={() => setNotifications((prev) => prev.filter((e) => e.id !== notification.id))}
+          autoHideDuration={null}
+          onClose={(_, reason) => {
+            if (reason === 'clickaway') {
+              removeNotification(notification.id);
+            }
+          }}
         />
       ))}
     </>
