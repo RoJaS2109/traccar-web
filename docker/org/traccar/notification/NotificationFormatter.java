@@ -74,7 +74,15 @@ public class NotificationFormatter {
         } else if (event.getType().equals(Event.TYPE_MAINTENANCE)) {
             Maintenance fallback = new Maintenance();
             String eventDescription = event.getString("eventDescription");
-            fallback.setName(eventDescription != null ? eventDescription : "Required");
+            String maintenanceName;
+            if (eventDescription != null) {
+                maintenanceName = eventDescription
+                        .replace("SERVICE – Motor", "del motor")
+                        .replace("SERVICE – Transmisión", "de la transmisión");
+            } else {
+                maintenanceName = "Required";
+            }
+            fallback.setName(maintenanceName);
             velocityContext.put("maintenance", fallback);
         }
         String driverUniqueId = event.getString(Position.KEY_DRIVER_UNIQUE_ID);

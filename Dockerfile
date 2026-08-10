@@ -19,7 +19,8 @@ RUN javac -cp "original.jar:lib/*" -d /build/classes \
         /build/src/org/traccar/notification/NotificationFormatter.java && \
     cp original.jar patched.jar && \
     jar uf patched.jar -C /build/classes org/ && \
-    jar uf patched.jar -C /build/src META-INF/
+    jar uf patched.jar -C /build/src META-INF/ && \
+    jar uf patched.jar -C /build/src templates/
 
 # ── Stage 2: Imagen final ──
 FROM traccar/traccar:latest
