@@ -242,7 +242,7 @@ const SocketController = () => {
           key={notification.id}
           open={notification.show}
           message={notification.message}
-          autoHideDuration={10000}
+          autoHideDuration={15000}
           onClose={() => setNotifications((prev) => prev.filter((e) => e.id !== notification.id))}
         />
       ))}
