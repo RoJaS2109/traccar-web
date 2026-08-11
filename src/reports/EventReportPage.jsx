@@ -192,10 +192,23 @@ const EventReportPage = () => {
         }
         return null;
       case 'maintenanceId':
-        if (item.attributes.eventCategory === 'aviso') {
-          return item.attributes.eventDescription || t(prefixString('alarm', item.attributes.alarm));
+        if (value > 0) {
+          return value;
         }
-        return value > 0 ? value : null;
+        if (item.attributes.eventDescription) {
+          const maintenanceActions = {
+            'Pérdida Conec. WiFi': 'Verificar Servicio WiFi',
+            'Corte Antena GPS': 'Coordinar Service GPS',
+            'Pérdida Conec. GPRS': 'Verificar Servicio GPRS',
+            'Batería Tracker – Baja': 'Reemplazo Batería',
+            'SERVICE – Motor': 'Cambio Aceite y Consumibles',
+            'SERVICE – Transmisión': 'Cambio de Fluidos',
+            'Horas Motor – Crítico': 'Revisión / Service',
+            'Temp. Motor – Baja': 'Servicio Mecánico',
+          };
+          return maintenanceActions[item.attributes.eventDescription] || null;
+        }
+        return null;
       case 'address': {
         const position = positions[item.positionId];
         if (position) {
