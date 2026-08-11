@@ -51,7 +51,7 @@ const MapaApp = () => {
             'postLogin',
             window.location.pathname + window.location.search,
           );
-          window.location.replace('/index.html');
+          window.location.replace('/login');
         }
       }
       return null;
@@ -66,7 +66,7 @@ const MapaApp = () => {
     return (
       <TermsDialog
         open
-        onCancel={() => window.location.replace('/index.html')}
+        onCancel={() => window.location.replace('/login')}
         onAccept={() => acceptTerms()}
       />
     );
