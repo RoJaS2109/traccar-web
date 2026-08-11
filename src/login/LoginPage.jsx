@@ -119,7 +119,11 @@ const LoginPage = () => {
         dispatch(sessionActions.updateUser(user));
         const target = window.sessionStorage.getItem('postLogin') || '/';
         window.sessionStorage.removeItem('postLogin');
-        navigate(target, { replace: true });
+        if (target.startsWith('http://') || target.startsWith('https://')) {
+          window.location.href = target;
+        } else {
+          navigate(target, { replace: true });
+        }
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {
@@ -199,9 +203,7 @@ const LoginPage = () => {
         )}
       </div>
       <div className={classes.container}>
-        {useMediaQuery(theme.breakpoints.down('lg')) && (
-          <LogoImage />
-        )}
+        {useMediaQuery(theme.breakpoints.down('lg')) && <LogoImage />}
         {!openIdForced && (
           <>
             <TextField

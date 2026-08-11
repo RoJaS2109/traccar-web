@@ -49,7 +49,7 @@ const MapaApp = () => {
         } else {
           window.sessionStorage.setItem(
             'postLogin',
-            window.location.pathname + window.location.search,
+            window.location.origin + window.location.pathname + window.location.search,
           );
           window.location.replace('/login');
         }
