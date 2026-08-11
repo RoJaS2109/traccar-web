@@ -205,6 +205,10 @@ const EventReportPage = () => {
             'SERVICE – Transmisión': 'Cambio de Fluidos',
             'Horas Motor – Crítico': 'Revisión / Service',
             'Temp. Motor – Baja': 'Servicio Mecánico',
+            'Temp. Motor – Alta': 'Servicio Mecánico',
+            'Presión de Aceite – Baja': 'Servicio Mecánico',
+            'Fuga Refrigerante': 'Servicio Mecánico',
+            'Presión de Aire – Baja': 'Servicio Mecánico',
           };
           return maintenanceActions[item.attributes.eventDescription] || null;
         }
