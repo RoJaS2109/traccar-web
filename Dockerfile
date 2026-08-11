@@ -11,6 +11,7 @@ COPY --from=traccar/traccar:latest /opt/traccar/lib /build/lib
 COPY docker/ /build/src/
 # Compilar todas las clases custom y parchear el JAR
 RUN javac -cp "original.jar:lib/*" -d /build/classes \
+        /build/src/org/traccar/web/OverrideFileFilter.java \
         /build/src/org/traccar/web/OverrideTextFilter.java \
         /build/src/org/traccar/protocol/RinhoProtocol.java \
         /build/src/org/traccar/protocol/RinhoProtocolDecoder.java \
