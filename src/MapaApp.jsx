@@ -10,7 +10,6 @@ import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
 import Loader from './common/components/Loader';
 import fetchOrThrow from './common/util/fetchOrThrow';
-import { useNavigate } from 'react-router-dom';
 import StatusCard from './common/components/StatusCard';
 
 const MainMap = lazy(() => import('./main/MainMap'));
@@ -25,9 +24,7 @@ const useStyles = makeStyles()(() => ({
 const MapaApp = () => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
-  const newServer = useSelector((state) => state.session.server.newServer);
   const termsUrl = useSelector((state) => state.session.server.attributes.termsUrl);
   const user = useSelector((state) => state.session.user);
 
@@ -54,19 +51,25 @@ const MapaApp = () => {
             'postLogin',
             window.location.pathname + window.location.search,
           );
-          navigate(newServer ? '/register' : '/login', { replace: true });
+          window.location.replace('/');
         }
       }
       return null;
     },
-    [user, dispatch, navigate, newServer],
+    [user, dispatch],
   );
 
   if (user == null) {
     return <Loader />;
   }
   if (termsUrl && !user.attributes.termsAccepted) {
-    return <TermsDialog open onCancel={() => navigate('/login')} onAccept={() => acceptTerms()} />;
+    return (
+      <TermsDialog
+        open
+        onCancel={() => window.location.replace('/')}
+        onAccept={() => acceptTerms()}
+      />
+    );
   }
 
   const positionValues = Object.values(positions);
