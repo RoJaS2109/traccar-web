@@ -78,7 +78,7 @@ Los eventos del decoder Rinho usan atributos personalizados que el frontend inte
 **Archivos que usan estos atributos:**
 - `src/common/util/formatter.js:formatNotificationTitle()` — prioriza `eventDescription` sobre el tipo genérico
 - `src/main/DeviceRow.jsx` — tooltip del ícono de alarma usa `eventDescription` primero
-- `src/reports/EventReportPage.jsx` — columna Type muestra "Aviso" para `alarm` + `eventCategory=aviso`; columna Attributes prioriza `eventDescription`
+- `src/reports/EventReportPage.jsx` — columna Type muestra "Aviso" para `alarm` + `eventCategory=aviso`; columna Attributes prioriza `eventDescription`; columna MaintenanceId usa mapeo estático de 12 `eventDescription` → acción recomendada (ej: "SERVICE – Motor" → "Cambio Aceite y Consumibles")
 - `src/main/EventsDrawer.jsx`, `src/other/EventPage.jsx` — pasan `eventCategory` a `formatNotificationTitle`
 
 **Regla:** `eventCategory === 'aviso'` solo aplica cuando `eventType === 'alarm'`. Eventos `maintenance` (0x41, 0x42) tienen su propio label "Se requiere mantenimiento".
