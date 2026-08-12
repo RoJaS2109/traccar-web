@@ -119,11 +119,7 @@ const LoginPage = () => {
         dispatch(sessionActions.updateUser(user));
         const target = window.sessionStorage.getItem('postLogin') || '/';
         window.sessionStorage.removeItem('postLogin');
-        if (target.startsWith('http://') || target.startsWith('https://')) {
-          window.location.href = target;
-        } else {
-          navigate(target, { replace: true });
-        }
+        navigate(target, { replace: true });
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {

@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
 import react from '@vitejs/plugin-react-swc';
 import svgr from 'vite-plugin-svgr';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -30,12 +29,6 @@ export default defineConfig(() => ({
   build: {
     outDir: 'build',
     chunkSizeWarningLimit: 1100,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        mapa: resolve(__dirname, 'mapa.html'),
-      },
-    },
   },
   plugins: [
     svgr(),

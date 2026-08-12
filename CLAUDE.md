@@ -51,55 +51,6 @@ Every page is `React.lazy` loaded. The route structure:
   - `/settings/...` — CRUD pages for all entity types (devices, users, groups, geofences, drivers, calendars, commands, notifications, maintenances, computed attributes, server, preferences, accumulators, announcement, share)
   - `/reports/...` — report pages (combined, chart, events, geofences, route, stops, summary, trips, scheduled, statistics, audit, logs)
 
-### Vista solo mapa (`mapa.rudatrak.com`)
-
-Build multi-page con Vite que genera una app React simplificada sin sidebar, navegación ni reportes. Solo mapa + StatusCard.
-
-**Archivos:**
-
-| Archivo | Propósito |
-|---------|-----------|
-| `mapa.html` | Entry point HTML. Vite lo genera con link al bundle `mapa-*.js`. Placeholders (`${title}`, `${description}`, `${colorPrimary}`) reemplazados por `OverrideTextFilter` |
-| `src/mapa.jsx` | Entry point React. Mismos providers que `index.jsx` pero renderiza `<MapaApp />` en vez de `<Navigation />` |
-| `src/MapaApp.jsx` | App simplificada: solo `<MainMap>` + `<StatusCard>`. Mismo flujo de restauración de sesión que `App.jsx`. Sin sidebar, sin DeviceList, sin rutas |
-
-**Configuración Vite** (`vite.config.js`):
-```js
-rollupOptions: {
-  input: {
-    main: resolve(__dirname, 'index.html'),
-    mapa: resolve(__dirname, 'mapa.html'),
-  },
-},
-```
-
-**Flujo de login y postLogin:**
-
-1. Usuario visita `https://mapa.rudatrak.com/` → `OverrideFileFilter` (backend Java) detecta `Host: mapa.*` y sirve `mapa.html` en vez de `index.html`
-2. Si no hay sesión, `MapaApp` guarda `postLogin` como **URL absoluta** (`window.location.origin + pathname`) y redirige a `/login`
-3. `/login` → `OverrideFileFilter` sirve `index.html` (solo `path === /` dispara `mapa.html`). React Router ve `/login`, renderiza `LoginPage`
-4. Al loguear, `LoginPage` lee `postLogin`. Si es URL absoluta (`http://` o `https://`), usa `window.location.href` para **carga completa** de `mapa.html`; si no, usa `navigate()` (SPA normal)
-5. `mapa.html` carga con sesión → mapa con dispositivos en vivo
-
-**OverrideFileFilter.java** — filtro Jakarta Servlet en el backend que intercepta requests y decide qué HTML servir:
-```java
-if (acceptHtml && appRoute) {
-    String host = httpRequest.getHeader("Host");
-    if (host != null && host.startsWith("mapa.") && (path.equals("/") || path.isEmpty())) {
-        request.getRequestDispatcher("/mapa.html").forward(request, response);
-    } else {
-        request.getRequestDispatcher("/index.html").forward(request, response);
-    }
-    return;
-}
-```
-Este archivo se parchea en el JAR durante el build Docker. Fuente canónico: `traccar/src/main/java/org/traccar/web/OverrideFileFilter.java`. Copia para build: `docker/org/traccar/web/OverrideFileFilter.java`. **Ambos deben mantenerse sincronizados.**
-
-**Infraestructura:**
-- **Cloudflare:** registro `A` `mapa` → IP de la Pi (nube gris = DNS only)
-- **NPM:** proxy host `mapa.rudatrak.com` → `http://traccar:8082` (básico, sin custom locations ni advanced)
-- **SSL:** Let's Encrypt vía NPM para `mapa.rudatrak.com`
-
 ### State management (`src/store/`)
 
 Redux Toolkit with slices: `session`, `devices`, `events`, `geofences`, `groups`, `drivers`, `maintenances`, `calendars`, `motion`, `errors`. A `throttleMiddleware` limits rapid dispatches.
@@ -340,7 +291,6 @@ COPY --from=traccar/traccar:latest /opt/traccar/tracker-server.jar /build/origin
 COPY --from=traccar/traccar:latest /opt/traccar/lib /build/lib
 COPY docker/ /build/src/
 RUN javac -cp "original.jar:lib/*" -d /build/classes \
-        /build/src/org/traccar/web/OverrideFileFilter.java \
         /build/src/org/traccar/web/OverrideTextFilter.java \
         /build/src/org/traccar/protocol/RinhoProtocol.java \
         /build/src/org/traccar/protocol/RinhoProtocolDecoder.java \
@@ -360,8 +310,6 @@ RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 ```
 
 **Fuente Java:** `docker/org/traccar/web/OverrideTextFilter.java` — copia del fuente modificado que usa el builder.
-
-**OverrideFileFilter:** `docker/org/traccar/web/OverrideFileFilter.java` — copia del filtro que enruta el subdominio `mapa.*` a `/mapa.html` en vez de `/index.html`. Debe sincronizarse con `traccar/src/main/java/org/traccar/web/OverrideFileFilter.java`. Sin este parche: `mapa.rudatrak.com` sirve la app completa en vez de la vista solo mapa.
 
 **Decoder Rinho:** `docker/org/traccar/protocol/RinhoProtocolDecoder.java` — copia del decoder que debe mantenerse sincronizada con `traccar/src/main/java/org/traccar/protocol/RinhoProtocolDecoder.java`. Si se modifica el decoder en el repo `traccar` y no se sincroniza esta copia, el deploy usará el decoder antiguo. Ver [`docs/GPS_RINHO/protocolo-rinho.md`](docs/GPS_RINHO/protocolo-rinho.md) para documentación completa del protocolo.
 
@@ -390,9 +338,6 @@ Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/Notificat
 - **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
 - **AlarmEventHandler no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java` y la copia para Docker está en `docker/org/traccar/handler/events/AlarmEventHandler.java`. Sin sync, `eventDescription` no se propaga de la posición al evento.
 - **NotificationFormatter no se actualiza:** ídem anterior. Sin sync, el snackbar muestra `$maintenance.name` literal o texto en inglés. El digest ahora se construye en Java (no depende de plantillas Velocity del JAR), usando `contains()` para detectar componentes y `SimpleDateFormat("dd/MM/yyyy")` para la fecha en formato latino.
-- **OverrideFileFilter no se actualiza:** ídem anterior. Sin sync, `mapa.rudatrak.com` sirve la app completa con sidebar en vez de la vista solo mapa.
-- **MapaApp no redirige a login:** si `LoginPage.jsx` no tiene la lógica de `window.location.href` para URLs absolutas, el postLogin redirige vía React Router (navegación SPA) y el usuario ve la app completa en vez del mapa.
-- **Bucle infinito en mapa.rudatrak.com:** si `MapaApp` hace `window.location.replace('/')` en vez de `window.location.replace('/login')`, el OverrideFileFilter sirve `mapa.html` de nuevo sin sesión → redirect a `/` → bucle.
 - **Templates no se actualizan:** si `jar uf patched.jar -C /build/src templates/` no sobrescribe las plantillas en el JAR, el cuerpo HTML del email usará las plantillas originales en inglés. El digest del snackbar no se ve afectado porque se construye en Java.
 - **NPM y Traccar Client (teléfono):** Traccar Client usa el protocolo **OsmAnd** (HTTP/TCP, puerto 5055). En NPM, `gps.rudatrak.com` debe forwardear a `http://traccar:5055`. Si se forwardea a `traccar:5031` no funciona porque el puerto 5031 tiene listener UDP (TAIP/Rinho), no HTTP. La conexión es: `app → HTTPS gps.rudatrak.com:443 → NPM → http://traccar:5055 → OsmAnd`. Si se omite NPM, forwardear puerto 5055 TCP en el router y exponerlo en docker-compose.
 - **trackerServer.port no es válido:** la entrada `<entry key='trackerServer.port'>5031</entry>` en `traccar.xml` es ignorada por Traccar. Los puertos se configuran por protocolo: `osmand.port`, `rinho.port`, etc. Los defaults están en `PortConfigSuffix.java` del fuente de Traccar.
