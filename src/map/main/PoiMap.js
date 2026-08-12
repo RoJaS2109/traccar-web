@@ -157,6 +157,7 @@ const PoiMap = () => {
 
       const onPoiClick = (event) => {
         event.preventDefault();
+        if (event.originalEvent) event.originalEvent._poiHandled = true;
         const feature = event.features?.[0];
         if (!feature) return;
 
