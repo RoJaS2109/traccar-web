@@ -43,7 +43,7 @@ items.slice(0, 4000).map((item) => ...
 
 ## 4. Dominio `taip.rudatrak.com` sin entrada en NPM
 
-**Problema:** `taip.rudatrak.com` (ex `gps.rudatrak.com`) está configurado en Cloudflare (nube gris, DNS only) pero no tiene entrada en Nginx Proxy Manager. Las peticiones a ese dominio no tienen destino si alguna vez se reactiva.
+**Problema:** `taip.rudatrak.com` (ex `mh.rudatrak.com`) está configurado en Cloudflare (nube gris, DNS only) pero no tiene entrada en Nginx Proxy Manager. Las peticiones a ese dominio no tienen destino si alguna vez se reactiva.
 
 **Solución:** Agregar proxy host en NPM para `taip.rudatrak.com` → `traccar:8082`, con headers WebSocket.
 

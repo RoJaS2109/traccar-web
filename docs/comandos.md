@@ -150,7 +150,7 @@ Problema de glyphs en Android. Las fuentes del mapa se descargan de `cdn.traccar
 
 ```bash
 # 1. ¿El KML es accesible?
-curl -I https://gps.rudatrak.com/poi/general.kml
+curl -I https://mh.rudatrak.com/poi/general.kml
 # Debe devolver HTTP 200
 
 # 2. ¿La preferencia poiLayer está configurada?
@@ -164,7 +164,7 @@ curl -I https://gps.rudatrak.com/poi/general.kml
 
 ```bash
 # 1. Verificar branding
-curl -s https://gps.rudatrak.com/manifest.webmanifest | grep -E "RudaTrak|Traccar"
+curl -s https://mh.rudatrak.com/manifest.webmanifest | grep -E "RudaTrak|Traccar"
 
 # 2. Limpiar Service Worker (en el navegador)
 # Chrome → candado en barra → Cookies y datos → Eliminar

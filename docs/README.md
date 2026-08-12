@@ -20,7 +20,7 @@ Basado en [Traccar](https://www.traccar.org/), personalizado con branding, ícon
 ## Vista rápida
 
 ```
-gps.rudatrak.com (Cloudflare)
+mh.rudatrak.com (Cloudflare)
     │
     ▼
 Raspberry Pi (Docker)

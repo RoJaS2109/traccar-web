@@ -65,7 +65,7 @@ docker compose up -d
 En `http://localhost:81`:
 
 - **Proxy Host:** `mh.rudatrak.com` → `http://rudatrak-traccar:8082`
-- **Proxy Host:** `gps.rudatrak.com` → `http://rudatrak-traccar:8082`
+- **Proxy Host:** `mh.rudatrak.com` → `http://rudatrak-traccar:8082`
 - **Proxy Host:** `nuevo-poi.rudatrak.com` → `http://rudatrak-carga-poi:3007`
 - **SSL:** Let's Encrypt (para todos)
 - **WebSocket support:** Activado para `mh.rudatrak.com` (para `/api/socket`)
@@ -75,7 +75,7 @@ En `http://localhost:81`:
 | Subdominio | IP | Proxy | Uso |
 |-----------|----|-------|-----|
 | `mh.rudatrak.com` | IP de la Pi | Proxied (naranja) | UI de Traccar |
-| `gps.rudatrak.com` | IP de la Pi | Proxied (naranja) | API REST + WebSocket |
+| `mh.rudatrak.com` | IP de la Pi | Proxied (naranja) | API REST + WebSocket |
 | `nuevo-poi.rudatrak.com` | IP de la Pi | Proxied (naranja) | Herramienta carga-poi |
 | `taip.rudatrak.com` | IP de la Pi | **DNS only (gris)** | GPS Rinho Spider (UDP 5031) |
 
@@ -142,7 +142,7 @@ git checkout <hash>
 
 ```bash
 # 1. Verificar que el manifest devuelva RudaTrak
-curl -s https://gps.rudatrak.com/manifest.webmanifest | grep RudaTrak
+curl -s https://mh.rudatrak.com/manifest.webmanifest | grep RudaTrak
 
 # 2. Si el curl muestra Traccar, verificar el build Docker
 docker run --rm --entrypoint cat rudatrak:latest /opt/traccar/tracker-server.jar > /tmp/test.jar

@@ -9,7 +9,7 @@ export default defineConfig(() => ({
     port: 3001,
     proxy: {
       '/api/socket': {
-        target: 'wss://gps.rudatrak.com',
+        target: 'wss://mh.rudatrak.com',
         ws: true,
         changeOrigin: true,
         configure: (proxy) => {
@@ -17,11 +17,11 @@ export default defineConfig(() => ({
         },
       },
       '/api': {
-        target: 'https://gps.rudatrak.com',
+        target: 'https://mh.rudatrak.com',
         changeOrigin: true,
       },
       '/poi': {
-        target: 'https://gps.rudatrak.com',
+        target: 'https://mh.rudatrak.com',
         changeOrigin: true,
       },
     },

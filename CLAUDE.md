@@ -20,7 +20,7 @@ Este archivo documenta el código del frontend React. Para visión general del p
 ## Commands
 
 ```bash
-npm start          # Dev server on port 3001, proxies /api to gps.rudatrak.com
+npm start          # Dev server on port 3001, proxies /api to mh.rudatrak.com
 npm run build      # Production build into build/
 npm run lint       # ESLint (max-warnings 0)
 npm run lint:fix   # ESLint with auto-fix
@@ -333,12 +333,12 @@ Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/Notificat
 - **Contenedor no se actualiza:** `docker compose up -d` sin `--force-recreate` no recrea contenedores si el compose file no cambió, aunque la imagen sí haya cambiado. Solución: usar Portainer API (redeploy del stack) o `docker compose up -d --force-recreate`.
 - **Service worker cache:** después de un deploy, el SW puede seguir sirviendo archivos viejos. Para forzar actualización en el navegador: hacer clic en el banner "Hay una nueva versión" → "Actualizar", o Configuración → Datos de sitios → eliminar datos del sitio, o usar modo incógnito. **Si no se actualiza, la UI ejecuta código viejo y cambios como `eventDescription` no se ven.**
 - **Caché de capas Docker:** `deploy.sh` puede usar capas cacheadas del builder (dice `CACHED [builder 6/6]`) y no recompilar aunque cambien los fuentes. Si los cambios en `docker/` no se reflejan, usar `docker build --no-cache` manualmente.
-- **Branding no se actualiza:** verificar con `curl -s https://gps.rudatrak.com/manifest.webmanifest | grep RudaTrak`. Si dice "Traccar", el build Docker no parcheó el JAR correctamente o el contenedor no se recreó.
+- **Branding no se actualiza:** verificar con `curl -s https://mh.rudatrak.com/manifest.webmanifest | grep RudaTrak`. Si dice "Traccar", el build Docker no parcheó el JAR correctamente o el contenedor no se recreó.
 - **Primer build lento:** `docker build` descarga `eclipse-temurin:21-jdk` (~400 MB) la primera vez. Builds posteriores usan la capa cacheada.
 - **Decoder Rinho no se actualiza:** si después de un deploy los nuevos códigos de alarma no funcionan, verificar que `docker/org/traccar/protocol/RinhoProtocolDecoder.java` esté sincronizado con el fuente canónico en `traccar/src/.../`. El Dockerfile usa esta copia para parchear el JAR. Sin sync, el contenedor corre con el decoder antiguo.
 - **AlarmEventHandler no se actualiza:** ídem anterior. El fuente canónico es `traccar/src/main/java/org/traccar/handler/events/AlarmEventHandler.java` y la copia para Docker está en `docker/org/traccar/handler/events/AlarmEventHandler.java`. Sin sync, `eventDescription` no se propaga de la posición al evento.
 - **NotificationFormatter no se actualiza:** ídem anterior. Sin sync, el snackbar muestra `$maintenance.name` literal o texto en inglés. El digest ahora se construye en Java (no depende de plantillas Velocity del JAR), usando `contains()` para detectar componentes y `SimpleDateFormat("dd/MM/yyyy")` para la fecha en formato latino.
 - **Templates no se actualizan:** si `jar uf patched.jar -C /build/src templates/` no sobrescribe las plantillas en el JAR, el cuerpo HTML del email usará las plantillas originales en inglés. El digest del snackbar no se ve afectado porque se construye en Java.
-- **NPM y Traccar Client (teléfono):** Traccar Client usa el protocolo **OsmAnd** (HTTP/TCP, puerto 5055). En NPM, `gps.rudatrak.com` debe forwardear a `http://traccar:5055`. Si se forwardea a `traccar:5031` no funciona porque el puerto 5031 tiene listener UDP (TAIP/Rinho), no HTTP. La conexión es: `app → HTTPS gps.rudatrak.com:443 → NPM → http://traccar:5055 → OsmAnd`. Si se omite NPM, forwardear puerto 5055 TCP en el router y exponerlo en docker-compose.
+- **NPM y Traccar Client (teléfono):** Traccar Client usa el protocolo **OsmAnd** (HTTP/TCP, puerto 5055). En NPM, `mh.rudatrak.com` debe forwardear a `http://traccar:5055`. Si se forwardea a `traccar:5031` no funciona porque el puerto 5031 tiene listener UDP (TAIP/Rinho), no HTTP. La conexión es: `app → HTTPS mh.rudatrak.com:443 → NPM → http://traccar:5055 → OsmAnd`. Si se omite NPM, forwardear puerto 5055 TCP en el router y exponerlo en docker-compose.
 - **trackerServer.port no es válido:** la entrada `<entry key='trackerServer.port'>5031</entry>` en `traccar.xml` es ignorada por Traccar. Los puertos se configuran por protocolo: `osmand.port`, `rinho.port`, etc. Los defaults están en `PortConfigSuffix.java` del fuente de Traccar.
 - **Fuentes/glyphs en Android:** `cdn.traccar.com/map/fonts/` a veces no es accesible desde Android. El texto de capas symbol no se renderiza sin glyphs. `localIdeographFontFamily: 'sans-serif'` ayuda con caracteres CJK. Para texto latino, el popup HTML es el mecanismo confiable para mostrar información.

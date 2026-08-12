@@ -42,7 +42,7 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │                   Internet                       │
-│  gps.rudatrak.com ──► Cloudflare ──► Pi (puerto 80) │
+│  mh.rudatrak.com ──► Cloudflare ──► Pi (puerto 80) │
 └─────────────────────────────────────────────────┘
                         │
                         ▼
