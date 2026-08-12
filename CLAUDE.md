@@ -154,9 +154,27 @@ Map layers are modular components rendered as children of `<MapView>`:
 - `map/overlay/` — custom overlay system (MapOverlay, useMapOverlays)
 - `map/control/` — UI controls: MapSwitcher, MapGeocoder, MapNotification, MapRuler, MapSpeedLegend
 - `map/draw/` — geofence drawing tools (MapGeofenceEdit)
-- `map/` (top-level) — MapPositions, MapMarkers, MapGeofence, MapRoutePath, MapRoutePoints, MapCamera, MapCurrentLocation, MapPadding, MapScale, MapRouteCoordinates
+- `map/` (top-level) — MapPositions, MapMarkers, MapGeofence, MapRoutePath, MapRoutePoints, MapCamera, MapCurrentLocation, MapPadding, MapScale, MapRouteCoordinates, MapCoordinatePicker
 
 Map styles are defined in `useMapStyles.js`. Google Maps and PMTiles protocols are registered at module load.
+
+### Controles del mapa
+
+**MapGeocoder** (`map/control/MapGeocoder.jsx`) — búsqueda de direcciones y coordenadas vía Nominatim. Al seleccionar un resultado:
+- Hace `fitBounds` al bounding box del resultado
+- Coloca un **pin rojo** (`#d32f2f`) en el centro exacto del resultado
+- Al seleccionar otro resultado, el pin anterior se reemplaza
+
+La búsqueda también acepta coordenadas directas en el text field. Al presionar **Enter**:
+- Si hay resultados de Nominatim, selecciona el primero
+- Si el texto coincide con el patrón `lat, lng` (ej: `-34.6037, -58.3816`), navega directamente a esas coordenadas con pin rojo, sin consultar Nominatim
+
+**MapCoordinatePicker** (`map/MapCoordinatePicker.jsx`) — pin por clic en el mapa:
+- **1er clic** en cualquier punto del mapa → pin azul (`#1976d2`) + popup con coordenadas
+- **2do clic** → borra el pin (toggle off)
+- **3er clic** → pin nuevo (toggle on), y así sucesivamente
+- El popup muestra "Click para Copiar" sobre las coordenadas. Al hacer clic en las coordenadas, se copian al portapapeles y aparece "¡Copiado!" brevemente
+- Solo un pin activo a la vez; se limpia al desmontar el componente
 
 ### Styling
 

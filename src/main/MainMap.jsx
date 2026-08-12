@@ -18,6 +18,7 @@ import MapGeocoder from '../map/control/MapGeocoder';
 import MapScale from '../map/MapScale';
 import MapRuler from '../map/control/MapRuler';
 import MapNotification from '../map/control/MapNotification';
+import MapCoordinatePicker from '../map/MapCoordinatePicker';
 import useFeatures from '../common/util/useFeatures';
 
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
@@ -57,6 +58,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapSelectedDevice />
         <PoiMap />
         <MapRuler positions={filteredPositions} onActiveChange={setRulerActive} />
+        <MapCoordinatePicker />
         {!features.disableEvents && (
           <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
         )}

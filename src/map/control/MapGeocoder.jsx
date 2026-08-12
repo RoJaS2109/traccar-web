@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   useTheme,
@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { createRoot } from 'react-dom/client';
+import maplibregl from 'maplibre-gl';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import { map } from '../core/MapView';
 import { toMapCoordinates } from '../core/mapUtil';
@@ -50,6 +51,7 @@ const MapGeocoder = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const markerRef = useRef(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -103,9 +105,41 @@ const MapGeocoder = () => {
     return () => map.removeControl(control);
   }, [theme.direction, classes.button]);
 
+  // Limpiar pin al desmontar
+  useEffect(
+    () => () => {
+      if (markerRef.current) {
+        markerRef.current.remove();
+      }
+    },
+    [],
+  );
+
   const onSelect = (feature) => {
     const [minX, minY, maxX, maxY] = feature.bbox;
     map.fitBounds([toMapCoordinates(minX, minY), toMapCoordinates(maxX, maxY)], { padding: 40 });
+
+    // Remover pin anterior si existe
+    if (markerRef.current) {
+      markerRef.current.remove();
+    }
+
+    // Calcular centro del resultado
+    let center;
+    if (feature.geometry?.type === 'Point') {
+      center = toMapCoordinates(feature.geometry.coordinates[0], feature.geometry.coordinates[1]);
+    } else {
+      center = toMapCoordinates((minX + maxX) / 2, (minY + maxY) / 2);
+    }
+
+    // Poner pin en el punto encontrado
+    markerRef.current = new maplibregl.Marker({
+      color: '#d32f2f',
+      draggable: false,
+    })
+      .setLngLat(center)
+      .addTo(map);
+
     setAnchorEl(null);
     setQuery('');
     setResults([]);
@@ -128,6 +162,40 @@ const MapGeocoder = () => {
             placeholder={t('sharedSearch')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                // Si hay resultados, seleccionar el primero
+                if (results.length > 0) {
+                  onSelect(results[0]);
+                  return;
+                }
+
+                // Detectar si el texto son coordenadas (ej: "-34.6037, -58.3816")
+                const coordMatch = query.trim().match(/^(-?\d+\.?\d*)\s*[,;\s]\s*(-?\d+\.?\d*)$/);
+                if (coordMatch) {
+                  const lat = parseFloat(coordMatch[1]);
+                  const lng = parseFloat(coordMatch[2]);
+                  if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    const center = toMapCoordinates(lng, lat);
+                    map.fitBounds([center, center], { padding: 40, maxZoom: 16 });
+
+                    if (markerRef.current) {
+                      markerRef.current.remove();
+                    }
+                    markerRef.current = new maplibregl.Marker({
+                      color: '#d32f2f',
+                      draggable: false,
+                    })
+                      .setLngLat(center)
+                      .addTo(map);
+
+                    setAnchorEl(null);
+                    setQuery('');
+                    setResults([]);
+                  }
+                }
+              }
+            }}
           />
         </Box>
         <List className={classes.results} dense disablePadding>
