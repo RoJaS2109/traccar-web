@@ -12,6 +12,17 @@ const MapCoordinatePicker = () => {
       // Si otra capa (POI, dispositivo) ya manejó el clic, abortar
       if (event.defaultPrevented) return;
 
+      // Fallback: buscar features POI cerca del clic (tolera pixels transparentes en símbolos)
+      const { x, y } = event.point;
+      const nearbyFeatures = map.queryRenderedFeatures(
+        [
+          [x - 10, y - 10],
+          [x + 10, y + 10],
+        ],
+        { layers: ['poi-point', 'poi-circle', 'poi-title', 'poi-fill', 'poi-line'] },
+      );
+      if (nearbyFeatures.length > 0) return;
+
       // Si ya hay un pin, solo borrarlo (toggle off)
       if (markerRef.current) {
         markerRef.current.remove();
