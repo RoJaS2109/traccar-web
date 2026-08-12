@@ -175,6 +175,10 @@ La búsqueda también acepta coordenadas directas en el text field. Al presionar
 - **3er clic** → pin nuevo (toggle on), y así sucesivamente
 - El popup muestra "Click para Copiar" sobre las coordenadas. Al hacer clic en las coordenadas, se copian al portapapeles y aparece "¡Copiado!" brevemente
 - Solo un pin activo a la vez; se limpia al desmontar el componente
+- **Prevención de pin sobre POIs (doble mecanismo):**
+  1. `event.defaultPrevented` — los handlers de capa en PoiMap llaman `preventDefault()`, propagado al handler map-level. Cubre clics que aciertan en píxeles renderizados de la capa POI
+  2. `queryRenderedFeatures([bbox 20×20px])` — fallback para clics en píxeles transparentes de capas symbol (íconos, texto). Consulta las 5 capas POI alrededor del clic; si hay features, aborta
+- Las capas consultadas (`poi-point`, `poi-circle`, `poi-title`, `poi-fill`, `poi-line`) deben mantenerse sincronizadas con las que crea `PoiMap`
 
 ### Styling
 

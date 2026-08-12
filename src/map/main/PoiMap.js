@@ -32,9 +32,10 @@ const PoiMap = () => {
 
   useEffect(() => {
     if (data) {
-      const geoData = map.coordinateSystem === 'gcj02'
-        ? gcoord.transform(structuredClone(data), gcoord.WGS84, gcoord.GCJ02)
-        : data;
+      const geoData =
+        map.coordinateSystem === 'gcj02'
+          ? gcoord.transform(structuredClone(data), gcoord.WGS84, gcoord.GCJ02)
+          : data;
 
       map.addSource(id, {
         type: 'geojson',
@@ -62,22 +63,23 @@ const PoiMap = () => {
 
       if (uniqueIcons.length > 0) {
         Promise.all(
-          uniqueIcons.map((url) =>
-            new Promise((resolve) => {
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              img.onload = () => {
-                if (!map.hasImage(url)) {
-                  map.addImage(url, img, { sdf: url.endsWith('.sdf.png') });
-                }
-                resolve();
-              };
-              img.onerror = () => {
-                console.error('SDF: failed to load image', url);
-                resolve();
-              };
-              img.src = url;
-            })
+          uniqueIcons.map(
+            (url) =>
+              new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                  if (!map.hasImage(url)) {
+                    map.addImage(url, img, { sdf: url.endsWith('.sdf.png') });
+                  }
+                  resolve();
+                };
+                img.onerror = () => {
+                  console.error('SDF: failed to load image', url);
+                  resolve();
+                };
+                img.src = url;
+              }),
           ),
         ).then(() => {
           map.addLayer({
@@ -157,7 +159,6 @@ const PoiMap = () => {
 
       const onPoiClick = (event) => {
         event.preventDefault();
-        if (event.originalEvent) event.originalEvent._poiHandled = true;
         const feature = event.features?.[0];
         if (!feature) return;
 
