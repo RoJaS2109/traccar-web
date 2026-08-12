@@ -9,8 +9,8 @@ const MapCoordinatePicker = () => {
 
   useEffect(() => {
     const onClick = (event) => {
-      // PoiMap marca event.originalEvent; si el clic fue sobre un POI, abortar
-      if (event.originalEvent?._poiHandled) return;
+      // Si otra capa (POI, dispositivo) ya manejó el clic, abortar
+      if (event.defaultPrevented) return;
 
       // Si ya hay un pin, solo borrarlo (toggle off)
       if (markerRef.current) {
