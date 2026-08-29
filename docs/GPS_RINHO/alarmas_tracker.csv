@@ -35,7 +35,7 @@ Conectividad,0x33,RES.,,,,,
 Conectividad,0x34,RES.,,,,,
 Geolocalización,0x35,Entrada Geocerca,geofenceEnter,,Ingreso a zona geográfica permitida (confirmación positiva),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
 Geolocalización,0x36,Salida Geocerca,geofenceExit,,Salida de zona geográfica permitida (confirmación positiva),Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
-Geolocalización,0x37,Entrada Zona Restricta,geofenceExit,,Ingreso a geocerca prohibida o zona de riesgo,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
+Geolocalización,0x37,Entrada Zona Restricta,geofenceEnter,,Ingreso a geocerca prohibida o zona de riesgo,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Urgente
 Geolocalización,0x38,RES.,,,,,
 Geolocalización,0x39,RES.,,,,,
 Motor,0x40,Consumo Anómalo,deviceFuelDrop,,Consumo de combustible inconsistente con distancia/tiempo,Flotas de Trabajo | Transporte | Maquinaria Agrícola,Aviso
