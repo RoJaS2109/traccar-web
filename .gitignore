@@ -19,6 +19,10 @@ tracker-server.jar
 
 *.old
 *.ori
+*.swp
+*.swo
+*.kate-swp
+*~
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
