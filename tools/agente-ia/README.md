@@ -2,15 +2,18 @@
 
 Agente IA para escaladas inteligentes en emergencias GPS - Detección de vuelcos y movimiento no autorizado con notificaciones multi-canal.
 
-## MVP Features
+## Estado actual
 
-- ✅ Webhook receptor de eventos Traccar (EventForwarder)
-- ✅ Máquina de estados para escaladas (3 niveles de prioridad)
-- ✅ Timers inteligentes con fallback automático
-- ✅ Monitoreo de GPS post-vuelco
-- ✅ Persistencia de estado en Redis
-- ✅ Notificaciones por Telegram (SMS/WhatsApp en fase 2)
+> ⚠️ **El agente-ia es un esqueleto.** Solo funcionan el receptor de webhook
+> (recibe y loguea eventos) y el health check. El resto son stubs o archivos vacíos.
+
+- ✅ Webhook receptor de eventos Traccar (recibe y loguea)
 - ✅ Health check endpoint
+- ❌ Máquina de estados para escaladas (`guardian.js` vacío)
+- ❌ Timers inteligentes con fallback automático
+- ❌ Monitoreo de GPS post-vuelco
+- ❌ Persistencia de estado en Redis (`redis-client.js` stub)
+- ❌ Notificaciones por Telegram (`notifier.js` stub)
 
 ## Estructura
 
@@ -72,14 +75,16 @@ environment:
 
 ### Traccar (traccar.xml)
 
-Agregar en `/data/compose/traccar/traccar-conf/traccar.xml`:
+Agregar en `/data/compose/rudatrak/trak-conf/traccar.xml`:
 
 ```xml
-<!-- EventForwarder -->
-<entry key='eventforwarder.enable'>true</entry>
-<entry key='eventforwarder.url'>http://agente-ia:3008/webhook/evento</entry>
-<entry key='eventforwarder.json'>true</entry>
-<entry key='eventforwarder.header.authorization'>Bearer ${WEBHOOK_TOKEN}</entry>
+<!-- EventForwarder → agente-ia.
+     Claves reales: event.forward.url / event.forward.header (no "eventforwarder.*").
+     El forwarder se activa solo si event.forward.url está definido.
+     El header Authorization se inyecta por variable de entorno EVENT_FORWARD_HEADER
+     (definida en docker-compose.yml del stack); Traccar NO sustituye ${} en el XML. -->
+<entry key='config.useEnvironmentVariables'>true</entry>
+<entry key='event.forward.url'>http://agente-ia:3008/webhook/evento</entry>
 
 <!-- Telegram -->
 <entry key='notificator.telegram.enabled'>true</entry>
@@ -150,7 +155,7 @@ curl -X POST http://localhost:3008/response \
 docker logs agente-ia
 
 # Archivos
-/data/compose/traccar/agente-ia-logs/
+/data/compose/rudatrak/agente-ia-logs/
 ├── error.log
 └── combined.log
 ```
@@ -178,4 +183,4 @@ docker logs agente-ia
 
 ## Support
 
-Para issues o preguntas, revisar logs en `/data/compose/traccar/agente-ia-logs/`.
+Para issues o preguntas, revisar logs en `/data/compose/rudatrak/agente-ia-logs/`.
