@@ -1,7 +1,18 @@
 # Imagen Rudatrak = Traccar + frontend + backend personalizados
-# Multi-stage: compila el parche del backend sin requerir JDK en el host
+# Multi-stage self-contained: compila frontend (Node) y parchea backend (JDK)
+# sin requerir JDK/Node en el host ni build/ pre-existente.
 
-# ── Stage 1: Compilar clases Java personalizadas ──
+# ── Stage 1: Build del frontend (Vite) ──
+FROM node:22-alpine AS frontend
+WORKDIR /app
+# Copiar manifests primero para cachear npm ci
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
+# Copiar el resto del código y compilar
+COPY . .
+RUN npm run build
+
+# ── Stage 2: Compilar clases Java personalizadas ──
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 # Copiar el JAR original y las dependencias de la imagen base
@@ -22,14 +33,14 @@ RUN javac -cp "original.jar:lib/*" -d /build/classes \
     jar uf patched.jar -C /build/src META-INF/ && \
     jar uf patched.jar -C /build/src templates/
 
-# ── Stage 2: Imagen final ──
+# ── Stage 3: Imagen final ──
 FROM traccar/traccar:latest
 
 # Reemplazar el backend con nuestra versión (branding RudaTrak)
 COPY --from=builder /build/patched.jar /opt/traccar/tracker-server.jar
 
-# Reemplazar el frontend por defecto con el nuestro
-COPY build/ /opt/traccar/web/
+# Reemplazar el frontend por defecto con el nuestro (compilado en el Stage 1)
+COPY --from=frontend /app/build/ /opt/traccar/web/
 
 # Quitar el POI por defecto si existe (nosotros montamos el nuestro)
 RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true

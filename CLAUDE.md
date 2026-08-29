@@ -281,10 +281,18 @@ Ver [`../CLAUDE.md`](../CLAUDE.md) y [`docs/deploy.md`](docs/deploy.md) para el 
 
 ### Dockerfile (en este repo)
 
-**Multi-stage build** — compila y parchea el backend sin requerir JDK en el host:
+**Multi-stage build self-contained** — compila el frontend y parchea el backend sin requerir JDK/Node en el host ni `build/` pre-existente:
 
 ```dockerfile
-# Stage 1: Compilar clases Java personalizadas
+# Stage 1: Build del frontend (Vite)
+FROM node:22-alpine AS frontend
+WORKDIR /app
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Stage 2: Compilar clases Java personalizadas
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 COPY --from=traccar/traccar:latest /opt/traccar/tracker-server.jar /build/original.jar
@@ -302,10 +310,10 @@ RUN javac -cp "original.jar:lib/*" -d /build/classes \
     jar uf patched.jar -C /build/src META-INF/ && \
     jar uf patched.jar -C /build/src templates/
 
-# Stage 2: Imagen final
+# Stage 3: Imagen final
 FROM traccar/traccar:latest
 COPY --from=builder /build/patched.jar /opt/traccar/tracker-server.jar
-COPY build/ /opt/traccar/web/
+COPY --from=frontend /app/build/ /opt/traccar/web/
 RUN rm -f /opt/traccar/web/poi/general.kml 2>/dev/null || true
 ```
 
@@ -324,8 +332,11 @@ Debe sincronizarse con `traccar/src/main/java/org/traccar/notification/Notificat
 
 ### docker-compose.yml
 
-- `traccar`: imagen `rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
-- `carga-poi`: imagen `carga-poi:latest`, puerto `3007`, volumen para el KML general
+Vive en `traccar-web/` (raíz de este repo). Usa `build:` con contextos relativos para que Portainer pueda desplegar el stack completo desde git ("Add stack → Repository", clonando `RoJaS2109/traccar-web`).
+
+- `traccar`: `build: .` + `image: rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
+- `carga-poi`: `build: ./tools/carga-poi` + `image: carga-poi:latest`, puerto `3007`, volumen para el KML general
+- `agente-ia`: `build: ./tools/agente-ia` + `image: agente-ia:latest`
 - `pull_policy: never` — nunca descargar de registry, siempre usar imagen local
 
 ### Gotchas de deploy

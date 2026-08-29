@@ -6,8 +6,8 @@
 # Uso desde PC: ./deploy.sh pi@raspi
 #
 # Qué hace:
-#   1. git pull + npm install + npm run build
-#   2. docker build -t rudatrak:latest  (Traccar + frontend nuevo)
+#   1. git pull origin master
+#   2. docker build -t rudatrak:latest  (self-contained: frontend + backend)
 #   3. Copia KMLs e íconos a /data/compose/rudatrak/trak-poi/
 #   4. docker build -t carga-poi:latest (herramienta de POIs)
 #   5. docker build -t agente-ia:latest (agente IA de escaladas)
@@ -18,7 +18,7 @@ set -euo pipefail
 # ── Configuración ──────────────────────────────────────────
 TARGET="${1:-}"                                  # SSH target (vacío = local)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"      # Donde está este script (traccar-web/)
-COMPOSE_DIR="$(dirname "$SCRIPT_DIR")"            # Directorio padre (traccar/)
+COMPOSE_DIR="$SCRIPT_DIR"                          # El compose vive en traccar-web/
 KML_DIR="/data/compose/rudatrak/trak-poi"         # Directorio de POIs montado en Traccar
 
 # ── Variables de entorno requeridas por docker compose ────
@@ -38,15 +38,13 @@ echo "  Rudatrak — Build + Deploy"
 echo "============================================"
 echo ""
 
-# ── 1. Pull y build del frontend ───────────────────────────
-echo "[1/6] Build del frontend (Vite)..."
+# ── 1. Pull del código ─────────────────────────────────────
+echo "[1/6] Pull del repositorio..."
 if [ -n "$TARGET" ]; then
-  run_cmd "cd $SCRIPT_DIR && git pull origin master && npm install && npm run build"
+  run_cmd "cd $SCRIPT_DIR && git pull origin master"
 else
   cd "$SCRIPT_DIR"
   git pull origin master
-  npm install
-  npm run build
 fi
 
 # ── 2. Construir imagen rudatrak ───────────────────────────
