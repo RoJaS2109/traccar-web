@@ -239,7 +239,7 @@ app.get('/api/categorias', (req, res) => {
   const cats = Object.entries(CATEGORIAS).map(([id, info]) => ({
     id,
     label: info.label,
-    icon: `https://rudatrak.com/icons/${info.icon}`
+    icon: `https://mh.rudatrak.com/poi/icons/${info.icon}`
   }));
   res.json(cats);
 });

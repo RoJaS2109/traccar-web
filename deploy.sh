@@ -8,7 +8,7 @@
 # Qué hace:
 #   1. git pull + npm install + npm run build
 #   2. docker build -t rudatrak:latest  (Traccar + frontend nuevo)
-#   3. Copia KMLs a /data/compose/rudatrak/trak-poi/
+#   3. Copia KMLs e íconos a /data/compose/rudatrak/trak-poi/
 #   4. docker build -t carga-poi:latest (herramienta de POIs)
 #   5. docker build -t agente-ia:latest (agente IA de escaladas)
 #   6. docker compose up -d (redeploy del stack)
@@ -58,12 +58,14 @@ else
   docker build -t rudatrak:latest .
 fi
 
-# ── 3. Copiar KMLs ─────────────────────────────────────────
-echo "[3/6] Copiando archivos KML a $KML_DIR..."
+# ── 3. Copiar KMLs e íconos ────────────────────────────────
+echo "[3/6] Copiando KMLs e íconos a $KML_DIR..."
 if [ -n "$TARGET" ]; then
   rsync -avz "$SCRIPT_DIR/data/"*.kml "$TARGET:$KML_DIR/"
+  rsync -avz "$SCRIPT_DIR/data/iconos/" "$TARGET:$KML_DIR/icons/"
 else
   sudo rsync -av "$SCRIPT_DIR/data/"*.kml "$KML_DIR/"
+  sudo rsync -av "$SCRIPT_DIR/data/iconos/" "$KML_DIR/icons/"
 fi
 
 # ── 4. Construir imagen carga-poi ──────────────────────────
