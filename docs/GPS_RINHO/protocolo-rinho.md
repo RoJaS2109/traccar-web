@@ -191,14 +191,14 @@ El patrón base RCQ se reutiliza con sufijos que agregan datos:
 
 ## 4. Tabla completa de códigos de evento
 
-Basada en `listado.txt` (99 códigos documentados por el fabricante).
+Basada en `listado.csv` (99 códigos documentados por el fabricante).
 
 ### 4.1. Cómo funciona
 
 Cada reporte `RCQ`, `RER` o `RCR` incluye un código de evento en hex (campo `event2`). El decoder lo procesa en dos pasos:
 
 1. **`decodeAlarm(eventCode)`** → mapea el código a una constante `Position.ALARM_*` de Traccar
-2. **`getEventDescription(eventCode)`** → devuelve la descripción en español de `listado.txt`
+2. **`getEventDescription(eventCode)`** → devuelve la descripción en español de `listado.csv`
 
 Ambos valores se almacenan en la posición:
 ```java
@@ -475,7 +475,7 @@ cd traccar
 
 ## 9. Cómo agregar un nuevo código de evento
 
-Cuando el fabricante documente un nuevo código en `listado.txt` o se quiera cambiar el mapeo de uno existente:
+Cuando el fabricante documente un nuevo código en `listado.csv` o se quiera cambiar el mapeo de uno existente:
 
 ### Paso 1: Agregar a `decodeAlarm()`
 
@@ -606,7 +606,7 @@ Donde `bb` es el código de evento en hex:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `listado.txt` | Lista oficial de 99 códigos de evento del fabricante |
+| `listado.csv` | Lista oficial de 99 códigos de evento del fabricante |
 | `reportes_que_maneja_rinho.txt` | Documentación completa del protocolo (3376 líneas) |
 | `RinhoProtocolDecoder.java` | Implementación del decoder (∼2900 líneas) |
 | `RinhoProtocolEncoder.java` | Implementación del encoder para comandos |
