@@ -198,9 +198,31 @@ rm -rf org/ /tmp/test.jar
 # Dashboard → Caching → Purge Everything
 ```
 
-### Error "port is already allocated" (puerto 3007)
+### Error "port is already allocated" (puertos 5031 o 3007)
 
-**Causa:** Contenedores huérfanos de un `docker compose` previo (fuera de Portainer) bloquean el puerto.
+**Causa:** Otro contenedor (típicamente un stack viejo o un contenedor huérfano de un `docker compose` previo, fuera de Portainer) ya tiene el puerto mapeado. El `rudatrak-traccar` usa `5031/udp` (Rinho) y `rudatrak-carga-poi` usa `3007/tcp`.
+
+**Diagnóstico:**
+
+```bash
+# Qué contenedores hay y qué puertos mapean
+docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+# Quién escucha en el puerto a nivel host
+sudo ss -ulnp | grep 5031   # UDP (traccar)
+sudo ss -tlnp | grep 3007   # TCP (carga-poi)
+
+# El error real del contenedor
+docker inspect rudatrak-traccar --format '{{.State.Error}}'
+```
+
+Si `State.Error` dice `Bind for 0.0.0.0:5031 failed: port is already allocated`, hay un stack viejo (ej. `traccar_app`/`traccar_db`, MySQL) u otro contenedor suelto con ese puerto. Eliminarlo libera el puerto:
+
+```bash
+docker rm -f <nombre-del-contenedor-que-lo-ocupa>
+```
+
+Para contenedores huérfanos de `docker compose` (puerto 3007):
 
 ```bash
 docker stop carga-poi rudatrak-carga-poi 2>/dev/null
@@ -208,6 +230,27 @@ docker rm carga-poi rudatrak-carga-poi 2>/dev/null
 docker network rm carga-poi_default 2>/dev/null
 ./deploy.sh
 ```
+
+### El contenedor traccar queda "restarting" (ExitCode=1) sin stack trace
+
+**Síntoma:** `rudatrak-traccar` aparece en estado `restarting` con `RestartCount` subiendo, y `docker logs` solo muestra los warnings de Guice (`sun.misc.Unsafe`) repetidos, sin ninguna excepción Java.
+
+**Diagnóstico:**
+
+```bash
+# El error real (filtra el spam de Guice):
+docker logs rudatrak-traccar 2>&1 | grep -viE "sun.misc.Unsafe|HiddenClassDefiner|terminally deprecated|reporting this to the maintainers|will be removed" | tail -60
+
+# Estado y variables de entorno del contenedor:
+docker inspect rudatrak-traccar --format 'ExitCode={{.State.ExitCode}}  Error={{.State.Error}}'
+docker inspect rudatrak-traccar --format '{{range .Config.Env}}{{println .}}{{end}}' | grep DATABASE
+```
+
+**Causas (en orden de probabilidad):**
+
+1. **`DATABASE_PASSWORD` vacío.** Si en el array `Env` aparece `DATABASE_PASSWORD=` (vacío), el `${POSTGRES_PASSWORD}` no se interpoló: el stack de Portainer no recibió el `.env`. Traccar arranca, intenta autenticar contra PostgreSQL con password vacía y muere con `password authentication failed` (la base ya se inicializó con la contraseña real del `deploy.sh`, y no se re-inicializa sobre un volumen existente). **Fix:** en Portainer → stack → Environment variables, agregar `POSTGRES_PASSWORD=<la misma de /mnt/datos/RudaTrak-web/.env>`, y Update the stack.
+
+2. **Puerto `5031/udp` ya ocupado.** Ver la sección anterior ("port is already allocated").
 
 ### Los contenedores aparecen sueltos en vez de en el stack
 
