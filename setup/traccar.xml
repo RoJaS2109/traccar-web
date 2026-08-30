@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+    <!-- Documentation: https://www.traccar.org/configuration-file/ -->
+
+    <!-- Database Configuration:
+         Configurada por variables de entorno (PostgreSQL) en docker-compose.yml:
+         DATABASE_DRIVER, DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD.
+         No se define database.* aquí: con config.useEnvironmentVariables=true
+         las env vars tienen prioridad. -->
+
+    <!-- Server Configuration -->
+    <entry key='server.port'>8082</entry>
+    <entry key='server.ssl'>false</entry>
+
+    <!-- Web UI Configuration -->
+    <entry key='web.port'>8082</entry>
+    <entry key='web.address'>0.0.0.0</entry>
+
+    <!-- GPS Protocols:
+         - Rinho: protocolo ESPECÍFICO propio de RudaTrak (RinhoProtocol.java +
+           RinhoProtocolDecoder/Encoder). El Rinho Spider envía este formato, NO TAIP.
+           Corre en 5031 UDP. Ver traccar-web/docs/GPS_RINHO/protocolo-rinho.md
+         - OsmAnd: 5055 TCP (Traccar Client / OsmAnd).
+         - TAIP: deshabilitado (taip.port=0); el dispositivo no usa TAIP.
+         Para cambiar un puerto, usar {protocolo}.port -->
+    <!-- NO usar trackerServer.port: no es una clave válida de Traccar -->
+    <entry key='rinho.port'>5031</entry>
+    <entry key='taip.port'>0</entry>
+
+    <!-- EventForwarder → agente-ia (escaladas inteligentes).
+         Claves reales de Traccar: event.forward.url / event.forward.header.
+         (Las claves "eventforwarder.*" NO existen y eran ignoradas; por eso el
+         forwarder nunca se activó. Se activa solo si event.forward.url está definido.)
+         El header Authorization se inyecta por variable de entorno EVENT_FORWARD_HEADER
+         (ver docker-compose.yml), porque Traccar NO sustituye ${} dentro del XML. -->
+    <entry key='config.useEnvironmentVariables'>true</entry>
+    <entry key='event.forward.url'>http://agente-ia:3008/webhook/evento</entry>
+
+    <!-- TELEGRAM Notificador -->
+    <entry key='notificator.telegram.enabled'>true</entry>
+    <entry key='notificator.telegram.key'>TU_BOT_TOKEN_AQUI</entry>
+
+</properties>
