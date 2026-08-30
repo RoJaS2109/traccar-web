@@ -11,8 +11,7 @@
 #   3. Copia KMLs e íconos a /mnt/datos/servicios/rudatrak/trak-poi/
 #      y traccar.xml a /mnt/datos/servicios/rudatrak/trak-conf/ (solo si no existe)
 #   4. docker build -t carga-poi:latest (herramienta de POIs)
-#   5. docker build -t agente-ia:latest (agente IA de escaladas)
-#   6. docker compose up -d (redeploy del stack)
+#   5. docker compose up -d (redeploy del stack)
 
 set -euo pipefail
 
@@ -24,8 +23,6 @@ KML_DIR="/mnt/datos/servicios/rudatrak/trak-poi"  # Directorio de POIs montado e
 CONF_DIR="/mnt/datos/servicios/rudatrak/trak-conf"  # Directorio de configuración montado en Traccar
 
 # ── Variables de entorno requeridas por docker compose ────
-export TRACCAR_PASSWORD="${TRACCAR_PASSWORD:-}"
-export WEBHOOK_TOKEN="${WEBHOOK_TOKEN:-}"
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
 
 run_cmd() {
@@ -42,7 +39,7 @@ echo "============================================"
 echo ""
 
 # ── 1. Pull del código ─────────────────────────────────────
-echo "[1/6] Pull del repositorio..."
+echo "[1/5] Pull del repositorio..."
 if [ -n "$TARGET" ]; then
   run_cmd "cd $SCRIPT_DIR && git pull origin master"
 else
@@ -51,7 +48,7 @@ else
 fi
 
 # ── 2. Construir imagen rudatrak ───────────────────────────
-echo "[2/6] Construyendo imagen rudatrak:latest..."
+echo "[2/5] Construyendo imagen rudatrak:latest..."
 if [ -n "$TARGET" ]; then
   run_cmd "cd $SCRIPT_DIR && docker build -t rudatrak:latest ."
 else
@@ -60,7 +57,7 @@ else
 fi
 
 # ── 3. Copiar KMLs e íconos ────────────────────────────────
-echo "[3/7] Copiando KMLs e íconos a $KML_DIR..."
+echo "[3/5] Copiando KMLs e íconos a $KML_DIR..."
 if [ -n "$TARGET" ]; then
   rsync -avz "$SCRIPT_DIR/data/"*.kml "$TARGET:$KML_DIR/"
   rsync -avz "$SCRIPT_DIR/data/iconos/" "$TARGET:$KML_DIR/icons/"
@@ -70,7 +67,7 @@ else
 fi
 
 # ── 3b. Copiar traccar.xml (solo si no existe) ─────────────
-echo "[3b/7] Verificando traccar.xml en $CONF_DIR..."
+echo "[3b/5] Verificando traccar.xml en $CONF_DIR..."
 if [ -n "$TARGET" ]; then
   ssh "$TARGET" "test -f $CONF_DIR/traccar.xml || cp $SCRIPT_DIR/setup/traccar.xml $CONF_DIR/traccar.xml"
 else
@@ -81,7 +78,7 @@ else
 fi
 
 # ── 4. Construir imagen carga-poi ──────────────────────────
-echo "[4/7] Construyendo imagen carga-poi:latest..."
+echo "[4/5] Construyendo imagen carga-poi:latest..."
 if [ -n "$TARGET" ]; then
   run_cmd "cd $SCRIPT_DIR/tools/carga-poi && docker build -t carga-poi:latest ."
 else
@@ -89,17 +86,8 @@ else
   docker build -t carga-poi:latest .
 fi
 
-# ── 5. Construir imagen agente-ia ──────────────────────────
-echo "[5/7] Construyendo imagen agente-ia:latest..."
-if [ -n "$TARGET" ]; then
-  run_cmd "cd $SCRIPT_DIR/tools/agente-ia && docker build -t agente-ia:latest ."
-else
-  cd "$SCRIPT_DIR/tools/agente-ia"
-  docker build -t agente-ia:latest .
-fi
-
-# ── 6. Redeploy del stack ──────────────────────────────────
-echo "[6/7] Redeploy del stack vía docker compose..."
+# ── 5. Redeploy del stack ──────────────────────────────────
+echo "[5/5] Redeploy del stack vía docker compose..."
 if [ -n "$TARGET" ]; then
   ssh "$TARGET" "cd $COMPOSE_DIR && docker compose up -d"
 else

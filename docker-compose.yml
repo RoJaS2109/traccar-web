@@ -38,7 +38,6 @@ services:
       - /mnt/datos/servicios/rudatrak/trak-logs:/opt/traccar/logs
     environment:
       - TZ=America/Argentina/Buenos_Aires
-      - "EVENT_FORWARD_HEADER=Authorization: Bearer ${WEBHOOK_TOKEN}"
       - DATABASE_DRIVER=org.postgresql.Driver
       - DATABASE_URL=jdbc:postgresql://database:5432/traccar
       - DATABASE_USER=traccar
@@ -80,49 +79,6 @@ services:
     command: redis-server --appendonly yes
     environment:
       - TZ=America/Argentina/Buenos_Aires
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: rudatrak-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    networks:
-      - proxy
-    volumes:
-      - /mnt/datos/servicios/rudatrak/ollama:/root/.ollama
-    environment:
-      - TZ=America/Argentina/Buenos_Aires
-
-  agente-ia:
-    build:
-      context: ./tools/agente-ia
-    image: agente-ia:latest
-    pull_policy: never
-    container_name: rudatrak-agente-ia
-    restart: unless-stopped
-    ports:
-      - "3008:3008"
-    networks:
-      - proxy
-    depends_on:
-      - traccar
-      - redis
-      - ollama
-    volumes:
-      - /mnt/datos/servicios/rudatrak/agente-ia-logs:/app/logs
-    environment:
-      - NODE_ENV=production
-      - TZ=America/Argentina/Buenos_Aires
-      - TRACCAR_API_URL=http://rudatrak-traccar:8082
-      - TRACCAR_USERNAME=admin
-      - TRACCAR_PASSWORD=${TRACCAR_PASSWORD}
-      - REDIS_URL=redis://rudatrak-redis:6379
-      - OLLAMA_URL=http://rudatrak-ollama:11434
-      - OLLAMA_ENABLED=false
-      - SERVER_URL=https://mh.rudatrak.com
-      - LOG_PATH=/app/logs
-      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN}
 
   autoheal:
     image: willfarrell/autoheal:latest

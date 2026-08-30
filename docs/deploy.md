@@ -26,7 +26,7 @@ ssh -T git@github.com
 ### 1. Crear la estructura de volúmenes
 
 ```bash
-sudo mkdir -p /mnt/datos/servicios/rudatrak/{postgres-data,trak-conf,trak-poi,trak-logs,redis-data,ollama,agente-ia-logs}
+sudo mkdir -p /mnt/datos/servicios/rudatrak/{postgres-data,trak-conf,trak-poi,trak-logs,redis-data}
 ```
 
 ### 2. Clonar el repo
@@ -43,8 +43,6 @@ cd RudaTrak-web
 
 ```bash
 export POSTGRES_PASSWORD='<contraseña-bd-nueva>'
-export TRACCAR_PASSWORD='<contraseña-admin-traccar>'
-export WEBHOOK_TOKEN='<token-webhook-agente-ia>'
 ```
 
 ### 4. Build + deploy inicial
@@ -58,8 +56,7 @@ Esto ejecuta:
 2. `docker build -t rudatrak:latest .` (Dockerfile multi-stage self-contained: compila el frontend y parchea el backend)
 3. Copia de KMLs a `/mnt/datos/servicios/rudatrak/trak-poi/` y de `traccar.xml` a `/mnt/datos/servicios/rudatrak/trak-conf/` (solo si no existe)
 4. `docker build -t carga-poi:latest ./tools/carga-poi`
-5. `docker build -t agente-ia:latest ./tools/agente-ia`
-6. `docker compose up -d` (redeploy del stack)
+5. `docker compose up -d` (redeploy del stack)
 
 > **PostgreSQL:** el stack levanta un servicio `database` (PostgreSQL 16) y Traccar se conecta a él por env vars. La DB se crea sola con las migraciones de Liquibase al primer arranque. No hay que configurar H2 ni copiar ninguna DB.
 
@@ -107,10 +104,10 @@ Como el `docker-compose.yml` ahora vive en `traccar-web/` y usa `build:` con con
 2. **Name:** `rudatrak`
 3. **Repository URL:** `git@github.com:RoJaS2109/traccar-web.git` (con la Deploy Key `HP-Victus` configurada en GitHub)
 4. **Compose path:** dejar vacío (usa `docker-compose.yml` en la raíz)
-5. **Environment variables:** `POSTGRES_PASSWORD`, `TRACCAR_PASSWORD` y `WEBHOOK_TOKEN`
+5. **Environment variables:** `POSTGRES_PASSWORD`
 6. **Deploy the stack**
 
-Portainer clona el repo, construye las 3 imágenes custom (`rudatrak`, `carga-poi`, `agente-ia`) con sus respectivos Dockerfiles y levanta el stack (que incluye `database` PostgreSQL y `autoheal`). La red externa `npm_proxy-network` debe existir previamente en el host.
+Portainer clona el repo, construye las 2 imágenes custom (`rudatrak`, `carga-poi`) con sus respectivos Dockerfiles y levanta el stack (que incluye `database` PostgreSQL y `autoheal`). La red externa `npm_proxy-network` debe existir previamente en el host.
 
 > **Nota sobre Portainer + PostgreSQL:** en "Add stack → Repository" Portainer crea los volúmenes bind montados en `/mnt/datos/servicios/rudatrak/...`. Asegurate de que ese directorio base exista en la Pi (paso 1) y que el `traccar.xml` esté en `trak-conf/` antes del primer deploy. Podés copiarlo a mano con `cp setup/traccar.xml /mnt/datos/servicios/rudatrak/trak-conf/traccar.xml`, porque el `deploy.sh` solo lo copia cuando corre desde la terminal.
 

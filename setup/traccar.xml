@@ -28,14 +28,11 @@
     <entry key='rinho.port'>5031</entry>
     <entry key='taip.port'>0</entry>
 
-    <!-- EventForwarder → agente-ia (escaladas inteligentes).
-         Claves reales de Traccar: event.forward.url / event.forward.header.
-         (Las claves "eventforwarder.*" NO existen y eran ignoradas; por eso el
-         forwarder nunca se activó. Se activa solo si event.forward.url está definido.)
-         El header Authorization se inyecta por variable de entorno EVENT_FORWARD_HEADER
-         (ver docker-compose.yml), porque Traccar NO sustituye ${} dentro del XML. -->
+    <!-- Configuración por variables de entorno (ver docker-compose.yml):
+         con useEnvironmentVariables=true, las env vars DATABASE_DRIVER,
+         DATABASE_URL, DATABASE_USER y DATABASE_PASSWORD pisan cualquier
+         entrada database.* de este archivo. -->
     <entry key='config.useEnvironmentVariables'>true</entry>
-    <entry key='event.forward.url'>http://agente-ia:3008/webhook/evento</entry>
 
     <!-- TELEGRAM Notificador -->
     <entry key='notificator.telegram.enabled'>true</entry>

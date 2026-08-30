@@ -336,7 +336,6 @@ Vive en `traccar-web/` (raíz de este repo). Usa `build:` con contextos relativo
 
 - `traccar`: `build: .` + `image: rudatrak:latest`, redes `npm_proxy-network`, volúmenes para data/poi/logs
 - `carga-poi`: `build: ./tools/carga-poi` + `image: carga-poi:latest`, puerto `3007`, volumen para el KML general
-- `agente-ia`: `build: ./tools/agente-ia` + `image: agente-ia:latest`
 - `pull_policy: never` — nunca descargar de registry, siempre usar imagen local
 
 ### Gotchas de deploy
