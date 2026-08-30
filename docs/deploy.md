@@ -26,7 +26,7 @@ ssh -T git@github.com
 ### 1. Crear la estructura de volúmenes
 
 ```bash
-sudo mkdir -p /mnt/datos/servicios/rudatrak/{postgres-data,trak-conf,trak-poi,trak-logs,redis-data}
+sudo mkdir -p /mnt/datos/servicios/rudatrak/{postgres-data,trak-conf,trak-poi,trak-logs}
 ```
 
 ### 2. Clonar el repo
