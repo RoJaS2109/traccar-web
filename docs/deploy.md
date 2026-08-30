@@ -109,18 +109,29 @@ ssh pi@raspi "cd /mnt/datos/RudaTrak-web && ./deploy.sh"
 
 ## Despliegue con Portainer (Add stack → Repository)
 
-Como el `docker-compose.yml` ahora vive en `traccar-web/` y usa `build:` con contextos relativos, se puede desplegar todo el stack desde Portainer sin build manual:
+Como el `docker-compose.yml` vive en `traccar-web/` y usa `build:` con contextos relativos, se puede desplegar todo el stack desde Portainer sin build manual. Los servicios con `build:` usan `pull_policy: build` para que Portainer reconstruya la imagen aunque ya exista localmente.
 
 1. Portainer → **Stacks** → **Add stack** → **Repository**
 2. **Name:** `rudatrak`
-3. **Repository URL:** `git@github.com:RoJaS2109/traccar-web.git` (con la Deploy Key `HP-Victus` configurada en GitHub)
-4. **Compose path:** dejar vacío (usa `docker-compose.yml` en la raíz)
-5. **Environment variables:** `POSTGRES_PASSWORD`
-6. **Deploy the stack**
+3. **Repository URL:** `https://github.com/RoJaS2109/traccar-web.git`
+4. **Repository reference:** `refs/heads/master`
+5. **Repository authentication:** el repo es privado, así que hace falta autenticación. Lo más simple es HTTPS + Personal Access Token (GitHub → Settings → Developer settings → Personal access tokens, scope `repo`): username `RoJaS2109`, password = el token. (Alternativa: cargar la clave privada de la Deploy Key en Portainer y usar `git@github.com:...`.)
+6. **Compose path:** `docker-compose.yml`
+7. **Environment variables:** subí un archivo `.env` con:
+   ```
+   POSTGRES_PASSWORD=<contraseña-bd>
+   ```
+   El `.env` está gitignoreado, así que no viaja en el repo; hay que proveerlo acá (subiéndolo en Portainer).
+8. **Deploy the stack**
 
-Portainer clona el repo, construye las 2 imágenes custom (`rudatrak`, `carga-poi`) con sus respectivos Dockerfiles y levanta el stack (que incluye `database` PostgreSQL y `autoheal`). La red externa `npm_proxy-network` debe existir previamente en el host.
+Portainer clona el repo, reconstruye las 2 imágenes custom (`rudatrak`, `carga-poi`) y levanta el stack (que incluye `database` PostgreSQL y `autoheal`). La red externa `npm_proxy-network` debe existir previamente en el host.
 
-> **Nota sobre Portainer + PostgreSQL:** en "Add stack → Repository" Portainer crea los volúmenes bind montados en `/mnt/datos/servicios/rudatrak/...`. Asegurate de que ese directorio base exista en la Pi (paso 1) y que el `traccar.xml` esté en `trak-conf/` antes del primer deploy. Podés copiarlo a mano con `cp setup/traccar.xml /mnt/datos/servicios/rudatrak/trak-conf/traccar.xml`, porque el `deploy.sh` solo lo copia cuando corre desde la terminal.
+> **Nota:** Portainer "Add stack → Repository" **no ejecuta `deploy.sh`**. Solo clona y hace `docker compose up`, así que no copia el `traccar.xml` ni los KMLs (eso lo hace `deploy.sh`). En un host ya desplegado, los volúmenes `trak-conf/` y `trak-poi/` ya están poblados y no es problema. Para un host desde cero, copiarlos a mano primero:
+> ```bash
+> sudo mkdir -p /mnt/datos/servicios/rudatrak/{postgres-data,trak-conf,trak-poi,trak-logs}
+> sudo cp setup/traccar.xml /mnt/datos/servicios/rudatrak/trak-conf/traccar.xml
+> sudo cp -r data/*.kml data/iconos /mnt/datos/servicios/rudatrak/trak-poi/
+> ```
 
 > **Nota:** el primer deploy tarda más porque descarga `node:22-alpine`, `eclipse-temurin:21-jdk` y `traccar/traccar:latest`. Despliegues posteriores reutilizan las capas cacheadas.
 

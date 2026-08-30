@@ -22,7 +22,7 @@ services:
     build:
       context: .
     image: rudatrak:latest
-    pull_policy: never
+    pull_policy: build
     container_name: rudatrak-traccar
     restart: unless-stopped
     depends_on:
@@ -53,7 +53,7 @@ services:
     build:
       context: ./tools/carga-poi
     image: carga-poi:latest
-    pull_policy: never
+    pull_policy: build
     container_name: rudatrak-carga-poi
     restart: unless-stopped
     ports:
