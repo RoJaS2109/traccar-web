@@ -41,9 +41,20 @@ cd RudaTrak-web
 
 ### 3. Definir las credenciales
 
+Creá el archivo `.env` en la raíz del repo (está en `.gitignore`, así que **no se versiona** y sobrevive a `git pull`):
+
 ```bash
-export POSTGRES_PASSWORD='<contraseña-bd-nueva>'
+cd /mnt/datos/RudaTrak-web
+nano .env
 ```
+
+Con este contenido:
+
+```
+POSTGRES_PASSWORD=<contraseña-bd-nueva>
+```
+
+Docker compose lee este `.env` para interpolar `${POSTGRES_PASSWORD}`. Se hace una sola vez; no hace falta re-exportar la contraseña en cada terminal ni en cada deploy.
 
 ### 4. Build + deploy inicial
 

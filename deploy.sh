@@ -22,8 +22,11 @@ COMPOSE_DIR="$SCRIPT_DIR"                          # El compose vive en traccar-
 KML_DIR="/mnt/datos/servicios/rudatrak/trak-poi"  # Directorio de POIs montado en Traccar
 CONF_DIR="/mnt/datos/servicios/rudatrak/trak-conf"  # Directorio de configuración montado en Traccar
 
-# ── Variables de entorno requeridas por docker compose ────
-export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+# ── Credenciales ──────────────────────────────────────────
+# POSTGRES_PASSWORD se lee del archivo .env (gitignoreado) del directorio.
+# Docker compose interpola ${POSTGRES_PASSWORD} desde ese .env. No se exporta
+# acá para no pisarlo con un valor vacío. Para override puntual, exportarla
+# en el shell antes de correr este script (tiene prioridad sobre .env).
 
 run_cmd() {
   if [ -n "$TARGET" ]; then
