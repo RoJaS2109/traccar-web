@@ -31,7 +31,10 @@ services:
     networks:
       - proxy
     ports:
+      - "5031:5031/tcp"
       - "5031:5031/udp"
+      - "5031:5055/tcp"
+      - "5031:5055/udp"
     volumes:
       - /mnt/datos/servicios/rudatrak/trak-conf:/opt/traccar/conf
       - /mnt/datos/servicios/rudatrak/trak-poi:/opt/traccar/web/poi
