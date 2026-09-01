@@ -33,8 +33,8 @@ services:
     ports:
       - "5031:5031/tcp"
       - "5031:5031/udp"
-      - "5031:5055/tcp"
-      - "5031:5055/udp"
+      - "5055:5055/tcp"
+      - "5055:5055/udp"
     volumes:
       - /mnt/datos/servicios/rudatrak/trak-conf:/opt/traccar/conf
       - /mnt/datos/servicios/rudatrak/trak-poi:/opt/traccar/web/poi
