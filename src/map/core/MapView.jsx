@@ -21,6 +21,13 @@ element.style.boxSizing = 'initial';
 maplibregl.addProtocol('google', googleProtocol);
 maplibregl.addProtocol('pmtiles', new Protocol().tile);
 
+if (isNative()) {
+  // Los Web Workers de MapLibre no pasan por el interceptor de CapacitorHttp
+  // y provocan error _capacitor_http_interceptor_ + loop de reintentos (OOM).
+  // En nativo se desactivan los workers y todo corre en el hilo principal.
+  maplibregl.setWorkerCount(0);
+}
+
 export const map = new maplibregl.Map({
   container: element,
   attributionControl: false,

@@ -8,11 +8,11 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
-    // Deshabilitado: el interceptor nativo de CapacitorHttp rompe los Web
-    // Workers de MapLibre GL (error _capacitor_http_interceptor_ y loop de
-    // reintentos hasta OOM). El servidor ya responde Access-Control-Allow-Origin: *
-    // así que el fetch nativo del WebView pasa el CORS sin ayuda.
-    CapacitorHttp: { enabled: false },
+    // CapacitorHttp habilitado: el fetch/XHR del WebView evita CORS contra
+    // mh.rudatrak.com. El choque con los Web Workers de MapLibre se resuelve
+    // con maplibregl.setWorkerCount(0) en MapView.jsx (workers desactivados
+    // en nativo), no deshabilitando el interceptor.
+    CapacitorHttp: { enabled: true },
   },
 };
 
