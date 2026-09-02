@@ -9,6 +9,8 @@ import { useAttributePreference, usePreference } from '../../common/util/prefere
 import usePersistedState from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
 import useMapStyles from './useMapStyles';
+import { useOnlineStatus } from '../../offline/useOnlineStatus';
+import { isNative } from '../../offline/nativeBootstrap';
 import { useAsyncTask } from '../../reactHelper';
 
 const element = document.createElement('div');
@@ -70,11 +72,16 @@ const MapView = ({ children }) => {
     usePreference('map', 'locationIqStreets'),
   );
   const maxZoom = useAttributePreference('web.maxZoom');
+  const online = useOnlineStatus();
 
   const styles = useMemo(() => {
+    if (isNative() && !online) {
+      const offline = mapStyles.filter((s) => s.offline);
+      return offline.length ? offline : mapStyles.filter((s) => s.id === 'osm');
+    }
     const filtered = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
     return filtered.length ? filtered : mapStyles.filter((s) => s.id === 'osm');
-  }, [mapStyles, activeMapStyles]);
+  }, [mapStyles, activeMapStyles, online]);
 
   useAsyncTask(async () => {
     if (theme.direction === 'rtl') {

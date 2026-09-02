@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAttributePreference } from '../../common/util/preferences';
+import { isNative } from '../../offline/nativeBootstrap';
 
 const styleCustom = ({ tiles, minZoom, maxZoom, attribution }) => {
   const source = {
@@ -46,6 +47,32 @@ export default () => {
 
   return useMemo(
     () => [
+      ...(isNative()
+        ? [
+            {
+              id: 'offlineArgenmap',
+              title: 'Argenmap (offline)',
+              style: styleCustom({
+                tiles: ['offline://capabaseargenmap/{z}/{x}/{y}'],
+                tileSize: 256,
+                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
+              }),
+              available: true,
+              offline: true,
+            },
+            {
+              id: 'offlineTopo',
+              title: 'Topográfico (offline)',
+              style: styleCustom({
+                tiles: ['offline://mapabase_topo/{z}/{x}/{y}'],
+                tileSize: 256,
+                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
+              }),
+              available: true,
+              offline: true,
+            },
+          ]
+        : []),
       {
         id: 'openFreeMap',
         title: t('mapOpenFreeMap'),
