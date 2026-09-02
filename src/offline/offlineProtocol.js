@@ -1,9 +1,11 @@
 import maplibregl from 'maplibre-gl';
 import { readTile } from './tileStore';
 
+let offlineProtocolRegistered = false;
+
 // URL: offline://{layer}/{z}/{x}/{y}
 export const registerOfflineProtocol = () => {
-  if (maplibregl.getProtocol('offline')) return;
+  if (offlineProtocolRegistered) return;
   maplibregl.addProtocol('offline', async (params, callback) => {
     const [, layer, z, x, y] = params.url.replace('offline://', '').split('/');
     try {
@@ -17,4 +19,5 @@ export const registerOfflineProtocol = () => {
       callback(error);
     }
   });
+  offlineProtocolRegistered = true;
 };
