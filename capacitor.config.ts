@@ -8,7 +8,11 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
-    CapacitorHttp: { enabled: true },
+    // Deshabilitado: el interceptor nativo de CapacitorHttp rompe los Web
+    // Workers de MapLibre GL (error _capacitor_http_interceptor_ y loop de
+    // reintentos hasta OOM). El servidor ya responde Access-Control-Allow-Origin: *
+    // así que el fetch nativo del WebView pasa el CORS sin ayuda.
+    CapacitorHttp: { enabled: false },
   },
 };
 
