@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useCallback, useEffect } from 'react';
-import { Paper } from '@mui/material';
+import { Fab, Paper } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -13,6 +14,8 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import { useAttributePreference } from '../common/util/preferences';
+import { DownloadZoneDialog } from '../offline/DownloadZoneDialog';
+import { isNative } from '../offline/nativeBootstrap';
 
 const MainMap = lazy(() => import('./MainMap'));
 
@@ -93,6 +96,7 @@ const MainPage = () => {
 
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
@@ -166,6 +170,17 @@ const MainPage = () => {
         )}
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
+      {isNative() && (
+        <Fab
+          color="primary"
+          aria-label="Descargar zona"
+          onClick={() => setDownloadOpen(true)}
+          style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 7 }}
+        >
+          <DownloadIcon />
+        </Fab>
+      )}
+      <DownloadZoneDialog open={downloadOpen} onClose={() => setDownloadOpen(false)} />
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}
