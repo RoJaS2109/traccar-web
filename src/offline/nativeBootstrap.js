@@ -21,9 +21,26 @@ export const initNativeBootstrap = async () => {
   // Solo interfiere con strings que empiezan con "/" o con Request cuya url lo haga.
   // Un URL object relativo no puede construirse sin base, así que no es un caso real.
   const originalFetch = window.fetch.bind(window);
+
+  // CapacitorHttp (polyfill nativo de fetch) serializa mal un body
+  // URLSearchParams: lo convierte a {} vacío porque no tiene propiedades
+  // enumerables. Se serializa a string y se fuerza el Content-Type para que
+  // el POST del login (application/x-www-form-urlencoded) llegue íntegro.
+  const normalizeInit = (init) => {
+    if (!init || !(init.body instanceof URLSearchParams)) return init;
+    return {
+      ...init,
+      body: init.body.toString(),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        ...init.headers,
+      },
+    };
+  };
+
   window.fetch = (input, init) => {
     if (typeof input === 'string' && input.startsWith('/')) {
-      return originalFetch(`${base}${input}`, init);
+      return originalFetch(`${base}${input}`, normalizeInit(init));
     }
     if (input instanceof Request && input.url.startsWith('/')) {
       return originalFetch(`${base}${input.url}`, input);
