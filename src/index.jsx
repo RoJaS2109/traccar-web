@@ -12,8 +12,10 @@ import ServerProvider from './ServerProvider';
 import ErrorBoundary from './ErrorBoundary';
 import AppThemeProvider from './AppThemeProvider';
 import { initNativeBootstrap } from './offline/nativeBootstrap';
+import { registerOfflineProtocol } from './offline/offlineProtocol';
 
 preloadImages();
+registerOfflineProtocol();
 
 initNativeBootstrap().then(() => {
   const root = createRoot(document.getElementById('root'));
