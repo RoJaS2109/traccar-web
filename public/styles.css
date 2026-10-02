@@ -2,6 +2,14 @@ html, body {
   height: 100%;
 }
 
+html {
+  /* Declarar color-scheme para que el WebView de Android (Capacitor) pinte el
+     fondo oscuro. Sin esta declaración, con prefers-color-scheme: dark el
+     WebView no renderiza el background del body y la pantalla queda en blanco,
+     porque no sabe que la página soporta modo oscuro. */
+  color-scheme: light dark;
+}
+
 body {
   margin: 0;
   padding: 0;

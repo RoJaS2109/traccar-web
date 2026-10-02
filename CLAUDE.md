@@ -109,6 +109,15 @@ Map layers are modular components rendered as children of `<MapView>`:
 
 Map styles are defined in `useMapStyles.js`. Google Maps and PMTiles protocols are registered at module load.
 
+### Offline (mapas sin conexión)
+
+El módulo `src/offline/` implementa la pantalla sin conexión (se muestra cuando `isNative() && !online && hasToken && user == null`, ver `App.jsx`). Hoy sirve tiles **raster IGN** vía el protocolo `offline://` y el `tileStore` (PNG base64 en `Directory.Data`).
+
+**Decisión de diseño (aprobada):** migrar a **PMTiles + Source personalizada con lectura parcial de Filesystem**, en lugar de MBTiles + SQLite. Fundamentos:
+- `Filesystem.readFile({ offset, length })` (desde 8.1.0) permite lectura por rango; encaja 1:1 con la API `Source.getBytes(offset, length)` de `pmtiles` 4.4.1 (`new PMTiles(source)` + `Protocol.add`), sin cargar el archivo completo.
+- Los BLOB del plugin SQLite se serializan como **arreglo byte-a-byte** a través del puente (`ByteArrayToJSArray`), 3-5× más costoso que el base64 de Filesystem; y `pmtiles convert` es MBTiles→PMTiles (dirección opuesta a la necesaria).
+- Las zonas se descargarán como archivos `.pmtiles` (5–50 MB) desde un endpoint propio de recorte.
+
 ### Controles del mapa
 
 **MapGeocoder** (`map/control/MapGeocoder.jsx`) — búsqueda de direcciones y coordenadas vía Nominatim. Al seleccionar un resultado:

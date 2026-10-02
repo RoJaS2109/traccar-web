@@ -146,11 +146,13 @@ const DeviceRow = ({ devices, index, style }) => {
         {position && (
           <>
             {position.attributes.hasOwnProperty('alarm') && (
-              <Tooltip title={
-                position.attributes.eventDescription
-                  ? position.attributes.eventDescription
-                  : `${position.attributes.eventCategory === 'aviso' ? t('eventAviso') : t('eventAlarm')}: ${formatAlarm(position.attributes.alarm, t)}`
-              }>
+              <Tooltip
+                title={
+                  position.attributes.eventDescription
+                    ? position.attributes.eventDescription
+                    : `${position.attributes.eventCategory === 'aviso' ? t('eventAviso') : t('eventAlarm')}: ${formatAlarm(position.attributes.alarm, t)}`
+                }
+              >
                 <IconButton size="small">
                   <ErrorIcon fontSize="small" className={classes.error} />
                 </IconButton>
