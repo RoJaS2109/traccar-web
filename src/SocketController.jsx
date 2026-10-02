@@ -13,6 +13,7 @@ import {
   nativePostMessage,
 } from './common/components/NativeInterface';
 import fetchOrThrow from './common/util/fetchOrThrow';
+import { reportSocketState } from './offline/networkStatus';
 
 const logoutCode = 4000;
 
@@ -110,6 +111,7 @@ const SocketController = () => {
     socket.onopen = () => {
       lastMessageRef.current = Date.now();
       dispatch(sessionActions.updateSocket(true));
+      reportSocketState(true);
     };
 
     socket.onerror = () => {
@@ -120,6 +122,7 @@ const SocketController = () => {
 
     socket.onclose = async (event) => {
       dispatch(sessionActions.updateSocket(false));
+      reportSocketState(false);
       if (event.code === logoutCode) return;
       try {
         const devicesResponse = await fetch('/api/devices');

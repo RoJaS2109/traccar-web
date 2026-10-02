@@ -13,11 +13,13 @@ import ErrorBoundary from './ErrorBoundary';
 import AppThemeProvider from './AppThemeProvider';
 import { initNativeBootstrap } from './offline/nativeBootstrap';
 import { registerOfflineProtocol } from './offline/offlineProtocol';
+import { initNetworkStatus } from './offline/networkStatus';
 
 preloadImages();
 registerOfflineProtocol();
 
 initNativeBootstrap().then(() => {
+  initNetworkStatus();
   const root = createRoot(document.getElementById('root'));
   root.render(
     <ErrorBoundary>
@@ -25,7 +27,7 @@ initNativeBootstrap().then(() => {
         <LocalizationProvider>
           <StyledEngineProvider injectFirst>
             <AppThemeProvider>
-              <CssBaseline />
+              <CssBaseline enableColorScheme />
               <ServerProvider>
                 <BrowserRouter>
                   <Navigation />
