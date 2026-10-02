@@ -8,6 +8,14 @@ import { usePreference } from '../../common/util/preferences';
 import gcoord from 'gcoord';
 import { findFonts } from '../core/mapUtil';
 import { useTranslation } from '../../common/components/LocalizationProvider';
+import { isNative } from '../../offline/nativeBootstrap';
+import { useOnlineStatus } from '../../offline/useOnlineStatus';
+import {
+  cachePoiLayer,
+  fetchAndCacheKml,
+  getCachedKml,
+  getCachedPoiLayer,
+} from '../../offline/poiKmlStore';
 
 const PoiMap = () => {
   const id = useId();
@@ -15,19 +23,50 @@ const PoiMap = () => {
   const theme = useTheme();
   const t = useTranslation();
 
-  const poiLayer = usePreference('poiLayer');
+  const online = useOnlineStatus();
+  const poiLayerPref = usePreference('poiLayer');
 
+  const [poiLayer, setPoiLayer] = useState(poiLayerPref);
   const [data, setData] = useState(null);
+
+  // Resolver poiLayer: la preferencia manda cuando está presente (online); si
+  // no (offline), se usa el valor persistido en Preferences para poder cargar
+  // el KML cacheado.
+  useEffect(() => {
+    if (poiLayerPref) {
+      setPoiLayer(poiLayerPref);
+      cachePoiLayer(poiLayerPref);
+      return undefined;
+    }
+    let cancelled = false;
+    getCachedPoiLayer().then((cached) => {
+      if (!cancelled && cached) setPoiLayer(cached);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [poiLayerPref]);
 
   useAsyncTask(
     async ({ signal }) => {
-      if (poiLayer) {
-        const file = await fetch(poiLayer, { signal });
-        const dom = new DOMParser().parseFromString(await file.text(), 'text/xml');
-        setData(kml(dom));
+      if (!poiLayer) return null;
+
+      const parse = (text) => kml(new DOMParser().parseFromString(text, 'text/xml'));
+
+      // 1) Render inmediato del KML cacheado (no bloquea con la red).
+      const cached = await getCachedKml(poiLayer);
+      if (cached) setData(parse(cached));
+
+      // 2) Refresh condicional (solo con red): 304 reutiliza caché; 200 con
+      // contenido válido lo cachea y actualiza el mapa.
+      if (!online) return null;
+      const result = await fetchAndCacheKml(poiLayer, { signal });
+      if (result?.text && !result.fromCache) {
+        setData(parse(result.text));
       }
+      return null;
     },
-    [poiLayer],
+    [poiLayer, online],
   );
 
   useEffect(() => {
@@ -61,27 +100,57 @@ const PoiMap = () => {
 
       const uniqueIcons = [...new Set(iconUrls)];
 
-      if (uniqueIcons.length > 0) {
-        Promise.all(
-          uniqueIcons.map(
-            (url) =>
-              new Promise((resolve) => {
+      const loadIcon = (url) =>
+        new Promise((resolve) => {
+          const name = url.split('/').pop();
+
+          const register = (img) => {
+            if (!map.hasImage(url)) {
+              map.addImage(url, img, { sdf: name.endsWith('.sdf.png') });
+            }
+            resolve();
+          };
+
+          const loadFromServer = () => {
+            // El KML referencia los íconos como /poi/icons/*.png. En nativo el
+            // WebView los resolvería contra https://localhost (404) y el servidor
+            // no envía CORS, así que se cargan vía fetch (parcheado a CapacitorHttp)
+            // como blob para sortear CORS y se usan como object URL.
+            fetch(url)
+              .then((response) =>
+                response.ok
+                  ? response.blob()
+                  : Promise.reject(new Error(`HTTP ${response.status}`)),
+              )
+              .then((blob) => {
                 const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => {
-                  if (!map.hasImage(url)) {
-                    map.addImage(url, img, { sdf: url.endsWith('.sdf.png') });
-                  }
-                  resolve();
-                };
+                img.onload = () => register(img);
                 img.onerror = () => {
-                  console.error('SDF: failed to load image', url);
+                  console.error('POI icon failed to load', url);
                   resolve();
                 };
-                img.src = url;
-              }),
-          ),
-        ).then(() => {
+                img.src = URL.createObjectURL(blob);
+              })
+              .catch(() => {
+                console.error('POI icon failed to load', url);
+                resolve();
+              });
+          };
+
+          if (isNative()) {
+            // Ícono empaquetado en el APK (public/icons → https://localhost/icons).
+            // Es same-origin, así que un <img> directo sirve sin el workaround de CORS.
+            const img = new Image();
+            img.onload = () => register(img);
+            img.onerror = () => loadFromServer();
+            img.src = `${window.location.origin}/icons/${name}`;
+          } else {
+            loadFromServer();
+          }
+        });
+
+      if (uniqueIcons.length > 0) {
+        Promise.all(uniqueIcons.map(loadIcon)).then(() => {
           map.addLayer({
             source: id,
             id: 'poi-point',
