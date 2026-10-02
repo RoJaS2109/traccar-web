@@ -5,12 +5,26 @@ const DEFAULT_SERVER = 'https://mh.rudatrak.com';
 
 let serverUrl = DEFAULT_SERVER;
 
+// Token de sesión en memoria para el parche de WebSocket. El constructor de
+// WebSocket es síncrono, así que no puede leer SecureStorage (async). Se setea
+// desde App.jsx (arranque) y LoginPage.jsx (tras login), y se limpia en el logout.
+let sessionToken = null;
+
 export const isNative = () => Capacitor.isNativePlatform();
 
 export const getServerUrl = () => serverUrl;
 
+export const setSessionToken = (token) => {
+  sessionToken = token;
+};
+
 export const initNativeBootstrap = async () => {
   if (!isNative()) return;
+
+  // En nativo el frontend se sirve desde https://localhost (Capacitor), así que el
+  // OverrideTextFilter del backend nunca reemplaza ${title}. Se fija el título a
+  // mano con el mismo default que usa OverrideTextFilter en el servidor.
+  document.title = 'RudaTrak';
 
   const { value } = await Preferences.get({ key: 'serverUrl' });
   if (value) serverUrl = value;
@@ -61,6 +75,21 @@ export const initNativeBootstrap = async () => {
           url = `${base.replace(/^http/, 'ws')}${url}`;
         } else if (url.includes(window.location.host)) {
           url = url.replace(window.location.host, serverHost);
+        }
+        // El WebSocket nativo no manda la cookie de mh.rudatrak.com (origen
+        // https://localhost → third-party cookie bloqueada). El backend también
+        // acepta autenticación por query param, así que se agrega ?token= al
+        // socket cuando hay token en memoria. Solo al host propio, nunca a terceros.
+        if (sessionToken) {
+          try {
+            const parsed = new URL(url);
+            if (parsed.host === serverHost && parsed.pathname === '/api/socket') {
+              parsed.searchParams.set('token', sessionToken);
+              url = parsed.toString();
+            }
+          } catch {
+            // URL no parseable: se deja tal cual.
+          }
         }
       }
       super(url, protocols);

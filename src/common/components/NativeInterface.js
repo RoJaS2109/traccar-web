@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAsyncTask } from '../../reactHelper';
 import { sessionActions } from '../../store';
 import fetchOrThrow from '../util/fetchOrThrow';
+import { normalizeToken } from '../../offline/tokenStore';
 
 export const nativeEnvironment =
   window.appInterface || (window.webkit && window.webkit.messageHandlers.appInterface);
@@ -26,7 +27,7 @@ export const generateLoginToken = async () => {
         body: new URLSearchParams(`expiration=${expiration}`),
       });
       if (response.ok) {
-        token = await response.text();
+        token = normalizeToken(await response.text()) || '';
       }
     } catch {
       token = '';

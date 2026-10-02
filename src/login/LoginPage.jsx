@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   useMediaQuery,
+  Alert,
   Select,
   MenuItem,
   FormControl,
@@ -24,11 +25,13 @@ import { useLocalization, useTranslation } from '../common/components/Localizati
 import LoginLayout from './LoginLayout';
 import usePersistedState from '../common/util/usePersistedState';
 import {
-  generateLoginToken,
   handleLoginTokenListeners,
   nativeEnvironment,
   nativePostMessage,
 } from '../common/components/NativeInterface';
+import { isNative, setSessionToken } from '../offline/nativeBootstrap';
+import { saveToken, normalizeToken } from '../offline/tokenStore';
+import { useOnlineStatus } from '../offline/useOnlineStatus';
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import QrCodeDialog from '../common/components/QrCodeDialog';
@@ -73,6 +76,8 @@ const LoginPage = () => {
   const theme = useTheme();
   const t = useTranslation();
 
+  const online = useOnlineStatus();
+
   const { languages, language, setLocalLanguage } = useLocalization();
   const languageList = Object.entries(languages).map((values) => ({
     code: values[0],
@@ -115,8 +120,25 @@ const LoginPage = () => {
       });
       if (response.ok) {
         const user = await response.json();
-        generateLoginToken();
         dispatch(sessionActions.updateUser(user));
+        if (isNative()) {
+          try {
+            const expiration = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+            const tokenResponse = await fetch('/api/session/token', {
+              method: 'POST',
+              body: new URLSearchParams(`expiration=${expiration}`),
+            });
+            if (tokenResponse.ok) {
+              const token = normalizeToken(await tokenResponse.text());
+              if (token) {
+                await saveToken(token);
+                setSessionToken(token);
+              }
+            }
+          } catch (error) {
+            console.warn('No se pudo generar el token de sesión', error);
+          }
+        }
         const target = window.sessionStorage.getItem('postLogin') || '/';
         window.sessionStorage.removeItem('postLogin');
         navigate(target, { replace: true });
@@ -199,6 +221,7 @@ const LoginPage = () => {
         )}
       </div>
       <div className={classes.container}>
+        {!online && <Alert severity="warning">{t('loginOffline')}</Alert>}
         {useMediaQuery(theme.breakpoints.down('lg')) && <LogoImage />}
         {!openIdForced && (
           <>

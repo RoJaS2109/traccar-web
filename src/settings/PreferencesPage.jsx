@@ -39,6 +39,7 @@ import { sessionActions } from '../store';
 import { useAdministrator, useRestriction } from '../common/util/permissions';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { normalizeToken } from '../offline/tokenStore';
 
 const deviceFields = [
   { id: 'name', name: 'sharedName' },
@@ -85,7 +86,7 @@ const PreferencesPage = () => {
       method: 'POST',
       body: new URLSearchParams(`expiration=${expiration}`),
     });
-    setToken(await response.text());
+    setToken(normalizeToken(await response.text()));
   });
 
   const alarms = useTranslationKeys((it) => it.startsWith('alarm')).map((it) => ({

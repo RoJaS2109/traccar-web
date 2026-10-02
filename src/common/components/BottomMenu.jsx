@@ -21,6 +21,8 @@ import { sessionActions } from '../../store';
 import { useTranslation } from './LocalizationProvider';
 import { useRestriction } from '../util/permissions';
 import { nativePostMessage } from './NativeInterface';
+import { isNative, setSessionToken } from '../../offline/nativeBootstrap';
+import { getToken, removeToken } from '../../offline/tokenStore';
 
 const BottomMenu = () => {
   const navigate = useNavigate();
@@ -81,6 +83,23 @@ const BottomMenu = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedUser),
         });
+      }
+    }
+
+    if (isNative()) {
+      const token = await getToken();
+      if (token) {
+        try {
+          await fetch('/api/session/token/revoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token }).toString(),
+          });
+        } catch (error) {
+          console.warn('No se pudo revocar el token de sesión', error);
+        }
+        await removeToken();
+        setSessionToken(null);
       }
     }
 
