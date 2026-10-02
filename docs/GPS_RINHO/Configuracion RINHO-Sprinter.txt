@@ -81,8 +81,9 @@
 // --> VERIFICAR IP Y PUERTO: >QIP0<
 // -----------------------------------------------------------------------------
 // --- PRINCIPAL ---
+>SIP0<IP_ORACLE>:5031<  // IP ORACLE PUBLICA PARA PUENTEAR "CGNAT" DE STARLINK (VER DOCS) - la IP real no se versiona
 //>SIP0190.9.1.151/5031<  // con IP SERVIDOR PUBLICA Estática (OJO NO DINÁMICA)
->SIP0"taip.rudatrak.com",5031<  // Resuelve DNS automáticamente
+//>SIP0"taip.rudatrak.com",5031<  // Resuelve DNS automáticamente
 // -----------------------------------------------------------------------------
 // --- ALTERNATIVO ---
 //>SIP0190.9.1.151/5031<  // con IP SERVIDOR PUBLICA Estática (OJO NO DINÁMICA)
@@ -113,7 +114,7 @@
 // =============================================================================
 // --- CONFIGURACIÓN DE TIMERS ---
 // --> VERIFICAR TIEMPOS DE REPORTE: >QTDxx<
->STD00E00007< // TD00: Timer con IGN encendido - 7 segundos
+>STD00E00010< // TD00: Timer con IGN encendido - 10 segundos
 >STD01E01800< // TD01: Timer sin IGN (detenido) - 1800 segundos (1/2 hora)
 // -----------------------------------------------------------------------------
 // --- CONFIGURACIÓN DE ÁNGULO/RADIAL ---
