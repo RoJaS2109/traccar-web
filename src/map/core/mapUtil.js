@@ -136,11 +136,13 @@ export const geometryToArea = (geometry) => {
 };
 
 export const findFonts = (map) => {
-  const { glyphs } = map.getStyle();
-  if (glyphs.startsWith('https://tiles.openfreemap.org')) {
+  // El estilo offline (getOfflineStyle) no define `glyphs`, así que
+  // `map.getStyle().glyphs` puede ser undefined en la pantalla offline.
+  const { glyphs } = map.getStyle() || {};
+  if (glyphs?.startsWith('https://tiles.openfreemap.org')) {
     return ['Noto Sans Regular'];
   }
-  if (glyphs.startsWith('https://api.os.uk')) {
+  if (glyphs?.startsWith('https://api.os.uk')) {
     return ['Source Sans Pro Regular'];
   }
   return ['Open Sans Regular', 'Arial Unicode MS Regular'];

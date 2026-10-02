@@ -4,7 +4,7 @@ import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAttributePreference } from '../../common/util/preferences';
 import { isNative } from '../../offline/nativeBootstrap';
 
-const styleCustom = ({ tiles, minZoom, maxZoom, attribution }) => {
+const styleCustom = ({ tiles, minZoom, maxZoom, attribution, scheme }) => {
   const source = {
     type: 'raster',
     tiles,
@@ -12,6 +12,7 @@ const styleCustom = ({ tiles, minZoom, maxZoom, attribution }) => {
     tileSize: 256,
     minzoom: minZoom,
     maxzoom: maxZoom,
+    scheme,
   };
   Object.keys(source).forEach((key) => source[key] === undefined && delete source[key]);
   return {
@@ -49,6 +50,36 @@ export default () => {
     () => [
       ...(isNative()
         ? [
+            {
+              id: 'argenmap',
+              title: 'Argenmap',
+              style: styleCustom({
+                tiles: [
+                  'https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{y}.png',
+                ],
+                tileSize: 256,
+                scheme: 'tms',
+                maxZoom: 19,
+                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
+              }),
+              available: true,
+              native: true,
+            },
+            {
+              id: 'argenmapTopo',
+              title: 'Argenmap Topográfico',
+              style: styleCustom({
+                tiles: [
+                  'https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/mapabase_topo@EPSG%3A3857@png/{z}/{x}/{y}.png',
+                ],
+                tileSize: 256,
+                scheme: 'tms',
+                maxZoom: 19,
+                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
+              }),
+              available: true,
+              native: true,
+            },
             {
               id: 'offlineArgenmap',
               title: 'Argenmap (offline)',

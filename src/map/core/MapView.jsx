@@ -9,8 +9,8 @@ import { useAttributePreference, usePreference } from '../../common/util/prefere
 import usePersistedState from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
 import useMapStyles from './useMapStyles';
-import { useOnlineStatus } from '../../offline/useOnlineStatus';
 import { isNative } from '../../offline/nativeBootstrap';
+import { getOfflineStyle } from '../../offline/offlineStyle';
 import { useAsyncTask } from '../../reactHelper';
 
 const element = document.createElement('div');
@@ -20,13 +20,6 @@ element.style.boxSizing = 'initial';
 
 maplibregl.addProtocol('google', googleProtocol);
 maplibregl.addProtocol('pmtiles', new Protocol().tile);
-
-if (isNative()) {
-  // Los Web Workers de MapLibre no pasan por el interceptor de CapacitorHttp
-  // y provocan error _capacitor_http_interceptor_ + loop de reintentos (OOM).
-  // En nativo se desactivan los workers y todo corre en el hilo principal.
-  maplibregl.setWorkerCount(0);
-}
 
 export const map = new maplibregl.Map({
   container: element,
@@ -62,7 +55,7 @@ const initMap = async () => {
   }
 };
 
-const MapView = ({ children }) => {
+const MapView = ({ children, offline = false }) => {
   const theme = useTheme();
 
   const containerRef = useRef(null);
@@ -74,21 +67,33 @@ const MapView = ({ children }) => {
     'activeMapStyles',
     'locationIqStreets,locationIqDark,openFreeMap',
   );
+  const preferenceDefault = usePreference('map', 'locationIqStreets');
   const [selectedStyleId, setSelectedStyleId] = usePersistedState(
     'selectedMapStyle',
-    usePreference('map', 'locationIqStreets'),
+    // En nativo se usa Argenmap raster por defecto: consume mucha menos
+    // memoria JS que los estilos vectoriales densos (LocationIQ, OpenFreeMap),
+    // importante en un WebView de 32 bits con heap limitado.
+    isNative() ? 'argenmap' : preferenceDefault,
   );
   const maxZoom = useAttributePreference('web.maxZoom');
-  const online = useOnlineStatus();
 
   const styles = useMemo(() => {
-    if (isNative() && !online) {
-      const offline = mapStyles.filter((s) => s.offline);
-      return offline.length ? offline : mapStyles.filter((s) => s.id === 'osm');
+    // En pantalla offline se usa el estilo offline vigente (getOfflineStyle) y
+    // nada más: sin estilos online ni MapSwitcher.
+    if (offline) {
+      return [{ id: 'offline', title: 'Offline', style: getOfflineStyle() }];
     }
-    const filtered = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
+    // Los estilos offline (offline: true) se muestran siempre en nativo junto
+    // con los online activos. La selección es manual vía MapSwitcher: no se
+    // depende de navigator.onLine, que es inestable en el WebView de Android
+    // y provocaba un render loop al alternar online/offline.
+    const filtered = mapStyles.filter(
+      (s) => s.available && (s.offline || s.native || activeMapStyles.includes(s.id)),
+    );
     return filtered.length ? filtered : mapStyles.filter((s) => s.id === 'osm');
-  }, [mapStyles, activeMapStyles, online]);
+  }, [mapStyles, activeMapStyles, offline]);
+
+  const effectiveStyleId = offline ? 'offline' : selectedStyleId;
 
   useAsyncTask(async () => {
     if (theme.direction === 'rtl') {
@@ -114,7 +119,7 @@ const MapView = ({ children }) => {
   }, [maxZoom]);
 
   useEffect(() => {
-    const style = styles.find((s) => s.id === selectedStyleId);
+    const style = styles.find((s) => s.id === effectiveStyleId);
     if (!style) {
       setSelectedStyleId(styles[0].id);
       return;
@@ -134,7 +139,7 @@ const MapView = ({ children }) => {
     };
     map.once('styledata', waiting);
     return () => clearTimeout(timeoutId);
-  }, [styles, selectedStyleId, setSelectedStyleId]);
+  }, [styles, effectiveStyleId, setSelectedStyleId]);
 
   useEffect(() => {
     const listener = (ready) => setMapReady(ready);
@@ -155,7 +160,9 @@ const MapView = ({ children }) => {
 
   return (
     <div style={{ width: '100%', height: '100%' }} ref={containerRef}>
-      <MapSwitcher styles={styles} selectedId={selectedStyleId} onSelect={setSelectedStyleId} />
+      {!offline && (
+        <MapSwitcher styles={styles} selectedId={effectiveStyleId} onSelect={setSelectedStyleId} />
+      )}
       {mapReady && children}
     </div>
   );
