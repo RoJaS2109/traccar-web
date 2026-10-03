@@ -1,0 +1,43 @@
+# Servicio trak-mapas (recorte de zonas .pmtiles).
+# Desplegable standalone o como parte del stack rudatrak. Comparte la red externa
+# npm_proxy-network para alcanzar a Traccar (rudatrak-traccar:8082) y quedar detrás de NPM.
+services:
+  trak-mapas:
+    build:
+      context: .
+    image: trak-mapas:latest
+    pull_policy: build
+    container_name: rudatrak-trak-mapas
+    restart: unless-stopped
+    # Límites de recursos: la Pi ya corre Traccar + Postgres + NPM. El extract de
+    # pmtiles es single-thread y Node también, así que 1 CPU basta; 512 MiB es un
+    # techo holgado (el extract lee el base por rangos, no lo carga entero) y 128 MiB
+    # de reserva cubre el runtime en reposo (~50-80 MiB). pids_limit evita un fork-bomb.
+    cpus: "1.0"
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 256
+    ports:
+      - "3006:3006"
+    networks:
+      - proxy
+    volumes:
+      - /mnt/datos/servicios/rudatrak/trak-mapas/maps:/data/maps:ro
+      - /mnt/datos/servicios/rudatrak/trak-mapas/output:/data/output
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+      - TRACCAR_URL=http://rudatrak-traccar:8082
+      - BASE_PMTILES=/data/maps/argentina-20261002-z14.pmtiles
+      - OUTPUT_DIR=/data/output
+      - MAX_ZONE_BYTES=314572800
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  proxy:
+    name: npm_proxy-network
+    external: true
