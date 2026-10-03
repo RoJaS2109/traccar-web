@@ -80,28 +80,6 @@ export default () => {
               available: true,
               native: true,
             },
-            {
-              id: 'offlineArgenmap',
-              title: 'Argenmap (offline)',
-              style: styleCustom({
-                tiles: ['offline://capabaseargenmap/{z}/{x}/{y}'],
-                tileSize: 256,
-                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
-              }),
-              available: true,
-              offline: true,
-            },
-            {
-              id: 'offlineTopo',
-              title: 'Topográfico (offline)',
-              style: styleCustom({
-                tiles: ['offline://mapabase_topo/{z}/{x}/{y}'],
-                tileSize: 256,
-                attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
-              }),
-              available: true,
-              offline: true,
-            },
           ]
         : []),
       {

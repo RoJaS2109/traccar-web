@@ -83,12 +83,11 @@ const MapView = ({ children, offline = false }) => {
     if (offline) {
       return [{ id: 'offline', title: 'Offline', style: getOfflineStyle() }];
     }
-    // Los estilos offline (offline: true) se muestran siempre en nativo junto
-    // con los online activos. La selección es manual vía MapSwitcher: no se
-    // depende de navigator.onLine, que es inestable en el WebView de Android
-    // y provocaba un render loop al alternar online/offline.
+    // En nativo se muestran siempre los estilos propios (native) junto con los
+    // online activos. La selección es manual vía MapSwitcher: no se depende de
+    // navigator.onLine, que es inestable en el WebView de Android.
     const filtered = mapStyles.filter(
-      (s) => s.available && (s.offline || s.native || activeMapStyles.includes(s.id)),
+      (s) => s.available && (s.native || activeMapStyles.includes(s.id)),
     );
     return filtered.length ? filtered : mapStyles.filter((s) => s.id === 'osm');
   }, [mapStyles, activeMapStyles, offline]);
