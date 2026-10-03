@@ -2,12 +2,17 @@ import { Directory, Filesystem } from '@capacitor/filesystem';
 import { PMTiles } from 'pmtiles';
 import { CapacitorPmtilesSource } from './pmtilesSource';
 import { tileToBbox } from './tileMath';
+import { findTileInZones, createZoneErrorLogger } from './findTile';
 
 // Directorio dentro de Directory.Data donde se dejan los extractos .pmtiles.
 // Un archivo presente en maps/ es, por convención, una "zona" offline.
 const MAPS_DIR = 'maps';
 
 let registryPromise = null;
+
+// Loguea el primer error de lectura por zona; los siguientes de la misma zona se
+// silencian para no repetir ruido en cada pedido de tile.
+const logZoneError = createZoneErrorLogger();
 
 const readdirOrEmpty = async (path, directory) => {
   try {
@@ -67,17 +72,9 @@ export const resetZoneRegistry = () => {
 };
 
 // Tile MVT (ya descomprimido por pmtiles) para (z, x, y), o null si ninguna zona
-// lo contiene. Se consultan las zonas cuyo bbox y rango de zoom lo cubren.
+// lo contiene. Se consultan las zonas cuyo bbox y rango de zoom lo cubren; una
+// zona que falla al leer se loguea una sola vez y no interrumpe a las demás.
 export const getTile = async (z, x, y) => {
   const zones = await initZoneRegistry();
-  const [west, south, east, north] = tileToBbox(z, x, y);
-  for (const zone of zones) {
-    if (z < zone.minZoom || z > zone.maxZoom) continue;
-    // Sin solape con el bbox de la zona: descartar sin tocar el archivo.
-    if (east < zone.minLon || west > zone.maxLon || north < zone.minLat || south > zone.maxLat)
-      continue;
-    const range = await zone.pmtiles.getZxy(z, x, y);
-    if (range?.data?.byteLength) return range.data;
-  }
-  return null;
+  return findTileInZones(zones, z, x, y, tileToBbox(z, x, y), logZoneError);
 };
