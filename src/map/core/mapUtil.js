@@ -136,14 +136,18 @@ export const geometryToArea = (geometry) => {
 };
 
 export const findFonts = (map) => {
-  // El estilo offline (getOfflineStyle) no define `glyphs`, así que
-  // `map.getStyle().glyphs` puede ser undefined en la pantalla offline.
+  // Devuelve fontstacks que existen en el endpoint de glyphs del estilo vigente.
+  // El estilo offline (getOfflineStyle) usa glyphs local `map/fonts/...` con los
+  // fontstacks Noto Sans empaquetados en public/map/fonts/, no los de Traccar.
   const { glyphs } = map.getStyle() || {};
   if (glyphs?.startsWith('https://tiles.openfreemap.org')) {
     return ['Noto Sans Regular'];
   }
   if (glyphs?.startsWith('https://api.os.uk')) {
     return ['Source Sans Pro Regular'];
+  }
+  if (glyphs?.startsWith('map/fonts/')) {
+    return ['Noto Sans Regular'];
   }
   return ['Open Sans Regular', 'Arial Unicode MS Regular'];
 };
