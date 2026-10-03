@@ -4,7 +4,8 @@
 //
 // Recibe un bbox + rango de zoom, estima el tamaño con `pmtiles extract --dry-run`
 // y lanza extracciones asíncronas (una a la vez) sobre el archivo base de Argentina.
-// Sin dependencias npm: usa los módulos nativos de Node (http, child_process, crypto, fs).
+// Usa módulos nativos de Node (http, child_process, crypto, fs) más la librería
+// `send` (solo para el streaming de /maps/base: maneja Range/ETag/limpieza probadas).
 
 const http = require('http');
 const { spawn } = require('child_process');
@@ -36,6 +37,16 @@ const RATE_LIMIT_ESTIMATE = parseInt(process.env.RATE_LIMIT_ESTIMATE || '30', 10
 const RATE_LIMIT_EXTRACT = parseInt(process.env.RATE_LIMIT_EXTRACT || '5', 10);
 const RATE_LIMIT_TILES = parseInt(process.env.RATE_LIMIT_TILES || '1000', 10);
 const RETRY_AFTER_SECONDS = parseInt(process.env.RETRY_AFTER_SECONDS || '15', 10);
+// /maps/base: tope de bytes por pedido (un rango más grande se rechaza con 416) y
+// tope de streams concurrentes por IP/usuario (más → 429).
+const MAX_RANGE_BYTES = parseInt(process.env.MAX_RANGE_BYTES || String(4 * 1024 * 1024), 10);
+const MAX_CONCURRENT_STREAMS = parseInt(process.env.MAX_CONCURRENT_STREAMS || '10', 10);
+// Redes desde las que se confía en X-Forwarded-For / CF-Connecting-IP para deducir la
+// IP real del cliente (detrás de NPM/Cloudflare). Por defecto, las redes privadas de
+// Docker + loopback; fuera de ellas esos headers se ignoran y se usa la IP del socket.
+const TRUSTED_PROXY_CIDRS = (process.env.TRUSTED_PROXY_CIDRS
+  || '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8')
+  .split(',').map((s) => s.trim()).filter(Boolean);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,6 +57,7 @@ const jobs = new Map();       // jobId -> job
 let activeExtract = null;     // jobId del extract en curso
 const tokenCache = new Map(); // token -> { valid, userId, unavailable, at }
 const rateLimiters = new Map(); // userKey -> { windowStart, count }
+const activeStreams = new Map(); // clave -> streams de /maps/base actualmente abiertos
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -104,14 +116,51 @@ function userKey(user) {
   return 't' + createHash('sha256').update(user.token).digest('hex');
 }
 
-// IP del cliente para el rate limit por IP. Detrás de NPM el socket ve la IP del
-// proxy, así que se usa X-Forwarded-For (primer valor) con fallback al socket.
-function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  if (typeof fwd === 'string' && fwd.length) {
-    return fwd.split(',')[0].trim();
+// ---- IP real del cliente --------------------------------------------------
+// Detrás de Cloudflare/NPM el socket solo ve la IP del proxy. Para deducir la IP
+// real se confía en CF-Connecting-IP (Cloudflare) o X-Forwarded-For (NPM), PERO
+// únicamente si la conexión directa (socket) viene de la red del proxy. Si un
+// cliente conecta directo (fuera de la red de confianza), esos headers se ignoran
+// y se usa la IP del socket: no se puede falsear el rate limit con headers propios.
+
+function parseIpv4(ip) {
+  let s = ip;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(s);
+  if (mapped) s = mapped[1];
+  const parts = s.split('.');
+  if (parts.length !== 4) return null;
+  const nums = parts.map((p) => {
+    const n = Number(p);
+    return Number.isInteger(n) && n >= 0 && n <= 255 ? n : NaN;
+  });
+  if (nums.some((n) => Number.isNaN(n))) return null;
+  return ((nums[0] << 24) | (nums[1] << 16) | (nums[2] << 8) | nums[3]) >>> 0;
+}
+
+function isTrustedProxy(ip) {
+  const addr = parseIpv4(ip);
+  if (addr === null) return false;
+  for (const cidr of TRUSTED_PROXY_CIDRS) {
+    const slash = cidr.indexOf('/');
+    const base = slash === -1 ? cidr : cidr.slice(0, slash);
+    const bits = slash === -1 ? 32 : parseInt(cidr.slice(slash + 1), 10);
+    const baseAddr = parseIpv4(base);
+    if (baseAddr === null || !Number.isInteger(bits) || bits < 0 || bits > 32) continue;
+    const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+    if ((addr & mask) === (baseAddr & mask)) return true;
   }
-  return req.socket.remoteAddress || 'unknown';
+  return false;
+}
+
+function clientIp(req) {
+  const socketIp = req.socket.remoteAddress || 'unknown';
+  if (isTrustedProxy(socketIp)) {
+    const cf = req.headers['cf-connecting-ip'];
+    if (typeof cf === 'string' && cf.trim().length) return cf.trim();
+    const fwd = req.headers['x-forwarded-for'];
+    if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  }
+  return socketIp;
 }
 
 // Rate limit por ventana fija (fixed window). Devuelve 0 si está permitido, o
@@ -136,6 +185,35 @@ function sendRateLimited(res, message, retryAfter) {
     'Content-Length': Buffer.byteLength(body),
   });
   res.end(body);
+}
+
+// ---- Tope de streams concurrentes (/maps/base) ---------------------------
+// Cuenta los streams abiertos por clave (IP o usuario). Adquiere todas las claves
+// de forma atómica; si alguna ya llegó al tope, revierte las ya adquiridas y
+// devuelve false (la respuesta será 429).
+function tryAcquireStreams(keys) {
+  const acquired = [];
+  for (const key of keys) {
+    const current = activeStreams.get(key) || 0;
+    if (current >= MAX_CONCURRENT_STREAMS) {
+      for (const k of acquired) {
+        const v = activeStreams.get(k) - 1;
+        if (v <= 0) activeStreams.delete(k); else activeStreams.set(k, v);
+      }
+      return false;
+    }
+    activeStreams.set(key, current + 1);
+    acquired.push(key);
+  }
+  return true;
+}
+
+function releaseStreams(keys) {
+  for (const key of keys) {
+    const v = activeStreams.get(key);
+    if (v == null) continue;
+    if (v <= 1) activeStreams.delete(key); else activeStreams.set(key, v - 1);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -497,41 +575,114 @@ async function handleDownload(req, res, user) {
   fs.createReadStream(job.outputFile).pipe(res);
 }
 
-// Sirve el archivo base .pmtiles por rangos HTTP (mapa vectorial online). La ruta
-// es fija (BASE_PMTILES): ningún input del cliente entra en el path del archivo.
-// El streaming y el soporte de Range/If-Range/ETag/416 los maneja la librería `send`
-// (mismo motor que res.sendFile de Express); aquí solo se agrega el rate limit por IP
-// (la autenticación ya corrió en el router, antes de abrir el archivo).
-async function handleBase(req, res) {
-  const retryAfter = checkRateLimit(`ip:${clientIp(req)}`, RATE_LIMIT_TILES);
+// Sirve el archivo base .pmtiles por rangos HTTP (mapa vectorial online). La ruta es
+// fija (BASE_PMTILES): ningún input del cliente entra en el path del archivo.
+//
+// Endurecido:
+//  1. Rate limit por IP real: confía en CF-Connecting-IP/X-Forwarded-For solo si el
+//     socket viene de la red del proxy (ver clientIp); si no, usa la IP del socket.
+//  2. Exige UN rango bytes=a-b válido y con tope de tamaño. Sin Range, multi-range,
+//     rango abierto o mayor a MAX_RANGE_BYTES → 416 (nunca 200 con el archivo entero).
+//  3. Tope de streams concurrentes por IP y por usuario → 429.
+// El streaming de bytes y la limpieza ante desconexión los maneja `send`, con
+// etag/lastModified desactivados para eliminar la rama condicional que serviría el
+// archivo completo. La autenticación ya corrió en el router, antes de abrir el archivo.
+async function handleBase(req, res, user) {
+  const ip = clientIp(req);
+
+  const retryAfter = checkRateLimit(`ip:${ip}`, RATE_LIMIT_TILES);
   if (retryAfter) {
     return sendRateLimited(res, 'Demasiados pedidos de tiles', retryAfter);
   }
-  const stream = send(req, path.basename(BASE_PMTILES), {
+
+  const stat = await fsp.stat(BASE_PMTILES).catch(() => null);
+  if (!stat || !stat.isFile()) {
+    return sendJson(res, 404, { ok: false, error: 'Mapa base no disponible' });
+  }
+
+  const opts = {
     root: path.dirname(BASE_PMTILES),
     index: false,
     dotfiles: 'deny',
     acceptRanges: true,
-    etag: true,
-  });
+    etag: false,
+    lastModified: false,
+  };
+
+  if (req.method !== 'GET') {
+    // HEAD: solo cabeceras (Content-Length, Accept-Ranges), sin body ni Range.
+    const stream = send(req, path.basename(BASE_PMTILES), opts);
+    stream.on('error', (err) => handleSendError(res, err));
+    stream.pipe(res);
+    return;
+  }
+
+  const range = parseByteRange(req.headers.range, stat.size);
+  if (!range) {
+    return sendRangeNotSatisfiable(res, stat.size);
+  }
+
+  const keys = [`ip:${ip}`, `user:${userKey(user)}`];
+  if (!tryAcquireStreams(keys)) {
+    return sendRateLimited(res, 'Demasiados streams concurrentes', RETRY_AFTER_SECONDS);
+  }
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseStreams(keys);
+  };
+
+  const stream = send(req, path.basename(BASE_PMTILES), opts);
   stream.on('error', (err) => {
-    // Cliente que cortó la conexión a mitad del stream: headers ya enviados, no hay
-    // nada que responder, solo se cierra.
-    if (res.headersSent) {
-      res.end();
-      return;
-    }
-    const status = err.status || err.statusCode || 500;
-    // Preserva los headers que la librería adjuntó al error (ej. Content-Range en 416).
-    if (err.headers) {
-      for (const [name, value] of Object.entries(err.headers)) {
-        res.setHeader(name, value);
-      }
-    }
-    const message = status === 404 ? 'Mapa base no disponible' : 'Error al servir el mapa';
-    sendJson(res, status, { ok: false, error: message });
+    release();
+    handleSendError(res, err);
   });
+  stream.on('end', release);
+  res.on('close', release);
   stream.pipe(res);
+}
+
+// Maneja el error del stream de `send`: si ya se enviaron headers (cliente que cortó
+// a mitad), solo cierra; si no, responde el status del error preservando sus headers.
+function handleSendError(res, err) {
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
+  const status = err.status || err.statusCode || 500;
+  if (err.headers) {
+    for (const [name, value] of Object.entries(err.headers)) {
+      res.setHeader(name, value);
+    }
+  }
+  const message = status === 404 ? 'Mapa base no disponible' : 'Error al servir el mapa';
+  sendJson(res, status, { ok: false, error: message });
+}
+
+// Solo se acepta UN rango cerrado bytes=a-b, dentro del archivo y de hasta
+// MAX_RANGE_BYTES. Cualquier otra cosa (sin Range, multi-range, abierto bytes=a- o
+// bytes=-N, fuera de rango o mayor al tope) devuelve null → 416.
+function parseByteRange(header, size) {
+  if (typeof header !== 'string') return null;
+  const m = /^bytes=(\d+)-(\d+)$/.exec(header.trim());
+  if (!m) return null;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return null;
+  if (start > end || start >= size || end >= size) return null;
+  if (end - start + 1 > MAX_RANGE_BYTES) return null;
+  return { start, end };
+}
+
+function sendRangeNotSatisfiable(res, size) {
+  const body = JSON.stringify({ ok: false, error: 'Rango inválido o demasiado grande' });
+  res.writeHead(416, {
+    'Content-Range': `bytes */${size}`,
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body),
+  });
+  res.end(body);
 }
 
 // ---------------------------------------------------------------------------

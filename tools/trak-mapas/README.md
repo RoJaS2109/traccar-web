@@ -6,7 +6,8 @@ extracciones asíncronas (una a la vez) sobre el archivo base de Argentina.
 
 Es un servicio **separado de `carga-poi`** y corre en su propio contenedor. Node 22
 nativo + binario `go-pmtiles` pineado (multi-arch amd64/arm64) + la librería `send`
-(solo para `GET/HEAD /maps/base`, que maneja Range/If-Range/ETag/416 de forma probada).
+(solo para el streaming de `GET/HEAD /maps/base`: maneja el stream de bytes y la
+limpieza ante desconexión de forma probada).
 
 ## Endpoints
 
@@ -28,7 +29,7 @@ de otro usuario devuelven `404`.
 | `POST` | `/maps/zone/extract` | Encola una extracción. `202` + `jobId`. `429` si ya hay una en curso. |
 | `GET`  | `/maps/zone/job/:id` | Estado del job (`pending`/`running`/`done`/`failed`). |
 | `GET`  | `/maps/zone/download/:id` | Descarga el `.pmtiles` con `Content-Length` (solo si `done`). |
-| `GET`  | `/maps/base` | Sirve el archivo base `.pmtiles` con Range/If-Range/ETag/416 (vía `send`). |
+| `GET`  | `/maps/base` | Sirve el archivo base `.pmtiles` por rango. Exige un único `Range: bytes=a-b` (≤ 4 MB). |
 | `HEAD` | `/maps/base` | Cabeceras del archivo base, sin body. |
 | `GET`  | `/health` | Healthcheck (sin auth). |
 
@@ -64,15 +65,20 @@ entra en la ruta de archivo.
 
 - **Auth:** el token se valida con el mismo mecanismo (caché de 5 min) que el resto de
   los endpoints; sin token o con token inválido devuelve `401`.
-- **Rate limit por IP:** límite independiente (`RATE_LIMIT_TILES`) con `429` +
-  `Retry-After`. Se aplica **antes** de abrir el archivo.
-- **Streaming:** lo maneja `send` con `acceptRanges: true`, `etag: true`, `index: false`
-  y `dotfiles: 'deny'`. Responde `206` con `Content-Range`, `416` con
-  `Content-Range: bytes */<size>` para rangos inválidos, y multi-range como `200` full.
+- **Rate limit por IP real:** `RATE_LIMIT_TILES` con `429` + `Retry-After`. La IP se
+  deduce de `CF-Connecting-IP` o `X-Forwarded-For` **solo si** el socket viene de una
+  red en `TRUSTED_PROXY_CIDRS`; fuera de ella se usa la IP del socket (un header
+  falseado desde fuera del proxy no cambia el contador).
+- **Range estricto:** `GET` exige un único `Range: bytes=a-b` dentro del archivo y de
+  hasta `MAX_RANGE_BYTES`. Sin Range, multi-range, rango abierto, fuera de rango o
+  mayor al tope → `416` con `Content-Range: bytes */<size>` (nunca `200` con el
+  archivo completo). `HEAD` devuelve cabeceras sin body y no requiere Range.
+- **Streams concurrentes:** tope `MAX_CONCURRENT_STREAMS` por IP y por usuario → `429`.
+- **Streaming:** lo maneja `send` con `acceptRanges: true`, `etag: false`,
+  `lastModified: false` y `dotfiles: 'deny'`. Sin ETag/Last-Modified no hay
+  revalidación condicional, así que jamás se sirve el archivo completo por esa vía.
   Los errores del stream (cliente que corta, archivo inexistente) se manejan en el
   listener `error` sin dejar el socket colgado.
-- **ETag:** `send` genera ETag débil (`W/"…"`), que `pmtiles`/`FetchSource` descarta; el
-  cliente no revalida condicionalmente, pero las respuestas `206` funcionan igual.
 
 ## Límites y seguridad
 
@@ -115,6 +121,9 @@ entra en la ruta de archivo.
 | `RATE_LIMIT_ESTIMATE` | `30` | Máximo de `estimate` por usuario por minuto. |
 | `RATE_LIMIT_EXTRACT` | `5` | Máximo de `extract` por usuario por minuto. |
 | `RATE_LIMIT_TILES` | `1000` | Máximo de pedidos de `GET/HEAD /maps/base` por IP por minuto. |
+| `MAX_RANGE_BYTES` | `4194304` | Tope de bytes por rango en `/maps/base` (4 MiB). |
+| `MAX_CONCURRENT_STREAMS` | `10` | Tope de streams concurrentes por IP/usuario en `/maps/base`. |
+| `TRUSTED_PROXY_CIDRS` | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | Redes desde las que se confía en `X-Forwarded-For`/`CF-Connecting-IP`. |
 | `RETRY_AFTER_SECONDS` | `15` | `Retry-After` para `429` (extracción en curso). |
 
 ## Build y ejecución

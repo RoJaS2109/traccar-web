@@ -17,8 +17,11 @@ services:
     mem_limit: 512m
     mem_reservation: 128m
     pids_limit: 256
-    ports:
-      - "3006:3006"
+    # Solo alcanzable dentro de la red del proxy (NPM). NO se publica en el host:
+    # así la IP real del cliente llega vía X-Forwarded-For/CF-Connecting-IP y ningún
+    # cliente puede conectar directo falseando esos headers.
+    expose:
+      - "3006"
     networks:
       - proxy
     volumes:
