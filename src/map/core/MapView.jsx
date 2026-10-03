@@ -70,10 +70,9 @@ const MapView = ({ children, offline = false }) => {
   const preferenceDefault = usePreference('map', 'locationIqStreets');
   const [selectedStyleId, setSelectedStyleId] = usePersistedState(
     'selectedMapStyle',
-    // En nativo se usa Argenmap raster por defecto: consume mucha menos
-    // memoria JS que los estilos vectoriales densos (LocationIQ, OpenFreeMap),
-    // importante en un WebView de 32 bits con heap limitado.
-    isNative() ? 'argenmap' : preferenceDefault,
+    // En nativo se usa OpenFreeMap por defecto: el IGN (Argenmap) está caído.
+    // Se conservan las entradas IGN en el MapSwitcher, pero no como default.
+    isNative() ? 'openFreeMap' : preferenceDefault,
   );
   const maxZoom = useAttributePreference('web.maxZoom');
 
