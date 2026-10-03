@@ -1,35 +1,23 @@
 import maplibregl from 'maplibre-gl';
-import { readTile } from './tileStore';
+import { getTile } from './zoneStore';
 
 let offlineProtocolRegistered = false;
 
-// PNG 1×1 transparente (gris + alfa). Se devuelve cuando un tile no está
-// descargado para que MapLibre no loguee un error por cada hueco ni rompa el
-// render: el área queda transparente y se ve la capa background del estilo.
-const EMPTY_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-
-const emptyPngBuffer = () => {
-  const binary = atob(EMPTY_PNG_BASE64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-};
-
-// URL: offline://{layer}/{z}/{x}/{y}
+// URL: offline://mapas/{z}/{x}/{y}
 //
 // MapLibre 5 usa el handler con firma (params, abortController) => Promise<{ data }>,
-// no el estilo de callback de v2/v3. Por eso se devuelve { data: ArrayBuffer } (o se
-// lanza un error) en vez de llamar a callback(null, buffer).
+// no el estilo de callback de v2/v3. Se devuelve { data: ArrayBuffer } con el tile MVT
+// ya descomprimido (getTile delega la descompresión gzip a pmtiles), o un ArrayBuffer
+// vacío para los tiles inexistentes: fuera de toda zona o hueco dentro de una. Un
+// buffer vacío es lo que MapLibre interpreta como "tile sin datos" (igual que hace el
+// Protocol.tilev4 integrado de pmtiles), sin loguear error por cada hueco.
 export const registerOfflineProtocol = () => {
   if (offlineProtocolRegistered) return;
   maplibregl.addProtocol('offline', async (params) => {
-    const [, layer, z, x, y] = params.url.replace('offline://', '').split('/');
-    const buffer = await readTile(layer, Number(z), Number(x), Number(y));
-    if (buffer) {
-      return { data: buffer };
-    }
-    return { data: emptyPngBuffer() };
+    const path = (params.url.split('://')[1] ?? '').split('/').filter(Boolean);
+    const [z, x, y] = path.slice(-3).map(Number);
+    const data = await getTile(z, x, y);
+    return { data: data ?? new ArrayBuffer(0) };
   });
   offlineProtocolRegistered = true;
 };
