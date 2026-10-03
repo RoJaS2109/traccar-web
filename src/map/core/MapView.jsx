@@ -12,6 +12,11 @@ import useMapStyles from './useMapStyles';
 import { isNative } from '../../offline/nativeBootstrap';
 import { getOfflineStyle } from '../../offline/offlineStyle';
 import { useAsyncTask } from '../../reactHelper';
+import { migrateSelectedMapStyle } from './mapStyleMigration';
+
+// Migración única del estilo guardado. Corre a nivel de módulo (antes del primer
+// render de MapView, que lee selectedMapStyle vía usePersistedState).
+migrateSelectedMapStyle(window.localStorage, isNative());
 
 const element = document.createElement('div');
 element.style.width = '100%';
