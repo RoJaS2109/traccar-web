@@ -35,12 +35,13 @@ const AUTH_TIMEOUT_MS = parseInt(process.env.AUTH_TIMEOUT_MS || '5000', 10);
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
 const RATE_LIMIT_ESTIMATE = parseInt(process.env.RATE_LIMIT_ESTIMATE || '30', 10);
 const RATE_LIMIT_EXTRACT = parseInt(process.env.RATE_LIMIT_EXTRACT || '5', 10);
-const RATE_LIMIT_TILES = parseInt(process.env.RATE_LIMIT_TILES || '1000', 10);
+const RATE_LIMIT_TILES = parseInt(process.env.RATE_LIMIT_TILES || '3000', 10);
 const RETRY_AFTER_SECONDS = parseInt(process.env.RETRY_AFTER_SECONDS || '15', 10);
 // /maps/base: tope de bytes por pedido (un rango más grande se rechaza con 416) y
-// tope de streams concurrentes por IP/usuario (más → 429).
+// tope de streams concurrentes por IP y por usuario (más → 429). 32 admite "decenas"
+// de pedidos paralelos de un mapa vectorial (una pantalla son ~15-25 tiles).
 const MAX_RANGE_BYTES = parseInt(process.env.MAX_RANGE_BYTES || String(4 * 1024 * 1024), 10);
-const MAX_CONCURRENT_STREAMS = parseInt(process.env.MAX_CONCURRENT_STREAMS || '10', 10);
+const MAX_CONCURRENT_STREAMS = parseInt(process.env.MAX_CONCURRENT_STREAMS || '32', 10);
 // Redes desde las que se confía en X-Forwarded-For / CF-Connecting-IP para deducir la
 // IP real del cliente (detrás de NPM/Cloudflare). Por defecto, las redes privadas de
 // Docker + loopback; fuera de ellas esos headers se ignoran y se usa la IP del socket.
@@ -154,11 +155,20 @@ function isTrustedProxy(ip) {
 
 function clientIp(req) {
   const socketIp = req.socket.remoteAddress || 'unknown';
-  if (isTrustedProxy(socketIp)) {
-    const cf = req.headers['cf-connecting-ip'];
-    if (typeof cf === 'string' && cf.trim().length) return cf.trim();
-    const fwd = req.headers['x-forwarded-for'];
-    if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  if (!isTrustedProxy(socketIp)) return socketIp;
+  // Cloudflare setea CF-Connecting-IP con la IP real del cliente; se prefiere.
+  const cf = req.headers['cf-connecting-ip'];
+  if (typeof cf === 'string' && cf.trim().length) return cf.trim();
+  // X-Forwarded-For es una lista "cliente, proxy1, proxy2, …". Se recorre de derecha
+  // a izquierda y se toma la primera entrada que NO sea un proxy de confianza: así un
+  // valor falso antepuesto (más a la izquierda) no engaña el rate limit. Si todas las
+  // entradas son de confianza, se cae a la IP del socket (el proxy más cercano).
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length) {
+    const values = fwd.split(',').map((s) => s.trim()).filter(Boolean);
+    for (let i = values.length - 1; i >= 0; i -= 1) {
+      if (!isTrustedProxy(values[i])) return values[i];
+    }
   }
   return socketIp;
 }
@@ -482,6 +492,7 @@ async function cleanup(removeAll) {
 async function handleEstimate(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':estimate', RATE_LIMIT_ESTIMATE);
   if (retryAfter) {
+    log('429 estimate usuario=' + userKey(user));
     return sendRateLimited(res, 'Demasiados pedidos de estimación', retryAfter);
   }
   const zone = await readZone(req, res);
@@ -506,12 +517,14 @@ async function handleEstimate(req, res, user) {
 async function handleExtract(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':extract', RATE_LIMIT_EXTRACT);
   if (retryAfter) {
+    log('429 extract usuario=' + userKey(user));
     return sendRateLimited(res, 'Demasiados pedidos de extracción', retryAfter);
   }
   const zone = await readZone(req, res);
   if (!zone) return;
 
   if (activeExtract) {
+    log('429 extract: ya hay una extracción en curso');
     return sendRateLimited(res, 'Ya hay una extracción en curso', RETRY_AFTER_SECONDS);
   }
 
@@ -592,6 +605,7 @@ async function handleBase(req, res, user) {
 
   const retryAfter = checkRateLimit(`ip:${ip}`, RATE_LIMIT_TILES);
   if (retryAfter) {
+    log(`429 /maps/base rate-limit ip=${ip}`);
     return sendRateLimited(res, 'Demasiados pedidos de tiles', retryAfter);
   }
 
@@ -624,6 +638,7 @@ async function handleBase(req, res, user) {
 
   const keys = [`ip:${ip}`, `user:${userKey(user)}`];
   if (!tryAcquireStreams(keys)) {
+    log(`429 /maps/base streams ip=${ip} usuario=${userKey(user)}`);
     return sendRateLimited(res, 'Demasiados streams concurrentes', RETRY_AFTER_SECONDS);
   }
   let released = false;
@@ -744,6 +759,7 @@ async function start() {
   server.listen(PORT, () => {
     log('trak-mapas escuchando en :' + PORT);
     log(`base=${BASE_PMTILES} traccar=${TRACCAR_URL} maxBytes=${MAX_ZONE_BYTES}`);
+    log(`trustedProxyCidrs=${TRUSTED_PROXY_CIDRS.join(',')}`);
   });
 }
 

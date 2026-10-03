@@ -33,6 +33,11 @@ services:
       - BASE_PMTILES=/data/maps/argentina-20261002-z14.pmtiles
       - OUTPUT_DIR=/data/output
       - MAX_ZONE_BYTES=314572800
+      # Redes desde las que se confía en X-Forwarded-For/CF-Connecting-IP para deducir
+      # la IP real del cliente. Se resuelve desde .env (ver .env.example). Default =
+      # redes privadas de Docker, nunca 0.0.0.0/0. Para una red concreta, usar
+      # `docker network inspect npm_proxy-network` y poner esa subred en .env.
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3006/health"]
       interval: 30s

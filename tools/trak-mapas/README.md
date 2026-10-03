@@ -66,9 +66,11 @@ entra en la ruta de archivo.
 - **Auth:** el token se valida con el mismo mecanismo (caché de 5 min) que el resto de
   los endpoints; sin token o con token inválido devuelve `401`.
 - **Rate limit por IP real:** `RATE_LIMIT_TILES` con `429` + `Retry-After`. La IP se
-  deduce de `CF-Connecting-IP` o `X-Forwarded-For` **solo si** el socket viene de una
-  red en `TRUSTED_PROXY_CIDRS`; fuera de ella se usa la IP del socket (un header
-  falseado desde fuera del proxy no cambia el contador).
+  deduce de `CF-Connecting-IP` (preferido) o de `X-Forwarded-For` **solo si** el socket
+  viene de una red en `TRUSTED_PROXY_CIDRS`; fuera de ella se usa la IP del socket. Del
+  `X-Forwarded-For` se toma la entrada **más a la derecha que no sea un proxy de
+  confianza** (nunca la de más a la izquierda), para que un valor falso antepuesto no
+  cambie el contador.
 - **Range estricto:** `GET` exige un único `Range: bytes=a-b` dentro del archivo y de
   hasta `MAX_RANGE_BYTES`. Sin Range, multi-range, rango abierto, fuera de rango o
   mayor al tope → `416` con `Content-Range: bytes */<size>` (nunca `200` con el
@@ -99,7 +101,8 @@ entra en la ruta de archivo.
   (`CLEANUP_INTERVAL_MS`, retención `OUTPUT_RETENTION_MS`).
 - **Timeout por job:** `JOB_TIMEOUT_MS` (default 30 min); al vencer se mata el proceso y
   el job queda `failed` con error `timeout`.
-- **Logs sin tokens:** nunca se loguea la cabecera `Authorization` ni el token.
+- **Logs sin tokens:** nunca se loguea la cabecera `Authorization` ni el token. Cada
+  `429` se loguea con su clave (IP o usuario, nunca el token) para diagnóstico.
 
 ## Variables de entorno
 
@@ -120,11 +123,29 @@ entra en la ruta de archivo.
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Ventana del rate limit (1 min). |
 | `RATE_LIMIT_ESTIMATE` | `30` | Máximo de `estimate` por usuario por minuto. |
 | `RATE_LIMIT_EXTRACT` | `5` | Máximo de `extract` por usuario por minuto. |
-| `RATE_LIMIT_TILES` | `1000` | Máximo de pedidos de `GET/HEAD /maps/base` por IP por minuto. |
+| `RATE_LIMIT_TILES` | `3000` | Máximo de pedidos de `GET/HEAD /maps/base` por IP real por minuto. |
 | `MAX_RANGE_BYTES` | `4194304` | Tope de bytes por rango en `/maps/base` (4 MiB). |
-| `MAX_CONCURRENT_STREAMS` | `10` | Tope de streams concurrentes por IP/usuario en `/maps/base`. |
-| `TRUSTED_PROXY_CIDRS` | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | Redes desde las que se confía en `X-Forwarded-For`/`CF-Connecting-IP`. |
+| `MAX_CONCURRENT_STREAMS` | `32` | Tope de streams concurrentes por IP y por usuario en `/maps/base`. |
+| `TRUSTED_PROXY_CIDRS` | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (en Docker, desde `.env`) | Redes desde las que se confía en `X-Forwarded-For`/`CF-Connecting-IP`. |
 | `RETRY_AFTER_SECONDS` | `15` | `Retry-After` para `429` (extracción en curso). |
+
+### Red del proxy (IP real del cliente)
+
+Para deducir la IP real, el servicio confía en `CF-Connecting-IP` o `X-Forwarded-For`
+**solo si** el socket viene de una red en `TRUSTED_PROXY_CIDRS`. En Docker esa variable
+se toma de `.env` (copiá `.env.example` a `.env`; `.env` está ignorado por git).
+
+Para averiguar la subred exacta de la red Docker de NPM:
+
+```bash
+docker network inspect npm_proxy-network \
+  --format '{{range .IPAM.Config}}{{.Subnet}}{{println}}{{end}}'
+```
+
+Usar esa subred concreta (p. ej. `172.18.0.0/16`) en `.env` es más estricto que las
+redes privadas por defecto. **Nunca usar `0.0.0.0/0`**: confiaría en cualquier header
+falseado. Fuera de la red de confianza se usa la IP del socket, y del
+`X-Forwarded-For` se toma la entrada más a la derecha que no sea de confianza.
 
 ## Build y ejecución
 
