@@ -3,7 +3,7 @@
 // trak-mapas — servicio de recorte de zonas .pmtiles para RudaTrak.
 //
 // Recibe un bbox + rango de zoom, estima el tamaño con `pmtiles extract --dry-run`
-// y lanza extracciones asíncronas (una a la vez) sobre el archivo base de Argentina.
+// y lanza extracciones asíncronas (una a la vez) sobre el archivo base de Sudamérica continental.
 // Usa módulos nativos de Node (http, child_process, crypto, fs) más la librería
 // `send` (solo para el streaming de /maps/base: maneja Range/ETag/limpieza probadas).
 

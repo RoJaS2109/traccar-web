@@ -193,6 +193,17 @@ El nombre usa la fecha del build (`YYYYMMDD`). Antes de activar un base nuevo, v
 `sha256sum` y que `pmtiles show` reporte `minzoom 0 / maxzoom 14` con tiles en las ciudades
 de referencia (p. ej. Punta Arenas, Ushuaia, Santiago, Lima, Bogotá, Manaus, Quito).
 
+### Cambiar el base activo (sin regenerar)
+
+`BASE_PMTILES` se resuelve desde una variable de entorno con default en el
+`docker-compose.yml` (`${BASE_PMTILES:-/data/maps/sudamerica-20261003-z14.pmtiles}`). Para
+cambiar a otro base ya construido:
+
+1. Copiar el `.pmtiles` a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/` (en la Pi).
+2. En el `.env` de la Pi (junto al compose), setear `BASE_PMTILES=/data/maps/<archivo>.pmtiles`.
+3. `docker compose up -d` (recrea el contenedor; no hace falta rebuild).
+4. Para volver atrás, cambiar esa línea al base anterior y `docker compose up -d`.
+
 ## Deploy en la Pi
 
 1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z14.pmtiles`.

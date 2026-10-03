@@ -30,7 +30,9 @@ services:
     environment:
       - TZ=America/Argentina/Buenos_Aires
       - TRACCAR_URL=http://rudatrak-traccar:8082
-      - BASE_PMTILES=/data/maps/argentina-20261002-z14.pmtiles
+      # Archivo base del recorte. Se resuelve desde .env (ver .env.example); default =
+      # Sudamérica continental. Para cambiar de base, ver el README de trak-mapas.
+      - BASE_PMTILES=${BASE_PMTILES:-/data/maps/sudamerica-20261003-z14.pmtiles}
       - OUTPUT_DIR=/data/output
       - MAX_ZONE_BYTES=314572800
       # Redes desde las que se confía en X-Forwarded-For/CF-Connecting-IP para deducir
