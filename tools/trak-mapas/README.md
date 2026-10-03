@@ -4,8 +4,9 @@ Servicio de recorte de **zonas offline** (archivos `.pmtiles`) para RudaTrak. Da
 `bbox` + rango de zoom, estima el tamaño con `pmtiles extract --dry-run` y lanza
 extracciones asíncronas (una a la vez) sobre el archivo base de Argentina.
 
-Es un servicio **separado de `carga-poi`** y corre en su propio contenedor. Sin
-dependencias npm: Node 22 nativo + binario `go-pmtiles` pineado (multi-arch amd64/arm64).
+Es un servicio **separado de `carga-poi`** y corre en su propio contenedor. Node 22
+nativo + binario `go-pmtiles` pineado (multi-arch amd64/arm64) + la librería `send`
+(solo para `GET/HEAD /maps/base`, que maneja Range/If-Range/ETag/416 de forma probada).
 
 ## Endpoints
 
@@ -27,6 +28,8 @@ de otro usuario devuelven `404`.
 | `POST` | `/maps/zone/extract` | Encola una extracción. `202` + `jobId`. `429` si ya hay una en curso. |
 | `GET`  | `/maps/zone/job/:id` | Estado del job (`pending`/`running`/`done`/`failed`). |
 | `GET`  | `/maps/zone/download/:id` | Descarga el `.pmtiles` con `Content-Length` (solo si `done`). |
+| `GET`  | `/maps/base` | Sirve el archivo base `.pmtiles` con Range/If-Range/ETag/416 (vía `send`). |
+| `HEAD` | `/maps/base` | Cabeceras del archivo base, sin body. |
 | `GET`  | `/health` | Healthcheck (sin auth). |
 
 ### Cuerpo de `estimate` y `extract`
@@ -51,6 +54,25 @@ de otro usuario devuelven `404`.
 - `extract` → `202 { ok, jobId, tiles, bytes }`, `413` (zona gigante) o `429` + `Retry-After`.
 - `job` → `200 { ok, job: { id, status, tiles, bytes, error, ... } }`.
 - `download` → `200` (stream binario) o `409`/`410`/`404`.
+
+### `/maps/base` (mapa propio online)
+
+Sirve el archivo base `BASE_PMTILES` (el mismo que usa el recorte) para que el frontend
+lo consuma como PMTiles online con `Authorization: Bearer`. La ruta es **fija**
+(`path.basename(BASE_PMTILES)` + `root: dirname(BASE_PMTILES)`): ningún input del cliente
+entra en la ruta de archivo.
+
+- **Auth:** el token se valida con el mismo mecanismo (caché de 5 min) que el resto de
+  los endpoints; sin token o con token inválido devuelve `401`.
+- **Rate limit por IP:** límite independiente (`RATE_LIMIT_TILES`) con `429` +
+  `Retry-After`. Se aplica **antes** de abrir el archivo.
+- **Streaming:** lo maneja `send` con `acceptRanges: true`, `etag: true`, `index: false`
+  y `dotfiles: 'deny'`. Responde `206` con `Content-Range`, `416` con
+  `Content-Range: bytes */<size>` para rangos inválidos, y multi-range como `200` full.
+  Los errores del stream (cliente que corta, archivo inexistente) se manejan en el
+  listener `error` sin dejar el socket colgado.
+- **ETag:** `send` genera ETag débil (`W/"…"`), que `pmtiles`/`FetchSource` descarta; el
+  cliente no revalida condicionalmente, pero las respuestas `206` funcionan igual.
 
 ## Límites y seguridad
 
@@ -92,6 +114,7 @@ de otro usuario devuelven `404`.
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Ventana del rate limit (1 min). |
 | `RATE_LIMIT_ESTIMATE` | `30` | Máximo de `estimate` por usuario por minuto. |
 | `RATE_LIMIT_EXTRACT` | `5` | Máximo de `extract` por usuario por minuto. |
+| `RATE_LIMIT_TILES` | `1000` | Máximo de pedidos de `GET/HEAD /maps/base` por IP por minuto. |
 | `RETRY_AFTER_SECONDS` | `15` | `Retry-After` para `429` (extracción en curso). |
 
 ## Build y ejecución

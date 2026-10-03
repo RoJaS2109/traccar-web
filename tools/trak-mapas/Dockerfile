@@ -1,5 +1,5 @@
 # trak-mapas — recorte de zonas .pmtiles (multi-arch amd64 + arm64)
-# Sin dependencias npm: copia server.js y descarga el binario pmtiles pineado.
+# Node 22 + binario go-pmtiles pineado + dependencia `send` (Range/ETag/416).
 FROM node:22-alpine
 
 ARG TARGETARCH
@@ -21,6 +21,12 @@ RUN apk add --no-cache curl tar && \
     apk del curl tar
 
 WORKDIR /app
+
+# Dependencias de producción fijadas por package-lock.json (solo `send` y sus
+# dependencias transitivas). --omit=dev no instala dependencias de desarrollo.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
 COPY server.js ./
 
 ENV NODE_ENV=production \

@@ -12,6 +12,7 @@ const { randomUUID, createHash } = require('crypto');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const send = require('send');
 
 // ---------------------------------------------------------------------------
 // Configuración (variables de entorno)
@@ -33,6 +34,7 @@ const AUTH_TIMEOUT_MS = parseInt(process.env.AUTH_TIMEOUT_MS || '5000', 10);
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
 const RATE_LIMIT_ESTIMATE = parseInt(process.env.RATE_LIMIT_ESTIMATE || '30', 10);
 const RATE_LIMIT_EXTRACT = parseInt(process.env.RATE_LIMIT_EXTRACT || '5', 10);
+const RATE_LIMIT_TILES = parseInt(process.env.RATE_LIMIT_TILES || '1000', 10);
 const RETRY_AFTER_SECONDS = parseInt(process.env.RETRY_AFTER_SECONDS || '15', 10);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -100,6 +102,16 @@ function humanSizeToBytes(value, unit) {
 function userKey(user) {
   if (user.id != null) return `u${user.id}`;
   return 't' + createHash('sha256').update(user.token).digest('hex');
+}
+
+// IP del cliente para el rate limit por IP. Detrás de NPM el socket ve la IP del
+// proxy, así que se usa X-Forwarded-For (primer valor) con fallback al socket.
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length) {
+    return fwd.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
 }
 
 // Rate limit por ventana fija (fixed window). Devuelve 0 si está permitido, o
@@ -485,6 +497,43 @@ async function handleDownload(req, res, user) {
   fs.createReadStream(job.outputFile).pipe(res);
 }
 
+// Sirve el archivo base .pmtiles por rangos HTTP (mapa vectorial online). La ruta
+// es fija (BASE_PMTILES): ningún input del cliente entra en el path del archivo.
+// El streaming y el soporte de Range/If-Range/ETag/416 los maneja la librería `send`
+// (mismo motor que res.sendFile de Express); aquí solo se agrega el rate limit por IP
+// (la autenticación ya corrió en el router, antes de abrir el archivo).
+async function handleBase(req, res) {
+  const retryAfter = checkRateLimit(`ip:${clientIp(req)}`, RATE_LIMIT_TILES);
+  if (retryAfter) {
+    return sendRateLimited(res, 'Demasiados pedidos de tiles', retryAfter);
+  }
+  const stream = send(req, path.basename(BASE_PMTILES), {
+    root: path.dirname(BASE_PMTILES),
+    index: false,
+    dotfiles: 'deny',
+    acceptRanges: true,
+    etag: true,
+  });
+  stream.on('error', (err) => {
+    // Cliente que cortó la conexión a mitad del stream: headers ya enviados, no hay
+    // nada que responder, solo se cierra.
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
+    const status = err.status || err.statusCode || 500;
+    // Preserva los headers que la librería adjuntó al error (ej. Content-Range en 416).
+    if (err.headers) {
+      for (const [name, value] of Object.entries(err.headers)) {
+        res.setHeader(name, value);
+      }
+    }
+    const message = status === 404 ? 'Mapa base no disponible' : 'Error al servir el mapa';
+    sendJson(res, status, { ok: false, error: message });
+  });
+  stream.pipe(res);
+}
+
 // ---------------------------------------------------------------------------
 // Servidor HTTP
 // ---------------------------------------------------------------------------
@@ -493,6 +542,8 @@ const ROUTES = [
   ['POST', '/maps/zone/extract', handleExtract],
   ['GET', '/maps/zone/job/', handleJob],
   ['GET', '/maps/zone/download/', handleDownload],
+  ['GET', '/maps/base', handleBase],
+  ['HEAD', '/maps/base', handleBase],
 ];
 
 const server = http.createServer(async (req, res) => {
