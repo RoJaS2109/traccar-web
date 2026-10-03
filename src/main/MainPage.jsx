@@ -14,7 +14,7 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import { useAttributePreference } from '../common/util/preferences';
-import { DownloadZoneDialog } from '../offline/DownloadZoneDialog';
+import OfflineMapsScreen from '../offline/OfflineMapsScreen';
 import { isNative } from '../offline/nativeBootstrap';
 
 const MainMap = lazy(() => import('./MainMap'));
@@ -96,7 +96,7 @@ const MainPage = () => {
 
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
-  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [offlineMapsOpen, setOfflineMapsOpen] = useState(false);
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
@@ -173,14 +173,14 @@ const MainPage = () => {
       {isNative() && (
         <Fab
           color="primary"
-          aria-label="Descargar zona"
-          onClick={() => setDownloadOpen(true)}
+          aria-label="Mapas sin conexión"
+          onClick={() => setOfflineMapsOpen(true)}
           style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 7 }}
         >
           <DownloadIcon />
         </Fab>
       )}
-      <DownloadZoneDialog open={downloadOpen} onClose={() => setDownloadOpen(false)} />
+      <OfflineMapsScreen open={offlineMapsOpen} onClose={() => setOfflineMapsOpen(false)} />
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}
