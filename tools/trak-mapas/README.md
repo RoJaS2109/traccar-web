@@ -2,7 +2,7 @@
 
 Servicio de recorte de **zonas offline** (archivos `.pmtiles`) para RudaTrak. Dado un
 `bbox` + rango de zoom, estima el tamaño con `pmtiles extract --dry-run` y lanza
-extracciones asíncronas (una a la vez) sobre el archivo base de Argentina.
+extracciones asíncronas (una a la vez) sobre el archivo base de Sudamérica continental.
 
 Es un servicio **separado de `carga-poi`** y corre en su propio contenedor. Node 22
 nativo + binario `go-pmtiles` pineado (multi-arch amd64/arm64) + la librería `send`
@@ -155,15 +155,47 @@ docker build -t trak-mapas:latest .
 
 # Prueba local (sin Docker): node server.js con el binario y el archivo base locales
 PMTILES_BIN=/ruta/pmtiles \
-BASE_PMTILES=/ruta/argentina-20261002-z14.pmtiles \
+BASE_PMTILES=/ruta/sudamerica-20261003-z14.pmtiles \
 OUTPUT_DIR=/tmp/trak-mapas-output \
 TRACCAR_URL=https://mh.rudatrak.com \
 node server.js
 ```
 
+## Archivo base y regeneración
+
+El recorte parte de un único archivo base `BASE_PMTILES`. El base actual es
+**`sudamerica-20261003-z14.pmtiles`**: Sudamérica continental (los 12 países continentales,
+AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–14, recortado del build diario de Protomaps
+(Planetiler) usando los polígonos de **Natural Earth 50m** (`admin_0_countries`) con un
+**buffer de ~25 km** en Web Mercator (EPSG:3857).
+
+Para regenerarlo:
+
+```bash
+# 1. Armar el GeoJSON de la región: seleccionar los 12 países continentales de
+#    Natural Earth 50m y aplicarles un buffer de ~25 km en Web Mercator. Se guarda en
+#    regiones/sudamerica-continental_50m_buffer25km.geojson.
+
+# 2. Extraer el recorte directamente del build diario de Protomaps (go-pmtiles lee
+#    por rango vía HTTP, sin descargar el archivo completo):
+pmtiles extract \
+  --region regiones/sudamerica-continental_50m_buffer25km.geojson \
+  --maxzoom 14 \
+  https://build.protomaps.com/YYYYMMDD.pmtiles \
+  sudamerica-YYYYMMDD-z14.pmtiles
+
+# 3. Verificar:
+pmtiles verify sudamerica-YYYYMMDD-z14.pmtiles
+pmtiles show sudamerica-YYYYMMDD-z14.pmtiles
+```
+
+El nombre usa la fecha del build (`YYYYMMDD`). Antes de activar un base nuevo, verificar
+`sha256sum` y que `pmtiles show` reporte `minzoom 0 / maxzoom 14` con tiles en las ciudades
+de referencia (p. ej. Punta Arenas, Ushuaia, Santiago, Lima, Bogotá, Manaus, Quito).
+
 ## Deploy en la Pi
 
-1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/argentina-20261002-z14.pmtiles`.
+1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z14.pmtiles`.
 2. Crear `/mnt/datos/servicios/rudatrak/trak-mapas/output/`.
 3. `docker compose up -d --build` (o integrar el servicio en el stack de Portainer).
 4. En Nginx Proxy Manager, ruta `mh.rudatrak.com/maps/*` (o un subdominio) → `rudatrak-trak-mapas:3006`.

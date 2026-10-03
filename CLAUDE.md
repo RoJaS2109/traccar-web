@@ -118,6 +118,18 @@ El módulo `src/offline/` implementa la pantalla sin conexión (se muestra cuand
 - Los BLOB del plugin SQLite se serializan como **arreglo byte-a-byte** a través del puente (`ByteArrayToJSArray`), 3-5× más costoso que el base64 de Filesystem; y `pmtiles convert` es MBTiles→PMTiles (dirección opuesta a la necesaria).
 - Las zonas se descargarán como archivos `.pmtiles` (5–50 MB) desde un endpoint propio de recorte.
 
+### Archivo base de las zonas (trak-mapas)
+
+Las zonas `.pmtiles` se recortan con el servicio **trak-mapas** (`tools/trak-mapas/`, ver su
+[`README`](tools/trak-mapas/README.md)) a partir de un único archivo base `BASE_PMTILES`. El
+base actual es **`sudamerica-20261003-z14.pmtiles`**: Sudamérica continental (los 12 países
+continentales, AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–14, recortado del build diario de
+Protomaps (Planetiler) con los polígonos de **Natural Earth 50m** (`admin_0_countries`) y un
+**buffer de ~25 km** en Web Mercator (EPSG:3857). Para regenerarlo, ver la sección
+"Regenerar el archivo base" del README de trak-mapas; en resumen:
+`pmtiles extract --region <sudamérica+25km>.geojson --maxzoom 14
+https://build.protomaps.com/YYYYMMDD.pmtiles sudamerica-YYYYMMDD-z14.pmtiles`.
+
 ### Controles del mapa
 
 **MapGeocoder** (`map/control/MapGeocoder.jsx`) — búsqueda de direcciones y coordenadas vía Nominatim. Al seleccionar un resultado:
