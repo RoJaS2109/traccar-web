@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { map } from '../map/core/MapView';
 import { getLastPosition, saveLastPosition } from './lastPositionStore';
-import { listZones } from './OfflineManager';
+import { getZones } from './zoneStore';
 import { getCachedServerConfig } from './serverConfigStore';
 
 // Las capas de POI en PoiMap no tienen minzoom (renderizan en todos los zooms),
@@ -39,13 +39,15 @@ const currentPositionIfGranted = async () => {
 
 const mostRecentZoneBounds = async () => {
   try {
-    const zones = await listZones();
+    // zoneStore devuelve las zonas ordenadas por fecha de modificación descendente,
+    // así que la primera es la más reciente.
+    const zones = await getZones();
     const zone = zones[0];
     if (!zone) return null;
     return {
       bounds: [
-        [zone.minLng, zone.minLat],
-        [zone.maxLng, zone.maxLat],
+        [zone.minLon, zone.minLat],
+        [zone.maxLon, zone.maxLat],
       ],
       maxZoom: zone.maxZoom,
     };

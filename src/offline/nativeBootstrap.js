@@ -18,6 +18,11 @@ export const setSessionToken = (token) => {
   sessionToken = token;
 };
 
+// Getter para el descargador de mapas offline: el header Authorization del servicio
+// trak-mapas necesita el token de sesión en memoria (el mismo que usa el parche de
+// WebSocket). Devuelve null si no hay sesión iniciada.
+export const getSessionToken = () => sessionToken;
+
 export const initNativeBootstrap = async () => {
   if (!isNative()) return;
 

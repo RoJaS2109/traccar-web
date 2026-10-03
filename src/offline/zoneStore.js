@@ -20,6 +20,9 @@ const readdirOrEmpty = async (path, directory) => {
 
 const doInitRegistry = async () => {
   const files = await readdirOrEmpty(MAPS_DIR, Directory.Data);
+  // Orden estable por fecha de modificación descendente: la zona más reciente
+  // queda primera (la usa OfflineCamera como fallback de encuadre).
+  files.sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0));
   const zones = [];
   for (const file of files) {
     if (file.type !== 'file' || !file.name.toLowerCase().endsWith('.pmtiles')) continue;
@@ -56,6 +59,12 @@ export const initZoneRegistry = () => {
 };
 
 export const getZones = () => initZoneRegistry();
+
+// Invalida el caché de la lista de archivos .pmtiles. El descargador lo llama tras
+// registrar o borrar una zona para que el render offline vea el cambio sin reiniciar.
+export const resetZoneRegistry = () => {
+  registryPromise = null;
+};
 
 // Tile MVT (ya descomprimido por pmtiles) para (z, x, y), o null si ninguna zona
 // lo contiene. Se consultan las zonas cuyo bbox y rango de zoom lo cubren.

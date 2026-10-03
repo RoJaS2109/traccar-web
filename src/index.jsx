@@ -14,12 +14,15 @@ import AppThemeProvider from './AppThemeProvider';
 import { initNativeBootstrap } from './offline/nativeBootstrap';
 import { registerOfflineProtocol } from './offline/offlineProtocol';
 import { initNetworkStatus } from './offline/networkStatus';
+import { cleanupOrphanParts } from './offline/mapDownloader';
 
 preloadImages();
 registerOfflineProtocol();
 
 initNativeBootstrap().then(() => {
   initNetworkStatus();
+  // Descargas cortadas por cierre de la app dejan archivos .part huérfanos.
+  cleanupOrphanParts().catch(() => {});
   const root = createRoot(document.getElementById('root'));
   root.render(
     <ErrorBoundary>
