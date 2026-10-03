@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -115,6 +116,7 @@ const errorMessage = (t, error) => {
 
 const NewZoneDialog = ({ open, onClose, onDone }) => {
   const t = useTranslation();
+  const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [bbox, setBbox] = useState(null);
@@ -143,6 +145,15 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
 
   const busy = estimating || stage === 'extracting' || stage === 'downloading';
 
+  // 401 = token expirado/revocado: el downloader ya limpió el token, redirigir a login.
+  const handleError = (err) => {
+    if (err.code === 'unauthorized') {
+      navigate('/login');
+      return;
+    }
+    setError(errorMessage(t, err));
+  };
+
   const handleEstimate = async () => {
     setError(null);
     setEstimate(null);
@@ -159,7 +170,7 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
       });
       setEstimate(result);
     } catch (err) {
-      setError(errorMessage(t, err));
+      handleError(err);
     } finally {
       setEstimating(false);
     }
@@ -184,7 +195,7 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
     } catch (err) {
       setStage('idle');
       if (err.code === 'cancelled') setError(t('offlineMapsCancelled'));
-      else setError(errorMessage(t, err));
+      else handleError(err);
     }
   };
 

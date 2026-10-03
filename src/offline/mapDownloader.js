@@ -1,7 +1,8 @@
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
-import { getServerUrl, getSessionToken, isNative } from './nativeBootstrap';
+import { getServerUrl, getSessionToken, isNative, setSessionToken } from './nativeBootstrap';
+import { removeToken } from './tokenStore';
 import { resetZoneRegistry } from './zoneStore';
 
 // Cliente del servicio trak-mapas (recorte de zonas .pmtiles) + registro SQLite de
@@ -48,6 +49,13 @@ const requireToken = () => {
   return token;
 };
 
+// Ante un 401 el token ya no es válido (expirado o revocado): se limpia memoria y
+// SecureStorage. La UI, al recibir 'unauthorized', navega a /login (igual que App.jsx).
+const clearSession = async () => {
+  setSessionToken(null);
+  await removeToken();
+};
+
 // fetch de un endpoint JSON del servicio, mapeando códigos de estado a errores tipados.
 const requestJson = async (path, { token, method = 'GET', body } = {}) => {
   let res;
@@ -67,8 +75,10 @@ const requestJson = async (path, { token, method = 'GET', body } = {}) => {
     // Cuerpo no-JSON: el error genérico de más abajo lo cubre.
   }
   const status = res.status;
-  if (status === 401)
+  if (status === 401) {
+    await clearSession();
     throw new MapServiceError('unauthorized', 'Sesión expirada o revocada', { status });
+  }
   if (status === 503) throw new MapServiceError('busy', 'El servidor está ocupado', { status });
   if (status === 413) {
     throw new MapServiceError('tooLarge', 'La zona es demasiado grande', {
@@ -251,8 +261,10 @@ const downloadToPart = async (jobId, partPath, token, onProgress, isCancelled) =
     });
   } catch (error) {
     const httpStatus = error?.data?.httpStatus;
-    if (httpStatus === 401)
+    if (httpStatus === 401) {
+      await clearSession();
       throw new MapServiceError('unauthorized', 'Sesión expirada o revocada', { status: 401 });
+    }
     if (httpStatus === 404)
       throw new MapServiceError('notFound', 'El archivo ya no está disponible', { status: 404 });
     if (httpStatus === 409)
