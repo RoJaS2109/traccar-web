@@ -4,6 +4,12 @@ import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { getServerUrl, getSessionToken, isNative, setSessionToken } from './nativeBootstrap';
 import { removeToken } from './tokenStore';
 import { resetZoneRegistry } from './zoneStore';
+import {
+  MapServiceError,
+  mapHttpStatus,
+  validatePmtilesSize,
+  validatePmtilesHeader,
+} from './mapService';
 
 // Cliente del servicio trak-mapas (recorte de zonas .pmtiles) + registro SQLite de
 // zonas descargadas. El render offline (zoneStore) sigue leyendo los archivos .pmtiles
@@ -18,19 +24,6 @@ const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 30 * 60 * 1000; // coincide con JOB_TIMEOUT_MS del servicio
 const MAX_429_RETRIES = 5;
 const MAX_DOWNLOAD_RUNNING_RETRIES = 10;
-
-const PMTILES_MAGIC = 'PMTiles'; // 7 bytes al inicio del header
-const PMTILES_SPEC_V3 = 3; // byte 7 = versión de spec
-
-// Error tipado para que la UI mapee cada caso a un mensaje sin inspeccionar strings.
-class MapServiceError extends Error {
-  constructor(code, message, details = {}) {
-    super(message);
-    this.name = 'MapServiceError';
-    this.code = code;
-    Object.assign(this, details);
-  }
-}
 
 const getBase = () => `${getServerUrl().replace(/\/+$/, '')}/maps`;
 
@@ -74,31 +67,12 @@ const requestJson = async (path, { token, method = 'GET', body } = {}) => {
   } catch {
     // Cuerpo no-JSON: el error genérico de más abajo lo cubre.
   }
-  const status = res.status;
-  if (status === 401) {
-    await clearSession();
-    throw new MapServiceError('unauthorized', 'Sesión expirada o revocada', { status });
+  const error = mapHttpStatus(res.status, data);
+  if (error) {
+    // 401 = token expirado/revocado: además de propagar el error, se limpia la sesión.
+    if (error.code === 'unauthorized') await clearSession();
+    throw error;
   }
-  if (status === 503) throw new MapServiceError('busy', 'El servidor está ocupado', { status });
-  if (status === 413) {
-    throw new MapServiceError('tooLarge', 'La zona es demasiado grande', {
-      status,
-      bytes: data?.bytes,
-      maxBytes: data?.maxBytes,
-    });
-  }
-  if (status === 429) {
-    throw new MapServiceError('rateLimited', 'Demasiados pedidos', {
-      status,
-      retryAfter: data?.retryAfter,
-    });
-  }
-  if (status === 404)
-    throw new MapServiceError('notFound', data?.error || 'No encontrado', { status });
-  if (status === 409) throw new MapServiceError('conflict', data?.error || 'Conflicto', { status });
-  if (status === 410)
-    throw new MapServiceError('gone', data?.error || 'Ya no disponible', { status });
-  if (!res.ok) throw new MapServiceError('server', data?.error || `Error ${status}`, { status });
   return data;
 };
 
@@ -205,12 +179,7 @@ const base64ToBytes = (base64) => {
 };
 
 const validatePmtiles = async (path, size, contentLength, lengthComputable) => {
-  if (!size || size <= 0) {
-    throw new MapServiceError('validation', 'El archivo descargado está vacío');
-  }
-  if (lengthComputable && contentLength > 0 && size !== contentLength) {
-    throw new MapServiceError('validation', 'La descarga quedó incompleta');
-  }
+  validatePmtilesSize({ size, contentLength, lengthComputable });
   const result = await Filesystem.readFile({
     path,
     directory: Directory.Data,
@@ -220,11 +189,7 @@ const validatePmtiles = async (path, size, contentLength, lengthComputable) => {
   if (!result?.data) {
     throw new MapServiceError('validation', 'No se pudo leer el archivo descargado');
   }
-  const bytes = base64ToBytes(result.data);
-  const magic = String.fromCharCode(...Array.from(bytes.slice(0, 7)));
-  if (magic !== PMTILES_MAGIC || bytes[7] !== PMTILES_SPEC_V3) {
-    throw new MapServiceError('validation', 'El archivo no es un PMTiles válido');
-  }
+  validatePmtilesHeader(base64ToBytes(result.data));
 };
 
 // ---------------------------------------------------------------------------
