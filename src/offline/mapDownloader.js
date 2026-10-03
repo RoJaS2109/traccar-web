@@ -259,8 +259,18 @@ const downloadToPart = async (jobId, partPath, token, onProgress, isCancelled) =
       throw new MapServiceError('downloadRunning', 'La extracción aún no terminó', { status: 409 });
     if (httpStatus === 410)
       throw new MapServiceError('gone', 'La extracción falló', { status: 410 });
-    // Sin httpStatus: corte de red a mitad de descarga, timeout, etc.
+    // Sin httpStatus: pudo ser un fallo de escritura en disco (sin espacio), un corte
+    // de red a mitad de descarga o un timeout. El `exception` nativo de Android trae el
+    // mensaje real ("No space left on device", ENOSPC, etc.), que permite distinguirlo.
     if (isCancelled?.()) throw new MapServiceError('cancelled', 'Descarga cancelada');
+    const exception = `${error?.data?.exception ?? ''} ${error?.data?.message ?? ''}`;
+    if (
+      /ENOSPC|no space|insufficient (space|storage|memory)|space left|disk full|out of (disk )?space/i.test(
+        exception,
+      )
+    ) {
+      throw new MapServiceError('noSpace', 'No hay espacio suficiente en el dispositivo');
+    }
     throw new MapServiceError('network', 'Se perdió la conexión durante la descarga', {
       status: httpStatus ?? 0,
     });

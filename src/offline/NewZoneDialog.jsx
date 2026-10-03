@@ -106,6 +106,8 @@ const errorMessage = (t, error) => {
       return t('offlineMapsRateLimited');
     case 'network':
       return t('offlineMapsNetworkLost');
+    case 'noSpace':
+      return t('offlineMapsNoSpace');
     default:
       return t('offlineMapsJobFailed');
   }

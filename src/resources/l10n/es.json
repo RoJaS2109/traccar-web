@@ -276,6 +276,7 @@
     "offlineMapsRateLimited": "Demasiados pedidos, esperá un momento.",
     "offlineMapsJobFailed": "No se pudo crear la zona. Probá de nuevo.",
     "offlineMapsNetworkLost": "Se perdió la conexión durante la descarga.",
+    "offlineMapsNoSpace": "No hay espacio suficiente en el dispositivo.",
     "offlineMapsCancelled": "Descarga cancelada.",
     "offlineMapsDone": "Zona descargada.",
     "deviceStatusUnknown": "Desconocido",
