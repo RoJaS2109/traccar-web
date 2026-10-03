@@ -1,7 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as maplibregl from 'maplibre-gl';
 import { googleProtocol } from 'maplibre-google-maps';
-import { Protocol } from 'pmtiles';
 import { useRef, useLayoutEffect, useEffect, useState, useMemo } from 'react';
 import { useTheme } from '@mui/material';
 import MapSwitcher from '../control/MapSwitcher';
@@ -13,6 +12,8 @@ import { isNative } from '../../offline/nativeBootstrap';
 import { getOfflineStyle } from '../../offline/offlineStyle';
 import { useAsyncTask } from '../../reactHelper';
 import { migrateSelectedMapStyle } from './mapStyleMigration';
+import { pmtilesProtocol } from './pmtilesProtocol';
+import { registerOnlinePmtiles } from './onlinePmtilesStyle';
 
 // Migración única del estilo guardado. Corre a nivel de módulo (antes del primer
 // render de MapView, que lee selectedMapStyle vía usePersistedState).
@@ -24,7 +25,7 @@ element.style.height = '100%';
 element.style.boxSizing = 'initial';
 
 maplibregl.addProtocol('google', googleProtocol);
-maplibregl.addProtocol('pmtiles', new Protocol().tile);
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 
 export const map = new maplibregl.Map({
   container: element,
@@ -126,6 +127,9 @@ const MapView = ({ children, offline = false }) => {
     if (!style) {
       setSelectedStyleId(styles[0].id);
       return;
+    }
+    if (style.pmtiles) {
+      registerOnlinePmtiles();
     }
     updateReadyValue(false);
     map.coordinateSystem = style.coordinateSystem;

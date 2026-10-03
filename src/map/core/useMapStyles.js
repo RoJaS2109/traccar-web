@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAttributePreference } from '../../common/util/preferences';
 import { isNative } from '../../offline/nativeBootstrap';
+import { getOnlinePmtilesStyle } from './onlinePmtilesStyle';
 
 const styleCustom = ({ tiles, minZoom, maxZoom, attribution, scheme }) => {
   const source = {
@@ -77,6 +78,16 @@ export default () => {
                 maxZoom: 19,
                 attribution: 'FUENTE: Instituto Geográfico Nacional de la República Argentina',
               }),
+              available: true,
+              native: true,
+            },
+            {
+              id: 'rudatrak',
+              title: 'Mapa propio',
+              style: getOnlinePmtilesStyle(),
+              // Registra el FetchSource con Authorization en el protocolo pmtiles
+              // antes de aplicar el estilo (ver MapView.jsx). No es default todavía.
+              pmtiles: true,
               available: true,
               native: true,
             },
