@@ -13,7 +13,7 @@ Este archivo documenta el código del frontend React. Para visión general del p
 ## General
 
 - **No TypeScript source files** — the codebase uses plain `.js`/`.jsx`. TypeScript exists only in devDependencies for tooling.
-- The project has **no test suite**. There is no `npm test` script.
+- Tests are run with **Vitest** (`npm test`) — few and focused on pure logic, no DOM environment. The project has **no component/E2E test suite**.
 - CI (GitHub Actions) runs `npm ci && npm run build` and `npm run lint` on every push/PR to `master`.
 - Translations are managed via [Transifex](https://www.transifex.com) (`.tx/config`). A workflow runs `tx pull` on manual dispatch. English is the source language (`src/resources/l10n/en.json`).
 
@@ -24,7 +24,21 @@ npm start          # Dev server on port 3001, proxies /api to mh.rudatrak.com
 npm run build      # Production build into build/
 npm run lint       # ESLint (max-warnings 0)
 npm run lint:fix   # ESLint with auto-fix
+npm test           # Vitest, una corrida (5 archivos, 36 tests)
+npm run verify     # lint + test + build, en ese orden
 ```
+
+### Rutina previa a cada commit
+
+Correr **`npm run verify`** antes de commitear. Los tres pasos no se reemplazan entre sí:
+
+- **`npm run build` es el único que detecta JSX dentro de un archivo `.js`.** Vite/rolldown
+  no parsea JSX en `.js`, pero eslint y vitest lo toleran (sus parsers no dependen de la
+  extensión), así que un archivo con JSX guardado como `.js` pasa lint y tests y rompe el
+  build de producción. Ya ocurrió con `src/map/MapCurrentLocation.js` (corregido en
+  `aa2d35de`). **Regla: un archivo con JSX se llama `.jsx`.**
+- **`npm test`** cubre la lógica pura (`src/**/*.test.js`), sin DOM ni red.
+- **`npm run lint`** corre con `--max-warnings 0`: también falla por warnings.
 
 ## Architecture
 
