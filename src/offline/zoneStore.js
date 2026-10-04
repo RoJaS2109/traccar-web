@@ -67,8 +67,19 @@ export const getZones = () => initZoneRegistry();
 
 // Invalida el caché de la lista de archivos .pmtiles. El descargador lo llama tras
 // registrar o borrar una zona para que el render offline vea el cambio sin reiniciar.
+const zonesChangedListeners = new Set();
+
+// Suscripción a cambios de zonas (se dispara al registrar o borrar una zona).
+// Devuelve una función para desuscribirse. La usa el estilo offline para recalcular
+// su maxzoom cuando el conjunto de zonas instaladas cambia.
+export const onZonesChanged = (listener) => {
+  zonesChangedListeners.add(listener);
+  return () => zonesChangedListeners.delete(listener);
+};
+
 export const resetZoneRegistry = () => {
   registryPromise = null;
+  zonesChangedListeners.forEach((listener) => listener());
 };
 
 // Tile MVT (ya descomprimido por pmtiles) para (z, x, y), o null si ninguna zona

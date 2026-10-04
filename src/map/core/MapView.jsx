@@ -10,6 +10,8 @@ import { mapImages } from './preloadImages';
 import useMapStyles from './useMapStyles';
 import { isNative } from '../../offline/nativeBootstrap';
 import { getOfflineStyle } from '../../offline/offlineStyle';
+import { getZones, onZonesChanged } from '../../offline/zoneStore';
+import { computeOfflineMaxZoom, OFFLINE_DEFAULT_MAX_ZOOM } from '../../offline/offlineMaxZoom';
 import { useAsyncTask } from '../../reactHelper';
 import { migrateSelectedMapStyle } from './mapStyleMigration';
 import { pmtilesProtocol } from './pmtilesProtocol';
@@ -67,6 +69,7 @@ const MapView = ({ children, offline = false }) => {
   const containerRef = useRef(null);
 
   const [mapReady, setMapReady] = useState(false);
+  const [offlineMaxZoom, setOfflineMaxZoom] = useState(OFFLINE_DEFAULT_MAX_ZOOM);
 
   const mapStyles = useMapStyles();
   const activeMapStyles = useAttributePreference(
@@ -86,7 +89,7 @@ const MapView = ({ children, offline = false }) => {
     // En pantalla offline se usa el estilo offline vigente (getOfflineStyle) y
     // nada más: sin estilos online ni MapSwitcher.
     if (offline) {
-      return [{ id: 'offline', title: 'Offline', style: getOfflineStyle() }];
+      return [{ id: 'offline', title: 'Offline', style: getOfflineStyle(offlineMaxZoom) }];
     }
     // En nativo se muestran siempre los estilos propios (native) junto con los
     // online activos. La selección es manual vía MapSwitcher: no se depende de
@@ -95,9 +98,32 @@ const MapView = ({ children, offline = false }) => {
       (s) => s.available && (s.native || activeMapStyles.includes(s.id)),
     );
     return filtered.length ? filtered : mapStyles.filter((s) => s.id === 'osm');
-  }, [mapStyles, activeMapStyles, offline]);
+  }, [mapStyles, activeMapStyles, offline, offlineMaxZoom]);
 
   const effectiveStyleId = offline ? 'offline' : selectedStyleId;
+
+  // En pantalla offline, el maxzoom de la fuente del estilo depende de las zonas
+  // instaladas: si hay zonas viejas z14 mezcladas con z15, se usa el mínimo para que
+  // MapLibre haga overzoom del z14 en esas áreas en vez de pedir tiles z15 que no
+  // existen. Se recalcula al montar y cada vez que cambia el conjunto de zonas.
+  useEffect(() => {
+    if (!offline) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const zones = await getZones();
+        if (!cancelled) setOfflineMaxZoom(computeOfflineMaxZoom(zones));
+      } catch {
+        if (!cancelled) setOfflineMaxZoom(OFFLINE_DEFAULT_MAX_ZOOM);
+      }
+    };
+    refresh();
+    const unsubscribe = onZonesChanged(refresh);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [offline]);
 
   useAsyncTask(async () => {
     if (theme.direction === 'rtl') {

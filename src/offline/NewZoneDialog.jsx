@@ -16,9 +16,9 @@ import {
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { map } from '../map/core/MapView';
 import { estimateZone, downloadZone } from './mapDownloader';
+import { CURRENT_MAX_ZOOM } from './offlineMaxZoom';
 
 const MIN_ZOOM = 0;
-const MAX_ZOOM = 14;
 const WIFI_WARNING_BYTES = 50 * 1024 * 1024;
 
 const SOURCE_ID = 'download-zone-preview';
@@ -114,7 +114,7 @@ const errorMessage = (t, error) => {
   }
 };
 
-const NewZoneDialog = ({ open, onClose, onDone }) => {
+const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null }) => {
   const t = useTranslation();
   const navigate = useNavigate();
 
@@ -132,16 +132,17 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
 
   useEffect(() => {
     if (!open) return undefined;
+    const start = initialBbox ?? bboxOfMap();
     cancelRef.current = null;
     setStage('idle');
     setError(null);
     setProgress(null);
     setEstimate(null);
-    setBbox(bboxOfMap());
+    setBbox(start);
     setName(`Zona ${new Date().toLocaleDateString()}`);
-    showPreview(bboxOfMap());
+    showPreview(start);
     return () => hidePreview();
-  }, [open]);
+  }, [open, initialBbox]);
 
   const busy = estimating || stage === 'extracting' || stage === 'downloading';
 
@@ -166,7 +167,7 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
         maxLng,
         maxLat,
         minZoom: MIN_ZOOM,
-        maxZoom: MAX_ZOOM,
+        maxZoom: CURRENT_MAX_ZOOM,
       });
       setEstimate(result);
     } catch (err) {
@@ -186,7 +187,7 @@ const NewZoneDialog = ({ open, onClose, onDone }) => {
         name: name.trim() || 'Zona',
         bbox,
         minZoom: MIN_ZOOM,
-        maxZoom: MAX_ZOOM,
+        maxZoom: CURRENT_MAX_ZOOM,
         onStage: setStage,
         onProgress: setProgress,
         isCancelled: () => cancel.cancelled,

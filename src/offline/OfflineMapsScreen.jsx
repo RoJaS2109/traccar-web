@@ -4,6 +4,7 @@ import {
   AppBar,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   IconButton,
@@ -16,11 +17,13 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatTime } from '../common/util/formatter';
 import { useOnlineStatus } from './useOnlineStatus';
 import { listZones, deleteZone } from './mapDownloader';
 import NewZoneDialog from './NewZoneDialog';
+import { CURRENT_MAX_ZOOM } from './offlineMaxZoom';
 
 const formatBytes = (bytes) => {
   const mb = bytes / (1024 * 1024);
@@ -34,6 +37,10 @@ const bboxSummary = (bbox) => {
   return `lat ${c(south)}…${c(north)} · lng ${c(west)}…${c(east)}`;
 };
 
+// Una zona está desactualizada cuando se descargó a un zoom menor que el vigente
+// (CURRENT_MAX_ZOOM). En ese caso se ofrece volver a descargarla.
+const isOutdated = (zone) => zone.maxZoom != null && zone.maxZoom < CURRENT_MAX_ZOOM;
+
 const OfflineMapsScreen = ({ open, onClose }) => {
   const t = useTranslation();
   const online = useOnlineStatus();
@@ -41,6 +48,7 @@ const OfflineMapsScreen = ({ open, onClose }) => {
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newZoneOpen, setNewZoneOpen] = useState(false);
+  const [redownloadBbox, setRedownloadBbox] = useState(null);
 
   const refresh = async () => {
     try {
@@ -63,8 +71,19 @@ const OfflineMapsScreen = ({ open, onClose }) => {
     }
   };
 
+  // Re-descarga una zona desactualizada: borra la versión vieja y abre el diálogo
+  // precargado con su bbox para bajar la misma área al zoom vigente.
+  const handleRedownload = async (zone) => {
+    if (!window.confirm(t('offlineMapsRedownloadConfirm'))) return;
+    await deleteZone(zone.id).catch(() => {});
+    await refresh();
+    setRedownloadBbox(zone.bbox);
+    setNewZoneOpen(true);
+  };
+
   const handleNewZoneDone = () => {
     setNewZoneOpen(false);
+    setRedownloadBbox(null);
     refresh();
   };
 
@@ -109,17 +128,36 @@ const OfflineMapsScreen = ({ open, onClose }) => {
                 key={zone.id}
                 divider
                 secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label={t('offlineMapsDelete')}
-                    onClick={() => handleDelete(zone)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {isOutdated(zone) && (
+                      <IconButton
+                        edge="end"
+                        aria-label={t('offlineMapsRedownload')}
+                        title={t('offlineMapsRedownload')}
+                        onClick={() => handleRedownload(zone)}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    )}
+                    <IconButton
+                      edge="end"
+                      aria-label={t('offlineMapsDelete')}
+                      onClick={() => handleDelete(zone)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
                 }
               >
                 <ListItemText
-                  primary={zone.name}
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>{zone.name}</span>
+                      {isOutdated(zone) && (
+                        <Chip size="small" color="warning" label={t('offlineMapsOutdated')} />
+                      )}
+                    </Box>
+                  }
                   secondary={`${formatBytes(zone.sizeBytes)} · ${bboxSummary(zone.bbox)} · ${formatTime(
                     zone.createdAt,
                     'date',
@@ -137,7 +175,10 @@ const OfflineMapsScreen = ({ open, onClose }) => {
             variant="contained"
             fullWidth
             startIcon={<AddIcon />}
-            onClick={() => setNewZoneOpen(true)}
+            onClick={() => {
+              setRedownloadBbox(null);
+              setNewZoneOpen(true);
+            }}
           >
             {t('offlineMapsNew')}
           </Button>
@@ -146,8 +187,12 @@ const OfflineMapsScreen = ({ open, onClose }) => {
 
       <NewZoneDialog
         open={newZoneOpen}
-        onClose={() => setNewZoneOpen(false)}
+        onClose={() => {
+          setNewZoneOpen(false);
+          setRedownloadBbox(null);
+        }}
         onDone={handleNewZoneDone}
+        initialBbox={redownloadBbox}
       />
     </Dialog>
   );

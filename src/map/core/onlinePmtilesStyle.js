@@ -34,7 +34,9 @@ export const getOnlinePmtilesStyle = () => ({
       type: 'vector',
       tiles: [`pmtiles://${baseUrl()}/{z}/{x}/{y}`],
       minzoom: 0,
-      maxzoom: 14,
+      // Requiere el base z15 desplegado en la Pi (BASE_PMTILES): con el base z14
+      // este estilo haría overzoom del z14 y no mostraría el detalle z15.
+      maxzoom: 15,
       attribution:
         '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://osm.org/copyright">OpenStreetMap</a>',
     },

@@ -42,12 +42,12 @@ de otro usuario devuelven `404`.
   "maxLng": -60.0,
   "maxLat": -30.0,
   "minZoom": 0,
-  "maxZoom": 14
+  "maxZoom": 15
 }
 ```
 
 - `minLng`/`maxLng` en `[-180, 180]`, `minLat`/`maxLat` en `[-90, 90]`, con `min < max`.
-- `minZoom`/`maxZoom` enteros en `[0, 14]`, con `minZoom <= maxZoom`.
+- `minZoom`/`maxZoom` enteros en `[0, 15]`, con `minZoom <= maxZoom`.
 
 ### Respuestas
 
@@ -115,6 +115,7 @@ entra en la ruta de archivo.
 | `TRACCAR_URL` | `http://rudatrak:8082` | Base URL de Traccar para validar tokens. |
 | `TOKEN_CACHE_TTL_MS` | `300000` | TTL de la caché de tokens (5 min). |
 | `MAX_ZONE_BYTES` | `314572800` | Tope de tamaño por zona (300 MiB). |
+| `MAX_ZOOM` | `15` | Tope de zoom de las extracciones (`[0, MAX_ZOOM]`). Bajar a `14` para volver al base z14 sin tocar el código. |
 | `JOB_TIMEOUT_MS` | `1800000` | Timeout por extracción (30 min). |
 | `ESTIMATE_TIMEOUT_MS` | `60000` | Timeout del `--dry-run`. |
 | `CLEANUP_INTERVAL_MS` | `600000` | Intervalo de limpieza (10 min). |
@@ -155,7 +156,7 @@ docker build -t trak-mapas:latest .
 
 # Prueba local (sin Docker): node server.js con el binario y el archivo base locales
 PMTILES_BIN=/ruta/pmtiles \
-BASE_PMTILES=/ruta/sudamerica-20261003-z14.pmtiles \
+BASE_PMTILES=/ruta/sudamerica-20261003-z15.pmtiles \
 OUTPUT_DIR=/tmp/trak-mapas-output \
 TRACCAR_URL=https://mh.rudatrak.com \
 node server.js
@@ -164,8 +165,8 @@ node server.js
 ## Archivo base y regeneración
 
 El recorte parte de un único archivo base `BASE_PMTILES`. El base actual es
-**`sudamerica-20261003-z14.pmtiles`**: Sudamérica continental (los 12 países continentales,
-AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–14, recortado del build diario de Protomaps
+**`sudamerica-20261003-z15.pmtiles`**: Sudamérica continental (los 12 países continentales,
+AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–15, recortado del build diario de Protomaps
 (Planetiler) usando los polígonos de **Natural Earth 50m** (`admin_0_countries`) con un
 **buffer de ~25 km** en Web Mercator (EPSG:3857).
 
@@ -180,23 +181,23 @@ Para regenerarlo:
 #    por rango vía HTTP, sin descargar el archivo completo):
 pmtiles extract \
   --region regiones/sudamerica-continental_50m_buffer25km.geojson \
-  --maxzoom 14 \
+  --maxzoom 15 \
   https://build.protomaps.com/YYYYMMDD.pmtiles \
-  sudamerica-YYYYMMDD-z14.pmtiles
+  sudamerica-YYYYMMDD-z15.pmtiles
 
 # 3. Verificar:
-pmtiles verify sudamerica-YYYYMMDD-z14.pmtiles
-pmtiles show sudamerica-YYYYMMDD-z14.pmtiles
+pmtiles verify sudamerica-YYYYMMDD-z15.pmtiles
+pmtiles show sudamerica-YYYYMMDD-z15.pmtiles
 ```
 
 El nombre usa la fecha del build (`YYYYMMDD`). Antes de activar un base nuevo, verificar
-`sha256sum` y que `pmtiles show` reporte `minzoom 0 / maxzoom 14` con tiles en las ciudades
+`sha256sum` y que `pmtiles show` reporte `minzoom 0 / maxzoom 15` con tiles en las ciudades
 de referencia (p. ej. Punta Arenas, Ushuaia, Santiago, Lima, Bogotá, Manaus, Quito).
 
 ### Cambiar el base activo (sin regenerar)
 
 `BASE_PMTILES` se resuelve desde una variable de entorno con default en el
-`docker-compose.yml` (`${BASE_PMTILES:-/data/maps/sudamerica-20261003-z14.pmtiles}`). Para
+`docker-compose.yml` (`${BASE_PMTILES:-/data/maps/sudamerica-20261003-z15.pmtiles}`). Para
 cambiar a otro base ya construido:
 
 1. Copiar el `.pmtiles` a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/` (en la Pi).
@@ -204,9 +205,13 @@ cambiar a otro base ya construido:
 3. `docker compose up -d` (recrea el contenedor; no hace falta rebuild).
 4. Para volver atrás, cambiar esa línea al base anterior y `docker compose up -d`.
 
+> **Orden de despliegue:** el estilo online "Mapa propio" declara `maxzoom: 15`. Desplegar
+> primero el base z15 (pasos 1–3) y recién después el frontend, para no servir un estilo
+> que pide tiles z15 contra un base z14 (que solo haría overzoom del z14).
+
 ## Deploy en la Pi
 
-1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z14.pmtiles`.
+1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z15.pmtiles`.
 2. Crear `/mnt/datos/servicios/rudatrak/trak-mapas/output/`.
 3. `docker compose up -d --build` (o integrar el servicio en el stack de Portainer).
 4. En Nginx Proxy Manager, ruta `mh.rudatrak.com/maps/*` (o un subdominio) → `rudatrak-trak-mapas:3006`.

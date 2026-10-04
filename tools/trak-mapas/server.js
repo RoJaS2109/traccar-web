@@ -30,7 +30,9 @@ const ESTIMATE_TIMEOUT_MS = parseInt(process.env.ESTIMATE_TIMEOUT_MS || '60000',
 const CLEANUP_INTERVAL_MS = parseInt(process.env.CLEANUP_INTERVAL_MS || '600000', 10);
 const OUTPUT_RETENTION_MS = parseInt(process.env.OUTPUT_RETENTION_MS || '3600000', 10);
 const MIN_ZOOM = 0;
-const MAX_ZOOM = 14;
+// Tope de zoom de las extracciones, configurable por entorno. El build Protomaps
+// vigente es z15; bajar MAX_ZOOM a 14 permite volver atrás sin tocar el código.
+const MAX_ZOOM = parseInt(process.env.MAX_ZOOM || '15', 10);
 const AUTH_TIMEOUT_MS = parseInt(process.env.AUTH_TIMEOUT_MS || '5000', 10);
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
 const RATE_LIMIT_ESTIMATE = parseInt(process.env.RATE_LIMIT_ESTIMATE || '30', 10);
