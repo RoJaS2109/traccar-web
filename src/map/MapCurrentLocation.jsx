@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import { Geolocation } from '@capacitor/geolocation';
-import { Alert, Snackbar, useTheme } from '@mui/material';
+import { Alert, Snackbar, Typography, useTheme } from '@mui/material';
 import { map } from './core/MapView';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { saveLastPosition } from '../offline/lastPositionStore';
@@ -21,6 +21,19 @@ const WATCH_OPTIONS = {
 // plugin no dispara su propio callback de timeout; mayor que WATCH_OPTIONS.timeout
 // para no pisar ese error con uno propio.
 const MANUAL_TIMEOUT_MS = 90_000;
+
+// Detalle de diagnóstico que acompaña al mensaje de error: código y texto crudos del
+// plugin, tal como los devuelve. Se muestra en letra chica para poder diagnosticar con
+// una captura de pantalla, sin depender de logcat. Si el error no trae ni código ni
+// mensaje se devuelve null y el detalle no se muestra (nunca "[object Object]").
+const describeError = (err) => {
+  if (!err) return null;
+  if (typeof err === 'string') return err;
+  const parts = [];
+  if (err.code != null) parts.push(String(err.code));
+  if (err.message) parts.push(String(err.message));
+  return parts.length ? parts.join(' · ') : null;
+};
 
 // Botón con el aspecto exacto del GeolocateControl de maplibre (mismas clases CSS),
 // pero cuya lógica de geolocalización está delegada a @capacitor/geolocation.
@@ -85,6 +98,7 @@ const MapCurrentLocation = () => {
 
   const [status, setStatus] = useState('idle'); // idle | searching | active | error
   const [message, setMessage] = useState(null);
+  const [messageDetail, setMessageDetail] = useState(null);
 
   const controlRef = useRef(null);
   const watchIdRef = useRef(null);
@@ -96,6 +110,10 @@ const MapCurrentLocation = () => {
   const lastAccuracyRef = useRef(null);
   const manualTimerRef = useRef(null);
   const mountedRef = useRef(false);
+  // Modo de seguimiento guardado cuando la app pasa a segundo plano, o null si el watch
+  // no lo detuvimos nosotros. Es lo que decide si hay que reanudar al volver.
+  const suspendedRef = useRef(null);
+  const resumingRef = useRef(false);
 
   const applyStatus = (next) => {
     if (!mountedRef.current) return;
@@ -103,8 +121,11 @@ const MapCurrentLocation = () => {
     controlRef.current?.setStatus(next);
   };
 
-  const showMessage = (value) => {
-    if (mountedRef.current) setMessage(value);
+  const showMessage = (value, detail = null) => {
+    if (!mountedRef.current) return;
+    setMessage(value);
+    // Sin mensaje no hay detalle: evita que quede un detalle huérfano en pantalla.
+    setMessageDetail(value ? detail : null);
   };
 
   const clearWatch = () => {
@@ -200,12 +221,82 @@ const MapCurrentLocation = () => {
     showMessage(null);
   };
 
-  const failWith = (key) => {
+  const failWith = (key, detail = null) => {
     clearManualTimer();
     clearWatch();
     removeMarkers();
     applyStatus('error');
-    showMessage(t(key));
+    showMessage(t(key), detail);
+  };
+
+  // Arranca el watch con los permisos ya resueltos. `following` define si la cámara sigue
+  // el punto; se conserva al reanudar para no recentrar si el usuario había arrastrado.
+  const startWatch = ({ following = true } = {}) => {
+    applyStatus('searching');
+    showMessage(t('locationSearching'));
+    followingRef.current = following;
+    watchingRef.current = true;
+    watchIdRef.current = null;
+    clearManualTimer();
+    manualTimerRef.current = setTimeout(
+      () => failWith('locationTimeout', t('locationNoCallback')),
+      MANUAL_TIMEOUT_MS,
+    );
+
+    return Geolocation.watchPosition(WATCH_OPTIONS, (position, err) => {
+      // Callback rezagado: el watch ya se detuvo (segundo toque, segundo plano o
+      // desmontaje) pero el plugin alcanzó a emitir. Sin esta guarda el punto y el
+      // estado "activo" revivirían sobre un watch que ya no existe.
+      if (!watchingRef.current) return;
+      if (err) {
+        failWith('locationTimeout', describeError(err));
+        return;
+      }
+      if (position) {
+        clearManualTimer();
+        updatePosition(position);
+      }
+    })
+      .then((id) => {
+        // El watch pudo detenerse durante el await (segundo toque inmediato): no
+        // conservar un id huérfano.
+        if (watchingRef.current) {
+          watchIdRef.current = id;
+        } else {
+          Geolocation.clearWatch({ id }).catch(() => {});
+        }
+      })
+      .catch((err) => {
+        failWith('locationTimeout', describeError(err));
+      });
+  };
+
+  // Reanuda al volver a primer plano. Usa checkPermissions (no requestPermissions) para
+  // no disparar un diálogo al usuario que solo volvió a la app: si el permiso ya no está
+  // concedido —p. ej. revocado desde Ajustes mientras la app estaba en segundo plano—
+  // no se reanuda y el botón queda disponible.
+  const resume = async (following) => {
+    if (resumingRef.current || watchingRef.current) return;
+    resumingRef.current = true;
+    try {
+      const perm = await Geolocation.checkPermissions();
+      // El chequeo y el arranque están en el mismo tick: si el usuario tocó el botón
+      // mientras esperábamos los permisos, no se arranca un segundo watch. mountedRef
+      // cubre el desmontaje ocurrido durante la espera, que dejaría un watch sin dueño.
+      if (
+        perm.location === 'granted' &&
+        !document.hidden &&
+        !watchingRef.current &&
+        mountedRef.current
+      ) {
+        startWatch({ following });
+      }
+    } catch {
+      // Sin poder verificar el permiso no se reanuda: mejor detenido que disparando un
+      // diálogo de permisos al volver del segundo plano.
+    } finally {
+      resumingRef.current = false;
+    }
   };
 
   const handleClick = async () => {
@@ -224,47 +315,18 @@ const MapCurrentLocation = () => {
       if (perm.location !== 'granted') {
         failWith(
           perm.coarseLocation === 'granted' ? 'locationApproximate' : 'locationPermissionDenied',
+          // El estado real que devolvió el plugin: distingue "nunca se concedió" de
+          // "el sistema lo revocó en segundo plano" sin necesidad de logcat.
+          `location: ${perm.location} · coarseLocation: ${perm.coarseLocation}`,
         );
         return;
       }
-    } catch {
-      failWith('locationPermissionDenied');
+    } catch (err) {
+      failWith('locationPermissionDenied', describeError(err));
       return;
     }
 
-    applyStatus('searching');
-    showMessage(t('locationSearching'));
-    followingRef.current = true;
-    watchingRef.current = true;
-    watchIdRef.current = null;
-    clearManualTimer();
-    manualTimerRef.current = setTimeout(() => failWith('locationTimeout'), MANUAL_TIMEOUT_MS);
-
-    try {
-      const id = await Geolocation.watchPosition(WATCH_OPTIONS, (position, err) => {
-        // Callback rezagado: el watch ya se detuvo (segundo toque, segundo plano o
-        // desmontaje) pero el plugin alcanzó a emitir. Sin esta guarda el punto y el
-        // estado "activo" revivirían sobre un watch que ya no existe.
-        if (!watchingRef.current) return;
-        if (err) {
-          failWith('locationTimeout');
-          return;
-        }
-        if (position) {
-          clearManualTimer();
-          updatePosition(position);
-        }
-      });
-      // El watch pudo detenerse durante el await (segundo toque inmediato): no
-      // conservar un id huérfano.
-      if (watchingRef.current) {
-        watchIdRef.current = id;
-      } else {
-        Geolocation.clearWatch({ id }).catch(() => {});
-      }
-    } catch {
-      failWith('locationTimeout');
-    }
+    startWatch();
   };
 
   useEffect(() => {
@@ -282,8 +344,18 @@ const MapCurrentLocation = () => {
     map.on('zoom', onZoom);
 
     const onVisibility = () => {
-      // La app pasa a segundo plano: detener el watch para no gastar GPS/batería.
-      if (document.hidden && watchingRef.current) stop();
+      if (document.hidden) {
+        // La app pasa a segundo plano: detener el watch para no gastar GPS/batería.
+        // Se guarda el modo de seguimiento para reanudarlo tal cual al volver.
+        if (watchingRef.current) {
+          suspendedRef.current = { following: followingRef.current };
+          stop();
+        }
+      } else if (suspendedRef.current) {
+        const { following } = suspendedRef.current;
+        suspendedRef.current = null;
+        resume(following);
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
 
@@ -313,6 +385,14 @@ const MapCurrentLocation = () => {
     >
       <Alert severity={status === 'error' ? 'error' : 'info'} variant="filled">
         {message}
+        {messageDetail && (
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', mt: 0.5, opacity: 0.85, wordBreak: 'break-word' }}
+          >
+            {t('locationErrorDetail')} {messageDetail}
+          </Typography>
+        )}
       </Alert>
     </Snackbar>
   );

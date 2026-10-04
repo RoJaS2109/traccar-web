@@ -286,6 +286,8 @@
     "locationTimeout": "No se pudo obtener tu ubicación. Probá a cielo abierto y esperá unos segundos.",
     "locationApproximate": "Solo tenés ubicación aproximada. Activá la ubicación precisa en los Ajustes del sistema.",
     "locationPermissionDenied": "Permiso de ubicación denegado.",
+    "locationErrorDetail": "Detalle:",
+    "locationNoCallback": "el plugin no respondió en 90 s",
     "deviceStatusUnknown": "Desconocido",
     "deviceRegisterFirst": "Registre su primer dispositivo",
     "deviceIdentifierHelp": "El IMEI, numero de serie u otro id, tiene que ser igual que el identificador del dispositivo que reporta al servidor.",

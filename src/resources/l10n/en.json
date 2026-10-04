@@ -285,6 +285,8 @@
     "locationTimeout": "Could not get your location. Try open sky and wait a few seconds.",
     "locationApproximate": "You only have approximate location. Enable precise location in system Settings.",
     "locationPermissionDenied": "Location permission denied.",
+    "locationErrorDetail": "Detail:",
+    "locationNoCallback": "the plugin did not respond within 90 s",
     "deviceStatusUnknown": "Unknown",
     "deviceRegisterFirst": "Register your first device",
     "deviceIdentifierHelp": "IMEI, serial number or other id. It has to match the identifier device reports to the server.",
