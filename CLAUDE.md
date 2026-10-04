@@ -136,13 +136,25 @@ El módulo `src/offline/` implementa la pantalla sin conexión (se muestra cuand
 
 Las zonas `.pmtiles` se recortan con el servicio **trak-mapas** (`tools/trak-mapas/`, ver su
 [`README`](tools/trak-mapas/README.md)) a partir de un único archivo base `BASE_PMTILES`. El
-base actual es **`sudamerica-20261003-z14.pmtiles`**: Sudamérica continental (los 12 países
-continentales, AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–14, recortado del build diario de
-Protomaps (Planetiler) con los polígonos de **Natural Earth 50m** (`admin_0_countries`) y un
-**buffer de ~25 km** en Web Mercator (EPSG:3857). Para regenerarlo, ver la sección
-"Regenerar el archivo base" del README de trak-mapas; en resumen:
-`pmtiles extract --region <sudamérica+25km>.geojson --maxzoom 14
-https://build.protomaps.com/YYYYMMDD.pmtiles sudamerica-YYYYMMDD-z14.pmtiles`.
+base **en servicio** es **`sudamerica-20261003-z15.pmtiles`**: Sudamérica continental (los 12
+países continentales, AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–15, recortado del build diario
+de Protomaps (Planetiler) con los polígonos de **Natural Earth 50m** (`admin_0_countries`) y un
+**buffer de ~25 km** en Web Mercator (EPSG:3857).
+
+```
+sudamerica-20261003-z15.pmtiles   8.501.666.385 bytes (7,92 GiB)
+sha256 76c2371916d0cab268293b75802da9a08fc3c99b64a210945b69e4afb8a02c9d
+minzoom 0 / maxzoom 15 — verify OK — 16/16 ciudades de referencia con tiles z0–15
+```
+
+El **z14 (`sudamerica-20261003-z14.pmtiles`, 4,0 GB) queda como respaldo en la Pi**: para volver
+atrás, apuntar `BASE_PMTILES` a ese archivo y bajar `MAX_ZOOM` a `14`, sin tocar el código
+(ver "Cambiar el base activo" en el README de trak-mapas).
+
+Para regenerarlo, ver la sección "Regenerar el archivo base" del README de trak-mapas; en
+resumen:
+`pmtiles extract --region <sudamérica+25km>.geojson --maxzoom 15
+https://build.protomaps.com/YYYYMMDD.pmtiles sudamerica-YYYYMMDD-z15.pmtiles`.
 
 ### Controles del mapa
 
