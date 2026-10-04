@@ -242,6 +242,10 @@ const MapCurrentLocation = () => {
 
     try {
       const id = await Geolocation.watchPosition(WATCH_OPTIONS, (position, err) => {
+        // Callback rezagado: el watch ya se detuvo (segundo toque, segundo plano o
+        // desmontaje) pero el plugin alcanzó a emitir. Sin esta guarda el punto y el
+        // estado "activo" revivirían sobre un watch que ya no existe.
+        if (!watchingRef.current) return;
         if (err) {
           failWith('locationTimeout');
           return;
@@ -302,6 +306,9 @@ const MapCurrentLocation = () => {
     <Snackbar
       open={Boolean(message)}
       autoHideDuration={status === 'error' ? 6000 : null}
+      // Sin onClose el mensaje nunca se limpia: MUI oculta la transición pero `open`
+      // sigue en true, así que el cartel reaparece en cada re-render.
+      onClose={() => setMessage(null)}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
       <Alert severity={status === 'error' ? 'error' : 'info'} variant="filled">
