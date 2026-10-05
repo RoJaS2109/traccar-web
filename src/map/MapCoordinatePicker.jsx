@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { map } from './core/MapView';
 import { fromMapCoordinates } from './core/mapUtil';
+import { coordinatePopupHtml } from './coordinatePopup';
 
 const MapCoordinatePicker = () => {
   const markerRef = useRef(null);
@@ -46,15 +47,7 @@ const MapCoordinatePicker = () => {
         offset: [0, -36],
       })
         .setLngLat([lng, lat])
-        .setHTML(
-          '<div ' +
-            'style="font-size:13px;color:#999;text-align:center;margin-bottom:2px">Click para Copiar</div>' +
-            '<div ' +
-            'style="font-size:13px;padding:2px 10px 6px;white-space:nowrap;font-family:monospace;cursor:pointer;user-select:all;text-align:center" ' +
-            `title="Copiar coordenadas" ` +
-            `onclick="var t=this.textContent;navigator.clipboard.writeText(t).catch(function(){});this.textContent='¡Copiado!';setTimeout(function(){this.textContent=t;}.bind(this),1200)">` +
-            `${coordsText}</div>`,
-        )
+        .setHTML(coordinatePopupHtml(coordsText))
         .addTo(map);
 
       // Crear pin en el punto clickeado
