@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+// Credenciales de firma de release, leídas de android/key.properties (que NO se
+// versiona). Si el archivo no existe, el proyecto compila igual, sin firmar.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.rudatrak.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +24,31 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    buildTypes {
+    signingConfigs {
         release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        // Debug y release comparten la firma para poder reemplazarse entre sí en el
+        // mismo teléfono sin desinstalar. Son la misma app (mismo applicationId): la
+        // firma compartida no las hace convivir, solo las hace intercambiables.
+        // Sin key.properties, debug vuelve a la debug key por defecto y release sale
+        // sin firmar.
+        debug {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        release {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
