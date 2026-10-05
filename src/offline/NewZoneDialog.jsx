@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { map } from '../map/core/MapView';
-import { estimateZone, downloadZone } from './mapDownloader';
+import { estimateZone, downloadZone, replaceZone } from './mapDownloader';
 import { CURRENT_MAX_ZOOM } from './offlineMaxZoom';
 
 const MIN_ZOOM = 0;
@@ -114,7 +114,10 @@ const errorMessage = (t, error) => {
   }
 };
 
-const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null }) => {
+// `replacesZoneId` convierte la descarga en un reemplazo atómico: la zona nueva se baja
+// y se valida primero y la vieja se borra recién después (mapDownloader.replaceZone).
+// Mientras tanto la vieja sigue instalada y sirviendo tiles.
+const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null, replacesZoneId = null }) => {
   const t = useTranslation();
   const navigate = useNavigate();
 
@@ -183,7 +186,7 @@ const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null }) => {
     const cancel = { cancelled: false };
     cancelRef.current = cancel;
     try {
-      await downloadZone({
+      const args = {
         name: name.trim() || 'Zona',
         bbox,
         minZoom: MIN_ZOOM,
@@ -191,8 +194,11 @@ const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null }) => {
         onStage: setStage,
         onProgress: setProgress,
         isCancelled: () => cancel.cancelled,
-      });
-      onDone?.();
+      };
+      const result = replacesZoneId
+        ? await replaceZone(replacesZoneId, args)
+        : await downloadZone(args);
+      onDone?.(result);
     } catch (err) {
       setStage('idle');
       if (err.code === 'cancelled') setError(t('offlineMapsCancelled'));
@@ -247,9 +253,19 @@ const NewZoneDialog = ({ open, onClose, onDone, initialBbox = null }) => {
             {t('offlineMapsTooLarge')}
           </Alert>
         )}
+        {replacesZoneId && !error && !busy && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {t('offlineMapsReplaceNotice')}
+          </Alert>
+        )}
         {error && (
           <Alert severity="error" sx={{ mb: 1 }}>
             {error}
+            {replacesZoneId && (
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {t('offlineMapsOldKept')}
+              </Typography>
+            )}
           </Alert>
         )}
         {stage === 'extracting' && (

@@ -3,7 +3,7 @@ import { FileTransfer } from '@capacitor/file-transfer';
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { getServerUrl, getSessionToken, isNative, setSessionToken } from './nativeBootstrap';
 import { removeToken } from './tokenStore';
-import { resetZoneRegistry } from './zoneStore';
+import { readZoneFile, resetZoneRegistry } from './zoneStore';
 import {
   MapServiceError,
   mapHttpStatus,
@@ -380,17 +380,27 @@ export const downloadZone = async ({
           const stat = await Filesystem.stat({ path: partPath, directory: Directory.Data });
           await validatePmtiles(partPath, stat.size, contentLength, lengthComputable);
           await Filesystem.rename({ from: partPath, to: finalPath, directory: Directory.Data });
-          await registerZone({
-            id,
-            name,
-            filePath: finalPath,
-            bbox,
-            minZoom,
-            maxZoom,
-            sizeBytes: stat.size,
-            tileCount: tiles,
-            buildVersion: baseVersion,
-          });
+          try {
+            await registerZone({
+              id,
+              name,
+              filePath: finalPath,
+              bbox,
+              minZoom,
+              maxZoom,
+              sizeBytes: stat.size,
+              tileCount: tiles,
+              buildVersion: baseVersion,
+            });
+          } catch (error) {
+            // El archivo ya está renombrado pero no hay fila: sin fila la zona es
+            // invisible para la lista, así que se borra el archivo en vez de dejar
+            // espacio ocupado sin registro. Se propaga el error original.
+            await Filesystem.deleteFile({ path: finalPath, directory: Directory.Data }).catch(
+              () => {},
+            );
+            throw error;
+          }
           resetZoneRegistry();
           return { id, sizeBytes: stat.size };
         } catch (error) {
@@ -418,15 +428,115 @@ export const listZones = async () => {
   return (result.values ?? []).map(zoneFromRow);
 };
 
+const fileExists = (path) =>
+  Filesystem.stat({ path, directory: Directory.Data })
+    .then(() => true)
+    .catch(() => false);
+
+// Borra una zona: archivo y fila. La fila se borra SOLO si el archivo ya no está. Si
+// el borrado del archivo falla, la fila se mantiene para que el archivo siga siendo
+// visible (y reintentable) en la lista, en vez de quedar ocupando disco sin registro.
+// Devuelve { id, fileDeleted, rowDeleted } para que el llamador pueda avisar.
 export const deleteZone = async (id) => {
   const conn = await initDb();
   const result = await conn.query('SELECT filePath FROM zones WHERE id = ?', [id]);
   const filePath = result.values?.[0]?.filePath;
+
+  let fileDeleted = true;
   if (filePath) {
-    await Filesystem.deleteFile({ path: filePath, directory: Directory.Data }).catch(() => {});
+    fileDeleted = await Filesystem.deleteFile({ path: filePath, directory: Directory.Data })
+      .then(() => true)
+      .catch(() => false);
+    // Si el borrado falló pero el archivo ya no está (lo borró otra vía), no es un fallo.
+    if (!fileDeleted) fileDeleted = !(await fileExists(filePath));
   }
+  if (!fileDeleted) return { id, fileDeleted: false, rowDeleted: false };
+
   await conn.run('DELETE FROM zones WHERE id = ?', [id]);
   resetZoneRegistry();
+  return { id, fileDeleted: true, rowDeleted: true };
+};
+
+// Reemplazo atómico de una zona. El orden importa: downloadZone ya deja la nueva
+// completa, validada y registrada antes de devolver, así que hasta este punto la zona
+// vieja sigue intacta y usable. Solo entonces se borra la vieja.
+//
+// Si falla el borrado NO se revierte nada: la nueva es válida y ya sirve tiles, y
+// deshacer una descarga buena para volver a la vieja sería el peor resultado posible.
+// Se informa con oldDeleted=false para que la UI avise (quedan las dos zonas).
+export const replaceZone = async (oldId, args) => {
+  const nueva = await downloadZone(args);
+  try {
+    const borrada = await deleteZone(oldId);
+    return { ...nueva, oldDeleted: borrada.rowDeleted };
+  } catch {
+    return { ...nueva, oldDeleted: false };
+  }
+};
+
+// Reconcilia la tabla `zones` (SQLite, la que muestra la pantalla) con los archivos
+// .pmtiles que hay realmente en maps/. Las dos vistas se arman por caminos distintos:
+// el render offline descubre las zonas leyendo el directorio, la lista lee SQLite. Si
+// divergen, hay zonas que se ven en el mapa pero no se pueden gestionar (ni marcar
+// como desactualizadas), o filas que apuntan a archivos que ya no están.
+//
+//   - archivo sin fila  → se crea la fila (buildVersion null: el origen se desconoce)
+//   - fila sin archivo  → se borra la fila
+//
+// Corre al arrancar, junto a cleanupOrphanParts. Devuelve los contadores.
+export const reconcileZones = async () => {
+  if (!isNative()) return { added: 0, removed: 0 };
+  const conn = await initDb();
+
+  const listado = await Filesystem.readdir({ path: MAPS_DIR, directory: Directory.Data }).catch(
+    () => null,
+  );
+  const archivos = new Map();
+  for (const file of listado?.files ?? []) {
+    if (file.type !== 'file' || !file.name.toLowerCase().endsWith('.pmtiles')) continue;
+    archivos.set(`${MAPS_DIR}/${file.name}`, file);
+  }
+
+  const rows = (await conn.query('SELECT id, filePath FROM zones')).values ?? [];
+  const conFila = new Set(rows.map((row) => row.filePath));
+
+  let added = 0;
+  let removed = 0;
+
+  for (const [filePath, file] of archivos) {
+    if (conFila.has(filePath)) continue;
+    const zona = await readZoneFile(file.name);
+    if (!zona) continue; // Ilegible: se omite (zoneStore tampoco la va a renderizar).
+    const stat = await Filesystem.stat({ path: filePath, directory: Directory.Data }).catch(
+      () => null,
+    );
+    await registerZone({
+      id: zona.id,
+      name: zona.name,
+      filePath,
+      bbox: [zona.minLon, zona.minLat, zona.maxLon, zona.maxLat],
+      minZoom: zona.minZoom,
+      maxZoom: zona.maxZoom,
+      sizeBytes: stat?.size ?? 0,
+      tileCount: null,
+      buildVersion: null,
+    });
+    added += 1;
+  }
+
+  for (const row of rows) {
+    if (!row.filePath || archivos.has(row.filePath)) continue;
+    await conn.run('DELETE FROM zones WHERE id = ?', [row.id]);
+    removed += 1;
+  }
+
+  if (added || removed) {
+    resetZoneRegistry();
+    console.info(
+      `Zonas offline: reconciliación con el disco (${added} agregadas, ${removed} quitadas).`,
+    );
+  }
+  return { added, removed };
 };
 
 // Borra .part huérfanos (descargas cortadas por cierre de la app, etc.).

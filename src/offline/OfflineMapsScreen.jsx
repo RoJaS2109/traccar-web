@@ -11,6 +11,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  Snackbar,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -45,7 +46,9 @@ const OfflineMapsScreen = ({ open, onClose }) => {
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newZoneOpen, setNewZoneOpen] = useState(false);
-  const [redownloadBbox, setRedownloadBbox] = useState(null);
+  // Zona que se está reemplazando (null = descarga de una zona nueva).
+  const [redownloadTarget, setRedownloadTarget] = useState(null);
+  const [notice, setNotice] = useState(null);
   // Última versión conocida del base en servicio (null si nunca se pudo consultar).
   const [baseVersion, setBaseVersion] = useState(null);
 
@@ -74,20 +77,27 @@ const OfflineMapsScreen = ({ open, onClose }) => {
     }
   };
 
-  // Re-descarga una zona desactualizada: borra la versión vieja y abre el diálogo
-  // precargado con su bbox para bajar la misma área al zoom vigente.
-  const handleRedownload = async (zone) => {
+  // Re-descarga una zona desactualizada: abre el diálogo precargado con su bbox. NO se
+  // borra nada acá: el reemplazo es atómico (mapDownloader.replaceZone baja y valida la
+  // nueva primero y recién entonces borra la vieja). Cancelar no destruye nada.
+  const handleRedownload = (zone) => {
     if (!window.confirm(t('offlineMapsRedownloadConfirm'))) return;
-    await deleteZone(zone.id).catch(() => {});
-    await refresh();
-    setRedownloadBbox(zone.bbox);
+    setRedownloadTarget(zone);
     setNewZoneOpen(true);
   };
 
-  const handleNewZoneDone = () => {
+  const closeNewZone = () => {
     setNewZoneOpen(false);
-    setRedownloadBbox(null);
+    setRedownloadTarget(null);
+  };
+
+  const handleNewZoneDone = (result) => {
+    const reemplazaba = redownloadTarget != null;
+    closeNewZone();
     refresh();
+    if (!reemplazaba) setNotice(t('offlineMapsDone'));
+    else if (result?.oldDeleted === false) setNotice(t('offlineMapsReplaceOrphan'));
+    else setNotice(t('offlineMapsReplaced'));
   };
 
   return (
@@ -188,7 +198,7 @@ const OfflineMapsScreen = ({ open, onClose }) => {
             fullWidth
             startIcon={<AddIcon />}
             onClick={() => {
-              setRedownloadBbox(null);
+              setRedownloadTarget(null);
               setNewZoneOpen(true);
             }}
           >
@@ -199,12 +209,17 @@ const OfflineMapsScreen = ({ open, onClose }) => {
 
       <NewZoneDialog
         open={newZoneOpen}
-        onClose={() => {
-          setNewZoneOpen(false);
-          setRedownloadBbox(null);
-        }}
+        onClose={closeNewZone}
         onDone={handleNewZoneDone}
-        initialBbox={redownloadBbox}
+        initialBbox={redownloadTarget?.bbox ?? null}
+        replacesZoneId={redownloadTarget?.id ?? null}
+      />
+
+      <Snackbar
+        open={notice != null}
+        autoHideDuration={6000}
+        onClose={() => setNotice(null)}
+        message={notice}
       />
     </Dialog>
   );

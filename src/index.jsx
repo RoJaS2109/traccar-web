@@ -14,7 +14,7 @@ import AppThemeProvider from './AppThemeProvider';
 import { initNativeBootstrap } from './offline/nativeBootstrap';
 import { registerOfflineProtocol } from './offline/offlineProtocol';
 import { initNetworkStatus } from './offline/networkStatus';
-import { cleanupOrphanParts } from './offline/mapDownloader';
+import { cleanupOrphanParts, reconcileZones } from './offline/mapDownloader';
 
 preloadImages();
 registerOfflineProtocol();
@@ -23,6 +23,9 @@ initNativeBootstrap().then(() => {
   initNetworkStatus();
   // Descargas cortadas por cierre de la app dejan archivos .part huérfanos.
   cleanupOrphanParts().catch(() => {});
+  // La tabla `zones` (lista de la pantalla) y los archivos de maps/ (render offline)
+  // se arman por caminos distintos: al arrancar se los vuelve a alinear.
+  reconcileZones().catch(() => {});
   const root = createRoot(document.getElementById('root'));
   root.render(
     <ErrorBoundary>

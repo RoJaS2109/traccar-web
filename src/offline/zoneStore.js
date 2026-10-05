@@ -23,6 +23,35 @@ const readdirOrEmpty = async (path, directory) => {
   }
 };
 
+// Lee el encabezado PMTiles de un archivo de maps/ y devuelve los datos de la zona
+// (sin la fila de SQLite). Lo comparten el registro en memoria de este módulo y la
+// reconciliación de mapDownloader. Devuelve null si el archivo es ilegible.
+export const readZoneFile = async (name) => {
+  const path = `${MAPS_DIR}/${name}`;
+  const source = new CapacitorPmtilesSource(path, Directory.Data);
+  const pmtiles = new PMTiles(source);
+  try {
+    // getHeader() lee el header una vez y lo deja cacheado en pmtiles.
+    const header = await pmtiles.getHeader();
+    const id = name.replace(/\.pmtiles$/i, '');
+    return {
+      id,
+      name: id,
+      path,
+      pmtiles,
+      minLon: header.minLon,
+      minLat: header.minLat,
+      maxLon: header.maxLon,
+      maxLat: header.maxLat,
+      minZoom: header.minZoom,
+      maxZoom: header.maxZoom,
+    };
+  } catch {
+    // Archivo corrupto o ilegible: se omite para no romper el render offline.
+    return null;
+  }
+};
+
 const doInitRegistry = async () => {
   const files = await readdirOrEmpty(MAPS_DIR, Directory.Data);
   // Orden estable por fecha de modificación descendente: la zona más reciente
@@ -31,27 +60,8 @@ const doInitRegistry = async () => {
   const zones = [];
   for (const file of files) {
     if (file.type !== 'file' || !file.name.toLowerCase().endsWith('.pmtiles')) continue;
-    const path = `${MAPS_DIR}/${file.name}`;
-    const source = new CapacitorPmtilesSource(path, Directory.Data);
-    const pmtiles = new PMTiles(source);
-    try {
-      // getHeader() lee el header una vez y lo deja cacheado en pmtiles.
-      const header = await pmtiles.getHeader();
-      zones.push({
-        id: file.name.replace(/\.pmtiles$/i, ''),
-        name: file.name.replace(/\.pmtiles$/i, ''),
-        path,
-        pmtiles,
-        minLon: header.minLon,
-        minLat: header.minLat,
-        maxLon: header.maxLon,
-        maxLat: header.maxLat,
-        minZoom: header.minZoom,
-        maxZoom: header.maxZoom,
-      });
-    } catch {
-      // Archivo corrupto o ilegible: se omite para no romper el render offline.
-    }
+    const zone = await readZoneFile(file.name);
+    if (zone) zones.push(zone);
   }
   return zones;
 };
