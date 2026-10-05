@@ -8,6 +8,12 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// Versión de la app: única fuente de verdad. Se usa para el manifiesto y también
+// para nombrar el APK resultante (ver bloque androidComponents al final), así el
+// archivo que se reparte se identifica solo: RudaTrak_<tipo>_v<version>.apk
+def appVersionCode = 2
+def appVersionName = "1.1"
+
 android {
     namespace = "com.rudatrak.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -15,8 +21,8 @@ android {
         applicationId "com.rudatrak.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -51,6 +57,15 @@ android {
             }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Nombra el APK con app, tipo de build y versión: RudaTrak_release_v1.1.apk
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set("RudaTrak_${variant.buildType}_v${appVersionName}.apk")
         }
     }
 }
