@@ -280,6 +280,8 @@
     "offlineMapsCancelled": "Descarga cancelada.",
     "offlineMapsDone": "Zona descargada.",
     "offlineMapsOutdated": "Desactualizada",
+    "offlineMapsOutdatedBase": "Base anterior",
+    "offlineMapsOutdatedUnknown": "Origen desconocido",
     "offlineMapsRedownload": "Volver a descargar",
     "offlineMapsRedownloadConfirm": "¿Volver a descargar esta zona al zoom vigente? Se eliminará la versión actual.",
     "locationSearching": "Buscando señal GPS…",

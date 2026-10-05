@@ -22,8 +22,9 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { formatTime } from '../common/util/formatter';
 import { useOnlineStatus } from './useOnlineStatus';
 import { listZones, deleteZone } from './mapDownloader';
+import { getCurrentBaseVersion } from './baseVersionStore';
 import NewZoneDialog from './NewZoneDialog';
-import { CURRENT_MAX_ZOOM } from './offlineMaxZoom';
+import { OUTDATED_LABEL_KEY, outdatedReason } from './offlineOutdated';
 
 const formatBytes = (bytes) => {
   const mb = bytes / (1024 * 1024);
@@ -37,10 +38,6 @@ const bboxSummary = (bbox) => {
   return `lat ${c(south)}…${c(north)} · lng ${c(west)}…${c(east)}`;
 };
 
-// Una zona está desactualizada cuando se descargó a un zoom menor que el vigente
-// (CURRENT_MAX_ZOOM). En ese caso se ofrece volver a descargarla.
-const isOutdated = (zone) => zone.maxZoom != null && zone.maxZoom < CURRENT_MAX_ZOOM;
-
 const OfflineMapsScreen = ({ open, onClose }) => {
   const t = useTranslation();
   const online = useOnlineStatus();
@@ -49,6 +46,8 @@ const OfflineMapsScreen = ({ open, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [newZoneOpen, setNewZoneOpen] = useState(false);
   const [redownloadBbox, setRedownloadBbox] = useState(null);
+  // Última versión conocida del base en servicio (null si nunca se pudo consultar).
+  const [baseVersion, setBaseVersion] = useState(null);
 
   const refresh = async () => {
     try {
@@ -61,8 +60,12 @@ const OfflineMapsScreen = ({ open, onClose }) => {
   };
 
   useEffect(() => {
-    if (open) refresh();
-  }, [open]);
+    if (!open) return;
+    refresh();
+    getCurrentBaseVersion({ online })
+      .then(setBaseVersion)
+      .catch(() => setBaseVersion(null));
+  }, [open, online]);
 
   const handleDelete = async (zone) => {
     if (window.confirm(t('offlineMapsDeleteConfirm'))) {
@@ -123,48 +126,57 @@ const OfflineMapsScreen = ({ open, onClose }) => {
           </Typography>
         ) : (
           <List>
-            {zones.map((zone) => (
-              <ListItem
-                key={zone.id}
-                divider
-                secondaryAction={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {isOutdated(zone) && (
+            {zones.map((zone) => {
+              const reason = outdatedReason(zone, baseVersion);
+              return (
+                <ListItem
+                  key={zone.id}
+                  divider
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {reason && (
+                        <IconButton
+                          edge="end"
+                          aria-label={t('offlineMapsRedownload')}
+                          title={t('offlineMapsRedownload')}
+                          onClick={() => handleRedownload(zone)}
+                        >
+                          <RefreshIcon />
+                        </IconButton>
+                      )}
                       <IconButton
                         edge="end"
-                        aria-label={t('offlineMapsRedownload')}
-                        title={t('offlineMapsRedownload')}
-                        onClick={() => handleRedownload(zone)}
+                        aria-label={t('offlineMapsDelete')}
+                        onClick={() => handleDelete(zone)}
                       >
-                        <RefreshIcon />
+                        <DeleteIcon />
                       </IconButton>
-                    )}
-                    <IconButton
-                      edge="end"
-                      aria-label={t('offlineMapsDelete')}
-                      onClick={() => handleDelete(zone)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                }
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <span>{zone.name}</span>
-                      {isOutdated(zone) && (
-                        <Chip size="small" color="warning" label={t('offlineMapsOutdated')} />
-                      )}
                     </Box>
                   }
-                  secondary={`${formatBytes(zone.sizeBytes)} · ${bboxSummary(zone.bbox)} · ${formatTime(
-                    zone.createdAt,
-                    'date',
-                  )}`}
-                />
-              </ListItem>
-            ))}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{zone.name}</span>
+                        {reason && (
+                          <Chip
+                            size="small"
+                            // 'unknown' no es una certeza (puede estar perfectamente al
+                            // día), así que no se pinta como advertencia.
+                            color={reason === 'unknown' ? 'default' : 'warning'}
+                            label={t(OUTDATED_LABEL_KEY[reason])}
+                          />
+                        )}
+                      </Box>
+                    }
+                    secondary={`${formatBytes(zone.sizeBytes)} · ${bboxSummary(zone.bbox)} · ${formatTime(
+                      zone.createdAt,
+                      'date',
+                    )}`}
+                  />
+                </ListItem>
+              );
+            })}
           </List>
         )}
       </Box>

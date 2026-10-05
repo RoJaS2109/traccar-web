@@ -139,6 +139,9 @@ const zoneFromRow = (row) => ({
   status: row.status,
 });
 
+// `buildVersion` identifica el base del que se recortó la zona (lo publica trak-mapas
+// en /maps/version y lo devuelve el job). Queda null si el servidor no informa
+// versión: en ese caso la UI no puede comparar y no marca nada por origen.
 const registerZone = async ({
   id,
   name,
@@ -148,6 +151,7 @@ const registerZone = async ({
   maxZoom,
   sizeBytes,
   tileCount,
+  buildVersion = null,
 }) => {
   const conn = await initDb();
   await conn.run(
@@ -161,7 +165,7 @@ const registerZone = async ({
       maxZoom,
       sizeBytes,
       tileCount ?? null,
-      null,
+      buildVersion ?? null,
       new Date().toISOString(),
       'ready',
     ],
@@ -300,6 +304,14 @@ export const estimateZone = async ({ minLng, minLat, maxLng, maxLat, minZoom, ma
   return { tiles: data.tiles, bytes: data.bytes, maxBytes: data.maxBytes };
 };
 
+// Versión del base que sirve el servidor ahora (GET /maps/version). Es un GET chico
+// sin body: no depende de leer headers de /maps/base ni de descargar nada.
+export const fetchBaseVersion = async () => {
+  const token = requireToken();
+  const data = await requestJson('/version', { token });
+  return data?.baseVersion ?? null;
+};
+
 // Descarga completa: extract → sondeo → descarga a .part → validación → rename →
 // registro SQLite. Ante fallo o cancelación borra el .part para no dejar basura.
 // file-transfer no permite abortar: la cancelación se resuelve marcando la bandera
@@ -336,8 +348,12 @@ export const downloadZone = async ({
       );
       const jobId = extract.jobId;
       const tiles = extract.tiles;
+      // Versión del base con la que se está recortando; el job es la fuente fiable
+      // (la del extract puede quedar vieja si el base cambia a mitad de camino).
+      let baseVersion = extract.baseVersion ?? null;
 
       const job = await pollJob(jobId, token, isCancelled);
+      if (job.baseVersion) baseVersion = job.baseVersion;
       if (job.status === 'failed') {
         throw new MapServiceError('jobFailed', job.error || 'La extracción falló', { jobId });
       }
@@ -373,6 +389,7 @@ export const downloadZone = async ({
             maxZoom,
             sizeBytes: stat.size,
             tileCount: tiles,
+            buildVersion: baseVersion,
           });
           resetZoneRegistry();
           return { id, sizeBytes: stat.size };

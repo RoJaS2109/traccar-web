@@ -51,7 +51,32 @@ const TRUSTED_PROXY_CIDRS = (process.env.TRUSTED_PROXY_CIDRS
   || '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
+const RATE_LIMIT_VERSION = parseInt(process.env.RATE_LIMIT_VERSION || '60', 10);
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ---------------------------------------------------------------------------
+// Identidad del base en servicio
+// ---------------------------------------------------------------------------
+// Las zonas descargadas guardan este valor (buildVersion). Es lo que permite marcar
+// como "desactualizada" una zona recortada de un base distinto del vigente aunque su
+// maxZoom ya sea el actual (caso real: el recorte viejo perdía teselas costeras que
+// el nuevo sí tiene, y ambas zonas son z15).
+//
+// Por defecto <archivo>:<tamaño>. Se descarta el mtime a propósito: cambia con
+// cualquier copia o rsync del mismo contenido y marcaría todo el parque como
+// desactualizado de golpe. BASE_VERSION es un override EXCEPCIONAL: si se fija a
+// mano y se olvida actualizarla al cambiar de base, las zonas quedan mal
+// etiquetadas (ver .env.example). Se calcula una vez, al arrancar.
+const BASE_VERSION = process.env.BASE_VERSION || (() => {
+  const name = path.basename(BASE_PMTILES);
+  try {
+    return `${name}:${fs.statSync(BASE_PMTILES).size}`;
+  } catch {
+    log('aviso: no se pudo leer el base para calcular BASE_VERSION:', BASE_PMTILES);
+    return `${name}:desconocido`;
+  }
+})();
 
 // ---------------------------------------------------------------------------
 // Estado en memoria
@@ -411,6 +436,9 @@ function createJob(zone, userId) {
     maxZoom: zone.maxZoom,
     tiles: null,
     bytes: null,
+    // Base del que se recortó la zona: se fija al crear el job (y no al descargar)
+    // para que valga el base que regía durante la extracción.
+    baseVersion: BASE_VERSION,
     outputFile: path.join(OUTPUT_DIR, `${id}.pmtiles`),
     createdAt: Date.now(),
     startedAt: null,
@@ -433,6 +461,7 @@ function publicJob(job) {
     maxZoom: job.maxZoom,
     tiles: job.tiles,
     bytes: job.bytes,
+    baseVersion: job.baseVersion,
     createdAt: job.createdAt,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
@@ -491,6 +520,18 @@ async function cleanup(removeAll) {
 // ---------------------------------------------------------------------------
 // Handlers de rutas
 // ---------------------------------------------------------------------------
+// GET /maps/version — identidad del base en servicio. La app la consulta para marcar
+// como "desactualizada" una zona descargada de un base anterior. Es un GET sin body
+// ni archivo: la app nunca depende de leer headers de /maps/base.
+async function handleVersion(req, res, user) {
+  const retryAfter = checkRateLimit(userKey(user) + ':version', RATE_LIMIT_VERSION);
+  if (retryAfter) {
+    log('429 version usuario=' + userKey(user));
+    return sendRateLimited(res, 'Demasiados pedidos', retryAfter);
+  }
+  sendJson(res, 200, { ok: true, baseVersion: BASE_VERSION });
+}
+
 async function handleEstimate(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':estimate', RATE_LIMIT_ESTIMATE);
   if (retryAfter) {
@@ -507,10 +548,12 @@ async function handleEstimate(req, res, user) {
     return sendJson(res, 413, {
       ok: false, error: 'La zona excede el límite de tamaño',
       bytes: est.bytes, maxBytes: MAX_ZONE_BYTES, tiles: est.tiles,
+      baseVersion: BASE_VERSION,
     });
   }
   sendJson(res, 200, {
     ok: true, tiles: est.tiles, bytes: est.bytes, maxBytes: MAX_ZONE_BYTES,
+    baseVersion: BASE_VERSION,
     minLng: zone.minLng, minLat: zone.minLat, maxLng: zone.maxLng, maxLat: zone.maxLat,
     minZoom: zone.minZoom, maxZoom: zone.maxZoom,
   });
@@ -539,6 +582,7 @@ async function handleExtract(req, res, user) {
     return sendJson(res, 413, {
       ok: false, error: 'La zona excede el límite de tamaño',
       bytes: est.bytes, maxBytes: MAX_ZONE_BYTES, tiles: est.tiles,
+      baseVersion: BASE_VERSION,
     });
   }
 
@@ -550,7 +594,10 @@ async function handleExtract(req, res, user) {
   activeExtract = job.id;
   runExtract(job); // en segundo plano; no se espera.
 
-  sendJson(res, 202, { ok: true, jobId: job.id, tiles: est.tiles, bytes: est.bytes });
+  sendJson(res, 202, {
+    ok: true, jobId: job.id, tiles: est.tiles, bytes: est.bytes,
+    baseVersion: job.baseVersion,
+  });
 }
 
 async function handleJob(req, res, user) {
@@ -706,6 +753,7 @@ function sendRangeNotSatisfiable(res, size) {
 // Servidor HTTP
 // ---------------------------------------------------------------------------
 const ROUTES = [
+  ['GET', '/maps/version', handleVersion],
   ['POST', '/maps/zone/estimate', handleEstimate],
   ['POST', '/maps/zone/extract', handleExtract],
   ['GET', '/maps/zone/job/', handleJob],
@@ -760,12 +808,29 @@ async function start() {
   setInterval(() => cleanup(false), CLEANUP_INTERVAL_MS);
   server.listen(PORT, () => {
     log('trak-mapas escuchando en :' + PORT);
-    log(`base=${BASE_PMTILES} traccar=${TRACCAR_URL} maxBytes=${MAX_ZONE_BYTES}`);
+    log(`base=${BASE_PMTILES} baseVersion=${BASE_VERSION} traccar=${TRACCAR_URL} maxBytes=${MAX_ZONE_BYTES}`);
     log(`trustedProxyCidrs=${TRUSTED_PROXY_CIDRS.join(',')}`);
   });
 }
 
-start().catch((err) => {
-  console.error('Error al iniciar:', err);
-  process.exit(1);
-});
+// Solo arranca si se ejecuta como programa (`node server.js`). Al requerirlo desde un
+// test, el módulo se carga sin abrir el puerto ni tocar /data.
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('Error al iniciar:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  server,
+  start,
+  BASE_VERSION,
+  ROUTES,
+  handleVersion,
+  handleEstimate,
+  handleExtract,
+  handleJob,
+  createJob,
+  publicJob,
+};
