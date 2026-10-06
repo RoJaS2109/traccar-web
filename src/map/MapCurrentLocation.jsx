@@ -7,6 +7,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { saveLastPosition } from '../offline/lastPositionStore';
 import { isNative } from '../offline/nativeBootstrap';
 import { createScreenWakeLock } from './screenWakeLock';
+import { createFollowState } from './followState';
 
 // Opciones del watch: alta precisión y timeout largo (un fix en frío sin AGPS puede
 // tardar 30-60 s). maximumAge acepta un fix reciente y enableLocationFallback usa el
@@ -23,6 +24,11 @@ const WATCH_OPTIONS = {
 // plugin no dispara su propio callback de timeout; mayor que WATCH_OPTIONS.timeout
 // para no pisar ese error con uno propio.
 const MANUAL_TIMEOUT_MS = 90_000;
+
+// Duración de la animación que recentra el punto. El watch entrega un fix cada ~2 s
+// (WATCH_OPTIONS.interval); con la mitad de ese intervalo la cámara llega al centro y
+// se asienta entre fix y fix, en vez de quedar siempre persiguiendo al siguiente.
+const FOLLOW_EASE_MS = 1000;
 
 // Detalle de diagnóstico que acompaña al mensaje de error: código y texto crudos del
 // plugin, tal como los devuelve. Se muestra en letra chica para poder diagnosticar con
@@ -107,7 +113,6 @@ const MapCurrentLocation = () => {
   const watchingRef = useRef(false);
   const dotRef = useRef(null);
   const circleRef = useRef(null);
-  const followingRef = useRef(false);
   const lastCenterRef = useRef(null);
   const lastAccuracyRef = useRef(null);
   const manualTimerRef = useRef(null);
@@ -118,6 +123,26 @@ const MapCurrentLocation = () => {
   const resumingRef = useRef(false);
   // Mantiene la pantalla encendida mientras se navega o el teléfono carga.
   const screenLockRef = useRef(null);
+
+  // Centra la cámara en el último fix. Sin padding, para que el punto quede en el
+  // centro exacto del viewport: en el teléfono el mapa no tiene padding (MapPadding
+  // solo aplica al drawer de escritorio).
+  const recenter = () => {
+    const center = lastCenterRef.current;
+    if (!center) return;
+    map.easeTo({
+      center,
+      duration: FOLLOW_EASE_MS,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+  };
+
+  // Máquina de seguimiento (siguiendo / pausado por interacción del usuario). Se crea
+  // una sola vez: si el efecto de montaje se reejecuta, no debe perderse el estado.
+  const followRef = useRef(null);
+  if (!followRef.current) {
+    followRef.current = createFollowState({ onResume: recenter });
+  }
 
   const applyStatus = (next) => {
     if (!mountedRef.current) return;
@@ -137,6 +162,9 @@ const MapCurrentLocation = () => {
     // Sin watch no se está navegando: la pantalla deja de mantenerse encendida,
     // salvo que el teléfono esté cargando (lo decide el propio wake lock).
     screenLockRef.current?.setNavigating(false);
+    // Fuera de la navegación el zoom por gestos vuelve a ir alrededor del punto medio
+    // de los dedos, que es lo que se espera al explorar el mapa.
+    map.touchZoomRotate.enable();
     if (watchIdRef.current != null) {
       const id = watchIdRef.current;
       watchIdRef.current = null;
@@ -191,9 +219,11 @@ const MapCurrentLocation = () => {
       dotRef.current.setLngLat(center);
     }
 
+    // El centro se guarda siempre: es el objetivo del recentrado, incluso en un fix
+    // sin accuracy, donde no hay círculo que redibujar.
+    lastCenterRef.current = center;
     if (accuracy != null) {
       lastAccuracyRef.current = accuracy;
-      lastCenterRef.current = center;
       if (!circleRef.current) {
         circleRef.current = createAccuracyCircle();
         circleRef.current.marker.setLngLat(center).addTo(map);
@@ -205,22 +235,26 @@ const MapCurrentLocation = () => {
 
     saveLastPosition({ lat: latitude, lng: longitude });
 
-    if (followingRef.current) {
+    // Pausado por una interacción del usuario el punto se sigue actualizando, pero la
+    // cámara no se mueve hasta que vence el temporizador de reanudación.
+    if (followRef.current.isFollowing()) {
       if (isFirst) {
-        // Primer fix: encuadrar el círculo de precisión (máx. z15).
+        // Primer fix: encuadrar el círculo de precisión (máx. z15). El punto queda
+        // centrado igual, porque el encuadre se calcula a partir de él.
         const radius = accuracy != null ? accuracy : 100;
         map.fitBounds(maplibregl.LngLatBounds.fromLngLat(center, radius), {
           maxZoom: 15,
           duration: 800,
         });
       } else {
-        map.easeTo({ center, duration: 400 });
+        recenter();
       }
     }
   };
 
   const stop = () => {
-    followingRef.current = false;
+    // Fin de la navegación: deja de seguir y descarta cualquier reanudación pendiente.
+    followRef.current.stop();
     clearManualTimer();
     clearWatch();
     removeMarkers();
@@ -241,7 +275,16 @@ const MapCurrentLocation = () => {
   const startWatch = ({ following = true } = {}) => {
     applyStatus('searching');
     showMessage(t('locationSearching'));
-    followingRef.current = following;
+    // Al arrancar se sigue desde el primer fix; si se reanuda con el seguimiento
+    // pausado, se rearranca la cuenta atrás en vez de recentrar de golpe.
+    if (following) {
+      followRef.current.start();
+    } else {
+      followRef.current.interact();
+    }
+    // Durante la navegación el zoom por gestos va alrededor del centro: si fuera
+    // alrededor del punto medio de los dedos, el punto azul se correría del centro.
+    map.touchZoomRotate.enable({ around: 'center' });
     watchingRef.current = true;
     // Arrancó la navegación: la pantalla no debe apagarse aunque se desconecte
     // el cargador.
@@ -354,12 +397,17 @@ const MapCurrentLocation = () => {
     controlRef.current = control;
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
 
-    const onDragStart = () => {
-      // El usuario arrastró el mapa: dejar de mover la cámara, pero seguir el punto.
-      if (followingRef.current) followingRef.current = false;
-    };
+    // Interacción del usuario con el mapa: pausa el seguimiento, que se retoma solo a
+    // los 8 s. No se usan zoomstart/rotatestart porque easeTo también los dispara
+    // (serían programáticos); dragstart solo lo emite el arrastre real, y
+    // touchstart/wheel sobre el canvas cubren pellizco, rotación y rueda.
+    const onUserGesture = () => followRef.current.interact();
+    const canvas = map.getCanvas();
+    map.on('dragstart', onUserGesture);
+    canvas.addEventListener('touchstart', onUserGesture, { passive: true });
+    canvas.addEventListener('wheel', onUserGesture, { passive: true });
+
     const onZoom = () => resizeAccuracyCircle();
-    map.on('dragstart', onDragStart);
     map.on('zoom', onZoom);
 
     const onVisibility = () => {
@@ -367,7 +415,8 @@ const MapCurrentLocation = () => {
         // La app pasa a segundo plano: detener el watch para no gastar GPS/batería.
         // Se guarda el modo de seguimiento para reanudarlo tal cual al volver.
         if (watchingRef.current) {
-          suspendedRef.current = { following: followingRef.current };
+          // Se guarda si estaba siguiendo o pausado, para volver en el mismo estado.
+          suspendedRef.current = { following: followRef.current.isFollowing() };
           stop();
         }
       } else if (suspendedRef.current) {
@@ -381,7 +430,9 @@ const MapCurrentLocation = () => {
     return () => {
       mountedRef.current = false;
       map.removeControl(control);
-      map.off('dragstart', onDragStart);
+      map.off('dragstart', onUserGesture);
+      canvas.removeEventListener('touchstart', onUserGesture);
+      canvas.removeEventListener('wheel', onUserGesture);
       map.off('zoom', onZoom);
       document.removeEventListener('visibilitychange', onVisibility);
       clearManualTimer();
