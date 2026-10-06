@@ -154,11 +154,27 @@ El secreto del dispositivo se transmite como `Authorization: Bearer <secreto>`. 
 
 El campo `token` es la excepción: se guarda en claro porque el endpoint de revocación lo requiere. Es un secreto en reposo dentro del archivo SQLite, que vive en un volumen al que solo accede el servicio. Es una concesión consciente: sin el token guardado no hay revocación por dispositivo.
 
+**No hay columna de contraseña, y es deliberado**: el token se emite por suplantación desde la sesión de admin (§6.3), no iniciando sesión como el usuario. La contraseña aleatoria se descarta apenas se crea la cuenta.
+
 ### 6.3 Credenciales
 
 El servicio necesita una cuenta de **admin dedicada en Traccar**, distinta de la del dueño, con credenciales en variables de entorno. Es el componente más sensible del sistema y se documenta como tal: quien lea esas credenciales puede administrar el servidor.
 
 La contraseña aleatoria que el servicio genera para cada cuenta de Traccar **nunca sale del servicio**. La app solo recibe el token.
+
+**Y el servicio tampoco necesita conservarla.** El token no se obtiene iniciando sesión con la contraseña del usuario, sino por **suplantación desde la sesión de admin**. Cadena verificada en el código:
+
+| Paso | Endpoint | Qué pasa |
+|---|---|---|
+| 1 | `GET /api/session/{userId}` con Basic auth de admin | `SessionResource.get` llama a `permissionsService.checkUser(getUserId(), userId)`, que **pasa si el que llama es administrador** (`PermissionsService.java:171-178`). Después llama a `SessionHelper.userLogin(...)`, que **pisa el `USER_ID` de la sesión** con el del usuario destino (`SessionHelper.java:33-47`) |
+| 2 | `POST /api/session/token` **sin** cabecera `Authorization`, mandando solo la cookie de sesión | Toma `getUserId()` de la sesión — que ahora es el usuario destino — y devuelve un token firmado para él (`SessionResource.java:150-162`) |
+
+Dos consecuencias de diseño:
+
+- **No se guarda ninguna contraseña de usuario.** La que se genera al crear la cuenta se descarta apenas termina la petición de alta. Menos secretos en reposo: solo queda el token.
+- Se **emite el token sin conocer la contraseña**, así que la renovación silenciosa (§7.2) no necesita credenciales por usuario.
+
+**Detalle de implementación que no es obvio:** en el paso 1 la sesión se *invalida y se recrea* (`userLogin` empieza con `request.getSession().invalidate()`), así que la cookie `JSESSIONID` que devuelve el paso 1 es la que hay que usar en el paso 2. Y en el paso 2 **no hay que mandar Basic auth**: el filtro de seguridad, cuando ve la cabecera `Authorization`, arma el contexto desde esas credenciales y **no toca los atributos de la sesión** (`SecurityRequestFilter.java`), con lo cual el `getUserId()` del endpoint volvería a ser el del admin y el token saldría a nombre de la cuenta equivocada.
 
 ---
 
@@ -188,7 +204,8 @@ La contraseña aleatoria que el servicio genera para cada cuenta de Traccar **nu
 
 8. El servicio, al aprobar:
      a. crea el usuario en Traccar con contraseña aleatoria
-     b. inicia sesión como ese usuario
+        (que se descarta enseguida, no se guarda)
+     b. suplanta la sesión de admin hacia ese usuario (§6.3)
      c. pide un token de 365 días
      d. guarda el token en el registro del dispositivo
      e. marca el enrolamiento como aprobado
@@ -209,7 +226,9 @@ Es lo que sostiene la decisión de que el usuario nunca conozca una contraseña.
 2. Hace POST /enroll/renew con su secreto de dispositivo.
 
 3. El servicio verifica el hash del secreto, comprueba que el
-   enrolamiento siga en estado aprobado, y emite un token nuevo.
+   enrolamiento siga en estado aprobado, y emite un token nuevo
+   por suplantación (§6.3) — sin contraseña y sin aprobación
+   manual.
 
 4. La app reemplaza el token guardado. Fin.
 
