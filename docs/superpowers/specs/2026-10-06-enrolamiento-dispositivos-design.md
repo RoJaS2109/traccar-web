@@ -30,12 +30,12 @@ Todo lo siguiente fue verificado en el repositorio, no asumido.
 | Server por defecto fijo pero cambiable | `src/offline/nativeBootstrap.js:4`, `src/login/ChangeServerPage.jsx:23` | La app se puede repuntar a otro servidor |
 | Token nativo de 365 días en SecureStorage | `src/login/LoginPage.jsx:126`, `src/offline/tokenStore.js` | Es el mecanismo de sesión que ya existe y hay que reutilizar |
 | La app funciona sin red con token guardado | `src/App.jsx` → `OfflineScreen` | Restricción dura: no se puede exigir validación online permanente |
-| **Auto-registro habilitado por defecto** | `traccar/.../MemoryStorage.java:52` (`server.setRegistration(true)`) | Hoy cualquiera con la APK se crea una cuenta |
+| **Auto-registro habilitado por defecto** | `traccar/.../MemoryStorage.java:52` (`server.setRegistration(true)`) | **Confirmado en producción el 2026-10-06: `tc_servers.registration = t`.** Hoy cualquiera con la APK se crea una cuenta |
 | **La revocación de tokens ya existe** | `traccar/.../signature/TokenManager.java:93` y `:100`, `SessionResource.java:164` | No hay que inventar la revocación: se reutiliza |
 | **`/poi/general.kml` es público** | Verificado: `HTTP 200`, 4.141.133 bytes sin autenticación | Los ~9.000 POIs se scrapean hoy sin cuenta |
 | El Dockerfile ya parchea el JAR | `traccar-web/Dockerfile` (stage 2) | Tocar Java es viable, aunque este diseño no lo necesita |
 
-**El hallazgo más importante:** en una instalación nueva Traccar deja el auto-registro activo (`MemoryStorage.java:52`). Salvo que se haya desactivado desde la UI, hoy el control de acceso es inexistente.
+**El hallazgo más importante:** verificado contra producción el 2026-10-06, `tc_servers.registration = t`. El auto-registro está activo. Hoy el control de acceso es inexistente.
 
 ---
 
@@ -326,5 +326,17 @@ Si en algún momento el proyecto se monetiza, el orden natural de incorporación
 
 ## 15. Pendiente de verificar
 
-- El valor actual del flag `registration` en la base de producción. `MemoryStorage.java:52` lo inicializa en `true`, pero el valor real vive en la fila del servidor y puede haberse cambiado desde la UI. Hay que confirmarlo antes de asumir que el auto-registro está abierto.
+- ~~El valor actual del flag `registration` en la base de producción.~~ **VERIFICADO el 2026-10-06** contra un `pg_dump` de producción: `tc_servers.registration = t`. El auto-registro **está abierto**. Se confirma la hipótesis de §2 y el agujero de §3.1 es real y activo.
 - Recursos disponibles en la Pi para sostener un segundo Traccar más Postgres sin afectar producción.
+
+### Estado real de producción al 2026-10-06
+
+| Dato | Valor |
+|---|---|
+| Usuarios | 1 (`Rodrigo Javier Schechtel`, administrador) |
+| Dispositivos | 1 (`Sprinter`, `uniqueId` `KJA-169`, categoría `van`, offline desde 2026-09-02) |
+| `registration` | `t` — **auto-registro abierto** |
+| `poilayer` | `/poi/general.kml` |
+| Tamaño del dump | 4,3 MB, 51 tablas |
+
+El `pg_dump` de respaldo quedó en `~/traccar-backup-2026-10-06.sql`. **Contiene el hash y el salt de la contraseña del administrador**: tratarlo como material sensible, no compartirlo ni versionarlo.
