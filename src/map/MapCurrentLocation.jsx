@@ -4,10 +4,13 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Alert, Snackbar, Typography, useTheme } from '@mui/material';
 import { map } from './core/MapView';
 import { useTranslation } from '../common/components/LocalizationProvider';
+import usePersistedState from '../common/util/usePersistedState';
 import { saveLastPosition } from '../offline/lastPositionStore';
 import { isNative } from '../offline/nativeBootstrap';
 import { createScreenWakeLock } from './screenWakeLock';
 import { createFollowState } from './followState';
+import { nextHeading } from './heading';
+import MapHeadingMode from './control/MapHeadingMode';
 
 // Opciones del watch: alta precisión y timeout largo (un fix en frío sin AGPS puede
 // tardar 30-60 s). maximumAge acepta un fix reciente y enableLocationFallback usa el
@@ -107,6 +110,9 @@ const MapCurrentLocation = () => {
   const [status, setStatus] = useState('idle'); // idle | searching | active | error
   const [message, setMessage] = useState(null);
   const [messageDetail, setMessageDetail] = useState(null);
+  // Modo del mapa. Se recuerda entre sesiones; sin una elección previa arranca en rumbo
+  // arriba, que es lo útil al navegar.
+  const [headingUp, setHeadingUp] = usePersistedState('mapHeadingUp', true);
 
   const controlRef = useRef(null);
   const watchIdRef = useRef(null);
@@ -123,6 +129,18 @@ const MapCurrentLocation = () => {
   const resumingRef = useRef(false);
   // Mantiene la pantalla encendida mientras se navega o el teléfono carga.
   const screenLockRef = useRef(null);
+  // Último rumbo suavizado, o null si todavía no hubo una muestra creíble. Es el rumbo al
+  // que se rota el mapa en modo "rumbo arriba".
+  const headingRef = useRef(null);
+  // Espejo del modo elegido, para leerlo desde callbacks estables (recentrado, botón) sin
+  // tener que recrearlos en cada cambio de estado.
+  const headingUpRef = useRef(headingUp);
+  headingUpRef.current = headingUp;
+
+  // Rumbo que le corresponde al mapa según el modo: norte arriba es 0 y "rumbo arriba"
+  // sigue el rumbo del GPS. Devuelve null mientras no haya un rumbo creíble: en ese caso
+  // no se toca el rumbo en vez de saltar a un valor inventado.
+  const targetBearing = () => (headingUpRef.current ? headingRef.current : 0);
 
   // Centra la cámara en el último fix. Sin padding, para que el punto quede en el
   // centro exacto del viewport: en el teléfono el mapa no tiene padding (MapPadding
@@ -130,11 +148,43 @@ const MapCurrentLocation = () => {
   const recenter = () => {
     const center = lastCenterRef.current;
     if (!center) return;
+    const bearing = targetBearing();
     map.easeTo({
       center,
       duration: FOLLOW_EASE_MS,
       padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      // El rumbo viaja en el mismo easeTo que el centro: con dos animaciones separadas la
+      // rotación y el desplazamiento quedarían desfasados entre sí.
+      ...(bearing == null ? {} : { bearing }),
     });
+  };
+
+  // Rota el mapa al rumbo que corresponde al modo, sin mover el centro. Se usa en las
+  // acciones explícitas (alternar el botón, terminar la navegación): durante la
+  // navegación la rotación va junto con el recentrado, en el mismo easeTo.
+  const applyBearing = () => {
+    const bearing = targetBearing();
+    if (bearing == null || bearing === map.getBearing()) return;
+    map.easeTo({ bearing, duration: FOLLOW_EASE_MS });
+  };
+
+  const toggleHeadingUp = () => {
+    const next = !headingUpRef.current;
+    // El ref se adelanta al estado: la animación de abajo tiene que usar ya el modo nuevo
+    // y no el que el estado sigue devolviendo hasta el próximo render.
+    headingUpRef.current = next;
+    setHeadingUp(next);
+    applyBearing();
+  };
+
+  // Vuelve el mapa al norte con una animación. No toca el modo elegido: la preferencia se
+  // recuerda para la próxima navegación, pero la rotación solo tiene sentido mientras se
+  // navega.
+  const resetBearing = () => {
+    headingRef.current = null;
+    if (Math.abs(map.getBearing()) > 0.1) {
+      map.easeTo({ bearing: 0, duration: FOLLOW_EASE_MS });
+    }
   };
 
   // Máquina de seguimiento (siguiendo / pausado por interacción del usuario). Se crea
@@ -203,7 +253,7 @@ const MapCurrentLocation = () => {
   };
 
   const updatePosition = (position) => {
-    const { latitude, longitude, accuracy } = position.coords;
+    const { latitude, longitude, accuracy, heading, speed } = position.coords;
     const center = new maplibregl.LngLat(longitude, latitude);
     const isFirst = !dotRef.current;
 
@@ -235,6 +285,10 @@ const MapCurrentLocation = () => {
 
     saveLastPosition({ lat: latitude, lng: longitude });
 
+    // Rumbo suavizado para la rotación del mapa. Se calcula en los dos modos: así al pasar
+    // a "rumbo arriba" el rumbo ya está listo y suavizado, en vez de empezar de cero.
+    headingRef.current = nextHeading({ previous: headingRef.current, heading, speed });
+
     // Pausado por una interacción del usuario el punto se sigue actualizando, pero la
     // cámara no se mueve hasta que vence el temporizador de reanudación.
     if (followRef.current.isFollowing()) {
@@ -255,6 +309,8 @@ const MapCurrentLocation = () => {
   const stop = () => {
     // Fin de la navegación: deja de seguir y descarta cualquier reanudación pendiente.
     followRef.current.stop();
+    // Sin rumbo que mantener, el mapa vuelve a norte arriba.
+    resetBearing();
     clearManualTimer();
     clearWatch();
     removeMarkers();
@@ -263,6 +319,9 @@ const MapCurrentLocation = () => {
   };
 
   const failWith = (key, detail = null) => {
+    // La navegación terminó igual que con el botón: no dejar el mapa girado sin rumbo al
+    // que seguir.
+    resetBearing();
     clearManualTimer();
     clearWatch();
     removeMarkers();
@@ -447,26 +506,33 @@ const MapCurrentLocation = () => {
   }, [theme.direction]);
 
   return (
-    <Snackbar
-      open={Boolean(message)}
-      autoHideDuration={status === 'error' ? 6000 : null}
-      // Sin onClose el mensaje nunca se limpia: MUI oculta la transición pero `open`
-      // sigue en true, así que el cartel reaparece en cada re-render.
-      onClose={() => setMessage(null)}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-    >
-      <Alert severity={status === 'error' ? 'error' : 'info'} variant="filled">
-        {message}
-        {messageDetail && (
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', mt: 0.5, opacity: 0.85, wordBreak: 'break-word' }}
-          >
-            {t('locationErrorDetail')} {messageDetail}
-          </Typography>
-        )}
-      </Alert>
-    </Snackbar>
+    <>
+      <MapHeadingMode
+        visible={status === 'searching' || status === 'active'}
+        headingUp={headingUp}
+        onToggle={toggleHeadingUp}
+      />
+      <Snackbar
+        open={Boolean(message)}
+        autoHideDuration={status === 'error' ? 6000 : null}
+        // Sin onClose el mensaje nunca se limpia: MUI oculta la transición pero `open`
+        // sigue en true, así que el cartel reaparece en cada re-render.
+        onClose={() => setMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={status === 'error' ? 'error' : 'info'} variant="filled">
+          {message}
+          {messageDetail && (
+            <Typography
+              variant="caption"
+              sx={{ display: 'block', mt: 0.5, opacity: 0.85, wordBreak: 'break-word' }}
+            >
+              {t('locationErrorDetail')} {messageDetail}
+            </Typography>
+          )}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 
