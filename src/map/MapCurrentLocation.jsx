@@ -5,6 +5,8 @@ import { Alert, Snackbar, Typography, useTheme } from '@mui/material';
 import { map } from './core/MapView';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { saveLastPosition } from '../offline/lastPositionStore';
+import { isNative } from '../offline/nativeBootstrap';
+import { createScreenWakeLock } from './screenWakeLock';
 
 // Opciones del watch: alta precisión y timeout largo (un fix en frío sin AGPS puede
 // tardar 30-60 s). maximumAge acepta un fix reciente y enableLocationFallback usa el
@@ -114,6 +116,8 @@ const MapCurrentLocation = () => {
   // no lo detuvimos nosotros. Es lo que decide si hay que reanudar al volver.
   const suspendedRef = useRef(null);
   const resumingRef = useRef(false);
+  // Mantiene la pantalla encendida mientras se navega o el teléfono carga.
+  const screenLockRef = useRef(null);
 
   const applyStatus = (next) => {
     if (!mountedRef.current) return;
@@ -130,6 +134,9 @@ const MapCurrentLocation = () => {
 
   const clearWatch = () => {
     watchingRef.current = false;
+    // Sin watch no se está navegando: la pantalla deja de mantenerse encendida,
+    // salvo que el teléfono esté cargando (lo decide el propio wake lock).
+    screenLockRef.current?.setNavigating(false);
     if (watchIdRef.current != null) {
       const id = watchIdRef.current;
       watchIdRef.current = null;
@@ -236,6 +243,9 @@ const MapCurrentLocation = () => {
     showMessage(t('locationSearching'));
     followingRef.current = following;
     watchingRef.current = true;
+    // Arrancó la navegación: la pantalla no debe apagarse aunque se desconecte
+    // el cargador.
+    screenLockRef.current?.setNavigating(true);
     watchIdRef.current = null;
     clearManualTimer();
     manualTimerRef.current = setTimeout(
@@ -331,6 +341,15 @@ const MapCurrentLocation = () => {
 
   useEffect(() => {
     mountedRef.current = true;
+    // Pantalla encendida al navegar o al cargar. Solo en la app nativa: en el
+    // navegador de escritorio mantener la pantalla despierta por estar enchufado
+    // no tiene sentido.
+    if (isNative()) {
+      screenLockRef.current = createScreenWakeLock({
+        onError: (err) => console.warn('No se pudo mantener la pantalla encendida', err),
+      });
+      screenLockRef.current.start();
+    }
     const control = new LocationButtonControl(handleClick);
     controlRef.current = control;
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
@@ -368,6 +387,8 @@ const MapCurrentLocation = () => {
       clearManualTimer();
       clearWatch();
       removeMarkers();
+      screenLockRef.current?.stop();
+      screenLockRef.current = null;
       controlRef.current = null;
     };
     // handleClick/stop usan refs y setters estables, no hace falta listarlos aquí.
