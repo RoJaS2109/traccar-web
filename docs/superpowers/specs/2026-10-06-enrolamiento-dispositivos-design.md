@@ -1,7 +1,7 @@
 # Diseño — Enrolamiento de dispositivos (control de distribución de la APK)
 
 **Fecha:** 2026-10-06
-**Estado:** Borrador para revisión
+**Estado:** Aprobado — listo para el plan de implementación
 
 ## 1. Contexto y objetivo
 
@@ -52,8 +52,8 @@ Se acordó con el dueño que las preocupaciones reales son tres.
 **(b) Prestan credenciales.** La propiedad clave: **el usuario nunca conoce una contraseña.** El servicio de enrolamiento crea la cuenta en Traccar con una contraseña aleatoria que jamás sale del servidor, y le entrega a la app únicamente un token de sesión. Sin contraseña no hay credencial que prestar.
 
 Riesgo residual, declarado honestamente:
-- El token sí es extraíble de un teléfono rooteado. Es bastante más difícil que pasar una contraseña, y es revocable desde el servidor.
-- La revocación **no es instantánea**: un dispositivo sin conexión conserva el token hasta que vuelva a alcanzar el servidor. Ver §12.
+- El token sí es extraíble de un teléfono rooteado. Es bastante más difícil que pasar una contraseña, y es revocable desde el servidor con efecto inmediato en la próxima conexión.
+- La revocación **no llega a un dispositivo sin conexión** hasta que vuelva a tener señal. Ver §7.4 y §12.
 - **Contrapartida de diseño:** si el usuario nunca conoce su contraseña, tampoco puede entrar a la interfaz web en `mh.rudatrak.com`. Para un viajero que usa la app eso no es un problema, pero es una limitación real y conviene decidirla a conciencia. La cuenta del dueño no se ve afectada: sigue siendo una cuenta normal con contraseña.
 
 ### 3.3 Cubierto parcialmente
@@ -80,7 +80,9 @@ Lo que **no** se resuelve y se asume: si alguien re-empaqueta la APK con su prop
 | Entrega del token | Se reutiliza el flujo de token existente de la app | Cambio mínimo: `tokenStore.saveToken()` ya existe |
 | Revocación | `POST /api/session/token/revoke` por dispositivo | Ya soportado por el backend |
 | Auto-registro | Se desactiva a nivel servidor | Cierra el agujero principal |
-| Duración del token | 180 días (hoy 365) | Acota la ventana de revocación offline |
+| Duración del token | **365 días, sin cambios** | Irrelevante mientras exista la renovación silenciosa: el secreto del dispositivo puede emitir tokens nuevos. No hay motivo para tocarlo |
+| Renovación | **Silenciosa, con el secreto del dispositivo** | Es lo que hace viable "el usuario nunca conoce su contraseña" en el largo plazo |
+| Al vencer el token | Pantalla de enrolamiento, **nunca `/login`** | No hay contraseña que tipear; el login es un callejón sin salida |
 | `/poi/*` | Detrás de token de sesión | Cierra la fuga del activo más valioso |
 | Despliegue a producción | Fuera de la v1 | Se desarrolla y prueba local primero |
 
@@ -107,9 +109,9 @@ Lo que **no** se resuelve y se asume: si alguien re-empaqueta la APK con su prop
    │  · SQLite propio (volumen)  │─────▶│  /api/users          │
    │  · página de admin          │ REST │  /api/session        │
    │  · emite tokens             │ admin│  /api/session/token  │
-   │  · revoca tokens            │      │  /api/session/token/ │
-   └─────────────────────────────┘      │       revoke         │
-                                        └──────────────────────┘
+   │  · RENUEVA tokens           │      │  /api/session/token/ │
+   │  · revoca tokens            │      │       revoke         │
+   └─────────────────────────────┘      └──────────────────────┘
 ```
 
 **Frontera de aislamiento:** el servicio de enrolamiento es el único componente nuevo. No comparte base de datos con Traccar, no comparte contenedor, no comparte puerto. La comunicación es REST sobre la red de Docker, con una cuenta de admin dedicada.
@@ -124,6 +126,7 @@ Lo que **no** se resuelve y se asume: si alguien re-empaqueta la APK con su prop
 |---|---|---|---|
 | `POST` | `/enroll/request` | Ninguna | La app se presenta. Devuelve el código legible |
 | `GET` | `/enroll/status` | Secreto del dispositivo | La app consulta si ya fue aprobada |
+| `POST` | `/enroll/renew` | Secreto del dispositivo | **Renovación silenciosa**: emite un token nuevo si el enrolamiento sigue aprobado |
 | `POST` | `/enroll/revoke` | Secreto del dispositivo | La app se da de baja a sí misma |
 | `GET` | `/admin` | Contraseña de admin | Página de aprobación |
 | `POST` | `/admin/approve` | Contraseña de admin | Aprueba y emite el token |
@@ -186,8 +189,8 @@ La contraseña aleatoria que el servicio genera para cada cuenta de Traccar **nu
 8. El servicio, al aprobar:
      a. crea el usuario en Traccar con contraseña aleatoria
      b. inicia sesión como ese usuario
-     c. pide un token de 180 días
-     d. guarda el id del token en el registro del dispositivo
+     c. pide un token de 365 días
+     d. guarda el token en el registro del dispositivo
      e. marca el enrolamiento como aprobado
 
 9. En el siguiente polling, la app recibe el token, lo guarda con
@@ -195,7 +198,30 @@ La contraseña aleatoria que el servicio genera para cada cuenta de Traccar **nu
    Juan nunca vio una contraseña ni la va a ver.
 ```
 
-### 7.2 Re-enrolamiento (Juan cambia de teléfono)
+### 7.2 Renovación silenciosa
+
+Es lo que sostiene la decisión de que el usuario nunca conozca una contraseña. Sin esto, cada vencimiento de token dejaría a la persona varada en una pantalla de login donde no tiene nada que tipear.
+
+```
+1. La app, estando online, detecta que el token venció — o que ya
+   pasó la mitad de su vida útil y conviene adelantarse.
+
+2. Hace POST /enroll/renew con su secreto de dispositivo.
+
+3. El servicio verifica el hash del secreto, comprueba que el
+   enrolamiento siga en estado aprobado, y emite un token nuevo.
+
+4. La app reemplaza el token guardado. Fin.
+
+   Juan no se entera. Rodrigo no se entera. No hay código nuevo
+   ni aprobación manual.
+```
+
+**Por qué renovar antes del vencimiento y no cuando falla:** si se espera al 401, la persona puede estar en el medio de un viaje, sin señal o con el servicio caído, y se queda afuera sin poder hacer nada. Renovando a mitad de camino, la expiración no llega a morder nunca en el campo.
+
+**Consecuencia sobre el plazo del token:** una vez que existe la renovación, el plazo deja de ser un mecanismo de control. El secreto del dispositivo no vence, así que la vida útil efectiva de la credencial es la del secreto, no la del token. Poner 180 días en vez de 365 no cambiaría nada. Por eso se deja en 365.
+
+### 7.3 Re-enrolamiento (Juan cambia de teléfono)
 
 Es el caso operativo más frecuente y el que tiene que estar resuelto desde el día uno.
 
@@ -211,20 +237,36 @@ Es el caso operativo más frecuente y el que tiene que estar resuelto desde el d
 
 Sin esta herramienta, cada cambio de teléfono termina en edición manual de la base desde la Pi. Es exactamente lo que hay que evitar.
 
-### 7.3 Revocación
+### 7.4 Revocación
 
 ```
 1. Rodrigo abre la página de admin y revoca el dispositivo.
 
 2. El servicio llama a POST /api/session/token/revoke con el token
-   de ese dispositivo, y marca el registro como revocado.
+   de ese dispositivo, y marca el registro como revocado. Además
+   marca el enrolamiento, para que /enroll/renew lo rechace: así
+   no puede emitirse un token nuevo.
 
 3. La próxima vez que la app consulte al servidor, recibe 401.
-   El código que ya existe en App.jsx limpia el token y navega
-   al login. No hay que escribir lógica nueva de cierre.
+   El código que ya existe en App.jsx limpia el token. Lo único
+   que cambia es el destino: en vez de navigate('/login'), va a
+   la pantalla de enrolamiento, donde puede pedir un código nuevo
+   si Rodrigo decide rehabilitarlo.
 ```
 
-**Límite honesto:** si el dispositivo está sin conexión, la revocación no llega hasta que vuelva a tener señal. Esto es inherente al modo offline y no se puede eliminar sin romper el caso de uso central (viajeros en zonas sin cobertura). Se acota con el token de 180 días en lugar de 365.
+**Qué hace cumplir la revocación, exactamente.** No es la expiración del token. Es este chequeo del backend, que corre en cada validación sin importar la edad del token:
+
+```java
+// TokenManager.java:100
+var revoked = storage.getObject(RevokedToken.class, ...);
+if (revoked != null) {
+    throw new SecurityException("Token has been revoked");
+}
+```
+
+Un dispositivo revocado queda afuera la primera vez que toque el servidor, tenga el token un día o un año. Y como `/enroll/renew` también consulta el estado del enrolamiento, no puede pedir uno nuevo.
+
+**Límite honesto:** si el dispositivo está sin conexión, la revocación no llega hasta que vuelva a tener señal, y mientras tanto la `OfflineScreen` sigue funcionando con los mapas ya descargados. Esto es inherente al modo offline y no se puede eliminar sin romper el caso de uso central (viajeros en zonas sin cobertura). **El plazo del token no ayuda acá**: sin red, la app no valida la expiración en ningún momento (ver `App.jsx`, el `catch` conserva el token). Es un límite aceptado, no un problema a resolver.
 
 ---
 
@@ -276,7 +318,7 @@ Staging **tiene que ser HTTPS**, no una IP de la red local: `AndroidManifest.xml
 
 **Aislamiento del componente nuevo:** el servicio de enrolamiento es aditivo. Contenedor propio, base propia, puerto propio, ruta propia. Si se cae, Traccar sigue sirviendo. No hay estado compartido que pueda corromper.
 
-**Punto de retorno:** antes de tocar nada se crea el tag `prod-v1.1` en los tres repos y un `pg_dump` de la base de producción junto a una copia de `traccar.xml`. Son los dos únicos estados que git no recupera.
+**Punto de retorno (ya ejecutado el 2026-10-06):** tag `pre-enrolamiento` en los tres repos, `~/traccar-backup-2026-10-06.sql` (4,3 MB, verificado) y `traccar.xml.bak-2026-10-06` en la Pi. Son los dos únicos estados que git no recupera.
 
 **Los dos cambios que sí rozan lo existente** —desactivar el auto-registro y cerrar `/poi/`— pasan por staging antes de producción. Son ambos reversibles en minutos.
 
@@ -288,10 +330,10 @@ Staging **tiene que ser HTTPS**, no una IP de la red local: `AndroidManifest.xml
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| Revocación no instantánea en dispositivos offline | Un dispositivo revocado sigue usable sin señal | Token de 180 días en vez de 365; es un límite inherente al modo offline |
-| El servicio es punto único de falla para enrolamientos nuevos | Nadie nuevo puede enrolarse si se cae | No afecta a usuarios existentes, que hablan directo con Traccar |
+| Revocación no llega a un dispositivo offline | Un dispositivo revocado sigue usable sin señal, con los mapas ya descargados | Límite inherente al modo offline. **El plazo del token no lo mitiga** (sin red no se valida). Se acepta |
+| El servicio es punto único de falla para enrolamientos y renovaciones | Si se cae, nadie nuevo entra y los tokens vencidos no se renuevan | La renovación proactiva a mitad de vida da margen; los usuarios con token vigente siguen hablando directo con Traccar |
 | Credenciales de admin de Traccar en el servicio | Compromiso total si se filtran | Cuenta dedicada, solo variables de entorno, nunca en el repositorio |
-| Un dispositivo rooteado puede extraer el token | Suplantación de ese dispositivo | Revocación por token; el atacante necesita además root |
+| Un dispositivo rooteado puede extraer el token | Suplantación de ese dispositivo | Revocación por token, efectiva en la próxima conexión; el atacante necesita además root |
 | Alguien re-empaqueta la APK con otro servidor | No se puede impedir | Los POIs y las posiciones no viajan en la APK |
 | Segundo Traccar + Postgres consumen RAM en la Pi | Degradación de producción | Staging se levanta solo cuando hace falta |
 
@@ -302,9 +344,10 @@ Staging **tiene que ser HTTPS**, no una IP de la red local: `AndroidManifest.xml
 ## 13. Testing
 
 - **Servicio de enrolamiento:** `node:test`. Casos: generación y unicidad de códigos, vencimiento a 48 h, hasheo del secreto, máquina de estados `pending → approved → revoked`, rechazo de secretos inválidos, límite de tasa.
+- **Renovación:** que `/enroll/renew` emita un token nuevo con un secreto válido y aprobado; que lo **rechace** si el enrolamiento está revocado; que lo rechace con un secreto que no existe; que el token viejo quede invalidado.
 - **Integración:** contra un contenedor Traccar local — crear usuario, emitir token, verificar el token, revocarlo y confirmar que `verifyToken` lo rechaza.
-- **App:** `vitest` (ya configurado). Casos: generación del secreto, persistencia en SecureStorage, polling, y que un 401 dispare el camino de logout existente.
-- **Manual, en staging:** el flujo completo desde un teléfono real, incluyendo cambio de teléfono y revocación.
+- **App:** `vitest` (ya configurado). Casos: generación del secreto, persistencia en SecureStorage, polling, renovación proactiva al pasar la mitad de la vida del token, y que un 401 lleve a la **pantalla de enrolamiento** y no a `/login`.
+- **Manual, en staging:** el flujo completo desde un teléfono real, incluyendo cambio de teléfono, renovación y revocación.
 
 ---
 
