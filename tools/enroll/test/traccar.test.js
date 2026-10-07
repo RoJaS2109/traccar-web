@@ -1,0 +1,209 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createTraccarClient, normalizeToken, TraccarError } from '../src/traccar.js';
+import { jsonResponse, recordingFetch, parseForm } from './helpers.js';
+
+const CONFIG = {
+  baseUrl: 'https://traccar.test',
+  email: 'servicio@rudatrak.invalid',
+  password: 'contrasena-de-servicio',
+};
+
+// `assert.rejects` de node:test resuelve a undefined, no al error: hay que atraparlo.
+const capture = (promise) => promise.then(() => null, (error) => error);
+
+test('normalizeToken saca las comillas que agrega el recurso JSON', () => {
+  assert.equal(normalizeToken('"abc.def-ghi_JKL"'), 'abc.def-ghi_JKL');
+  assert.equal(normalizeToken('  "abc.def"  '), 'abc.def');
+  // Sin comillas también vale: por si algún día el recurso deja de ser JSON.
+  assert.equal(normalizeToken('abc.def'), 'abc.def');
+});
+
+test('normalizeToken rechaza lo que no tiene forma de token', () => {
+  assert.equal(normalizeToken(''), null);
+  assert.equal(normalizeToken('   '), null);
+  assert.equal(normalizeToken('"con espacios"'), null);
+  assert.equal(normalizeToken('"con/slash"'), null);
+  assert.equal(normalizeToken(null), null);
+  assert.equal(normalizeToken(undefined), null);
+  assert.equal(normalizeToken(42), null);
+  assert.equal(normalizeToken('"una"cosa"'), null);
+});
+
+test('createUser manda los permisos mínimos y no toca deviceLimit', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse({ id: 42 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const user = await traccar.createUser({
+    name: 'Juan',
+    email: 'juan@rudatrak.invalid',
+    password: 'generada-al-azar',
+    readonly: true,
+    deviceReadonly: true,
+    limitCommands: true,
+    disableReports: true,
+  });
+
+  assert.equal(user.id, 42);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, 'https://traccar.test/api/users');
+  const payload = JSON.parse(calls[0].body);
+  assert.equal(payload.readonly, true);
+  assert.equal(payload.deviceReadonly, true);
+  assert.equal(payload.limitCommands, true);
+  assert.equal(payload.disableReports, true);
+  assert.equal(payload.administrator, false);
+  // Un manager NO puede fijar deviceLimit: checkUserUpdate compara contra un
+  // User vacío (deviceLimit 0) y llama a checkAdmin, que exige ser administrador.
+  assert.ok(!('deviceLimit' in payload), 'no mandar deviceLimit');
+  assert.ok(!('userLimit' in payload), 'no mandar userLimit');
+});
+
+test('mintTokenFor suplanta la sesión y emite el token sin Authorization', async () => {
+  const { fetch, calls } = recordingFetch((url) => {
+    if (url.endsWith('/api/session/42')) {
+      return jsonResponse({ id: 42, name: 'Juan' }, {
+        headers: { 'Set-Cookie': 'JSESSIONID=abc123; Path=/; HttpOnly' },
+      });
+    }
+    if (url.endsWith('/api/session/token')) {
+      return jsonResponse('"eyJhbGciOi.token.firma"');
+    }
+    throw new Error(`URL inesperada: ${url}`);
+  });
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const token = await traccar.mintTokenFor(42, new Date('2026-11-20T00:00:00.000Z'));
+
+  // El normalizador tiene que haber sacado las comillas.
+  assert.equal(token, 'eyJhbGciOi.token.firma');
+  assert.equal(calls.length, 2);
+
+  const [impersonar, emitir] = calls;
+  assert.equal(impersonar.method, 'GET');
+  assert.equal(impersonar.url, 'https://traccar.test/api/session/42');
+  assert.match(impersonar.headers.authorization, /^Basic /);
+
+  assert.equal(emitir.method, 'POST');
+  assert.equal(emitir.url, 'https://traccar.test/api/session/token');
+  // Esta es la parte que no se puede romper: con Authorization, el filtro arma el
+  // contexto desde las credenciales y el token sale a nombre de la cuenta de servicio.
+  assert.equal(emitir.headers.authorization, undefined);
+  assert.equal(emitir.headers.cookie, 'JSESSIONID=abc123');
+  assert.equal(parseForm(emitir.body).expiration, '2026-11-20');
+});
+
+test('mintTokenFor manda la expiración siempre', async () => {
+  const { fetch, calls } = recordingFetch((url) => (
+    url.endsWith('/api/session/42')
+      ? jsonResponse({}, { headers: { 'Set-Cookie': 'JSESSIONID=x; Path=/' } })
+      : jsonResponse('"tok.en"')
+  ));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  await traccar.mintTokenFor(42, new Date('2026-11-20T00:00:00.000Z'));
+  const emitir = calls.find((c) => c.url.endsWith('/api/session/token'));
+  // Omitirla NO da un token largo: TokenManager cae en DEFAULT_EXPIRATION_DAYS = 7.
+  assert.ok(parseForm(emitir.body).expiration, 'la expiración no puede faltar');
+});
+
+test('mintTokenFor rechaza una respuesta que no parece un token', async () => {
+  const { fetch } = recordingFetch((url) => (
+    url.endsWith('/api/session/42')
+      ? jsonResponse({}, { headers: { 'Set-Cookie': 'JSESSIONID=x; Path=/' } })
+      : jsonResponse('<html>error</html>')
+  ));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await assert.rejects(() => traccar.mintTokenFor(42, new Date()), /token/i);
+});
+
+test('mintTokenFor falla si la suplantación no devuelve cookie de sesión', async () => {
+  const { fetch } = recordingFetch(() => jsonResponse({ id: 42 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await assert.rejects(() => traccar.mintTokenFor(42, new Date()), /sesión|session|cookie/i);
+});
+
+test('revokeToken normaliza las comillas y manda el token pelado', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  await traccar.revokeToken('"eyJhbGciOi.token.firma"');
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://traccar.test/api/session/token/revoke');
+  assert.equal(parseForm(calls[0].body).token, 'eyJhbGciOi.token.firma');
+});
+
+test('disableUser manda el usuario completo con disabled en true', async () => {
+  const original = {
+    id: 42, name: 'Juan', email: 'juan@rudatrak.invalid',
+    readonly: true, deviceReadonly: true, limitCommands: true, disableReports: true,
+    administrator: false, disabled: false,
+  };
+  const { fetch, calls } = recordingFetch((url, init) => (
+    init.method === 'PUT' ? jsonResponse({}) : jsonResponse(original)
+  ));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  await traccar.disableUser(42);
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].method, 'GET');
+  const payload = JSON.parse(calls[1].body);
+  assert.equal(calls[1].method, 'PUT');
+  assert.equal(calls[1].url, 'https://traccar.test/api/users/42');
+  assert.equal(payload.disabled, true);
+  // Sin esto, el PUT pisaría los cuatro flags con false: QueryBuilder.setObject
+  // escribe todas las columnas de la lista y los boolean primitivos nunca son nulos.
+  assert.equal(payload.readonly, true);
+  assert.equal(payload.deviceReadonly, true);
+  assert.equal(payload.limitCommands, true);
+  assert.equal(payload.disableReports, true);
+  assert.equal(payload.name, 'Juan');
+  assert.equal(payload.email, 'juan@rudatrak.invalid');
+});
+
+test('deleteUser pega en el endpoint del usuario', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.deleteUser(42);
+  assert.equal(calls[0].method, 'DELETE');
+  assert.equal(calls[0].url, 'https://traccar.test/api/users/42');
+});
+
+test('serverInfo devuelve la versión', async () => {
+  const { fetch } = recordingFetch(() => jsonResponse({ version: '6.14.5' }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  assert.equal((await traccar.serverInfo()).version, '6.14.5');
+});
+
+test('un error de Traccar se convierte en TraccarError con el estado', async () => {
+  const { fetch } = recordingFetch(() => jsonResponse({ message: 'User access denied' }, { status: 403 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const error = await capture(traccar.getUser(42));
+  assert.ok(error instanceof TraccarError, 'debe ser un TraccarError');
+  assert.equal(error.status, 403);
+  assert.match(error.message, /403/);
+});
+
+test('el error nunca incluye la contraseña de servicio', async () => {
+  // Traccar puede devolver el cuerpo de la petición en un mensaje de error.
+  const { fetch } = recordingFetch(() => jsonResponse(
+    { message: `no se pudo autenticar con ${CONFIG.password}` }, { status: 401 },
+  ));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const error = await capture(traccar.getUser(42));
+  assert.ok(error instanceof TraccarError, 'debe ser un TraccarError');
+  assert.ok(!error.message.includes(CONFIG.password), 'la contraseña no debe aparecer en el error');
+  assert.ok(!error.body.includes(CONFIG.password), 'ni en el cuerpo del error');
+});
+
+test('una URL base con barra final no genera dobles barras', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse({ version: '6.14.5' }));
+  const traccar = createTraccarClient({ ...CONFIG, baseUrl: 'https://traccar.test/', fetchImpl: fetch });
+  await traccar.serverInfo();
+  assert.equal(calls[0].url, 'https://traccar.test/api/server');
+});
