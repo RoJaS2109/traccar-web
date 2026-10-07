@@ -1,0 +1,25 @@
+# Traccar descartable para verificar la API real. Se levanta, se corre `npm run smoke`
+# y se destruye con `down -v`. No comparte nada con el stack de producción: base,
+# volumen y puerto propios, y el puerto escucha solo en 127.0.0.1.
+services:
+  smoke-traccar:
+    # Fijada a la versión que corre en producción, según GET /api/server (6.15.3 al
+    # 2026-10-07). El Dockerfile del frontend usa `traccar/traccar:latest`, sin pinear,
+    # así que la versión desplegada es la que estaba vigente al construir la imagen.
+    image: traccar/traccar:6.15.3
+    environment:
+      - CONFIG_USE_ENVIRONMENT_VARIABLES=true
+      - DATABASE_DRIVER=org.h2.Driver
+      - DATABASE_URL=jdbc:h2:/opt/traccar/data/database
+      - WEB_PORT=8082
+      # Sin registro abierto: los usuarios del smoke los crea la cuenta de servicio.
+      # El primer usuario (el administrador) se crea igual, porque UserResource.add
+      # hace administrador al primero cuando la base está vacía (UserUtil.isEmpty).
+      - DATABASE_REGISTRATION=false
+    ports:
+      - "127.0.0.1:18082:8082"
+    volumes:
+      - smoke-traccar-data:/opt/traccar/data
+
+volumes:
+  smoke-traccar-data:

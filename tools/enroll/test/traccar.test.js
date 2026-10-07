@@ -91,7 +91,9 @@ test('mintTokenFor suplanta la sesión y emite el token sin Authorization', asyn
   // contexto desde las credenciales y el token sale a nombre de la cuenta de servicio.
   assert.equal(emitir.headers.authorization, undefined);
   assert.equal(emitir.headers.cookie, 'JSESSIONID=abc123');
-  assert.equal(parseForm(emitir.body).expiration, '2026-11-20');
+  // ISO 8601 completo, como `dayjs(...).toISOString()` en el frontend (PreferencesPage.jsx:84).
+  // Con 'YYYY-MM-DD' Jersey tira ParamException$FormParamException → 400.
+  assert.equal(parseForm(emitir.body).expiration, '2026-11-20T00:00:00.000Z');
 });
 
 test('mintTokenFor manda la expiración siempre', async () => {
@@ -176,6 +178,25 @@ test('serverInfo devuelve la versión', async () => {
   const { fetch } = recordingFetch(() => jsonResponse({ version: '6.14.5' }));
   const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
   assert.equal((await traccar.serverInfo()).version, '6.14.5');
+});
+
+test('whoAmI inicia sesión y devuelve el usuario autenticado', async () => {
+  // No sirve GET /api/session: es @PermitAll y solo lee el atributo USER_ID de la
+  // HttpSession, que con Basic Auth no existe. Responde 404 (SessionResource:104).
+  // El login sí devuelve el User completo, con administrator y userLimit.
+  const { fetch, calls } = recordingFetch(() => jsonResponse({ id: 7, administrator: false, userLimit: 200 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const me = await traccar.whoAmI();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, 'https://traccar.test/api/session');
+  const body = parseForm(calls[0].body);
+  assert.equal(body.email, CONFIG.email);
+  assert.equal(body.password, CONFIG.password);
+  assert.equal(me.userLimit, 200);
+  assert.equal(me.administrator, false);
 });
 
 test('un error de Traccar se convierte en TraccarError con el estado', async () => {

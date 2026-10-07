@@ -14,10 +14,12 @@ export class TraccarError extends Error {
 }
 
 /**
- * `POST /api/session/token` es un recurso @Produces(APPLICATION_JSON) que devuelve
- * un String, así que el cuerpo llega como `"eyJ…"` con comillas dobles. Sin sacarlas,
- * el token se guarda corrupto y falla recién en el primer uso. El frontend tiene el
- * mismo normalizador en src/offline/tokenStore.js.
+ * `POST /api/session/token` es un recurso @Produces(APPLICATION_JSON) que devuelve un
+ * String, así que el cuerpo puede llegar entre comillas dobles (`"eyJ…"`) o pelado.
+ * Verificado contra Traccar 6.15.3 en la Tarea 4: el cuerpo empieza en 0x52 y termina en
+ * 0x51 (sin comillas), con Content-Type application/json. Igual se toleran ambas formas:
+ * cuesta una comparación y evita un token corrupto que fallaría recién en el primer uso.
+ * El frontend tiene el mismo normalizador en src/offline/tokenStore.js.
  */
 export function normalizeToken(raw) {
   if (typeof raw !== 'string') {
@@ -30,9 +32,14 @@ export function normalizeToken(raw) {
   return TOKEN_PATTERN.test(value) ? value : null;
 }
 
-/** `YYYY-MM-DD`, el formato que acepta el @FormParam Date de Traccar. */
+/**
+ * ISO 8601 completo, no `YYYY-MM-DD`. Jersey convierte el @FormParam Date con un
+ * SimpleDateFormat que no entiende la fecha pelada: manda ParamException$FormParamException
+ * y la emisión falla con 400. Verificado contra Traccar 6.15.3 en la Tarea 4; es el mismo
+ * formato que usa el frontend (`dayjs(...).toISOString()`, PreferencesPage.jsx:84).
+ */
 function formatExpiration(date) {
-  return new Date(date).toISOString().slice(0, 10);
+  return new Date(date).toISOString();
 }
 
 function sessionCookieFrom(response) {
@@ -145,6 +152,26 @@ export function createTraccarClient({
   return {
     async serverInfo() {
       return (await api('/api/server')).json();
+    },
+
+    /**
+     * El usuario de la cuenta de servicio, para verificar sus permisos.
+     *
+     * Es un login, no un GET de la sesión: `GET /api/session` está anotado @PermitAll y
+     * solo mira el atributo USER_ID de la HttpSession, que con Basic Auth no existe — por
+     * eso responde 404 (SessionResource:104). `POST /api/session` devuelve el User con
+     * Columns.All(), incluidos `administrator` y `userLimit`.
+     *
+     * Va sin Authorization, como el login de la app: así el filtro no arma un contexto
+     * aparte y la respuesta es inequívocamente la de estas credenciales.
+     */
+    async whoAmI() {
+      const response = await send('/api/session', {
+        method: 'POST',
+        body: { email, password },
+      });
+      await expectOk(response, 'POST /api/session');
+      return response.json();
     },
 
     /**
