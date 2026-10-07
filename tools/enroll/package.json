@@ -1,0 +1,19 @@
+{
+  "name": "rudatrak-enroll",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Servicio de enrolamiento de dispositivos de RudaTrak",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "smoke": "node src/smoke.js",
+    "backup": "node src/backup.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
