@@ -23,10 +23,14 @@ como módulo y falla con `MODULE_NOT_FOUND`.
 Verificación contra un **Traccar real y descartable**, para comprobar lo que los tests
 con `fetch` falso no pueden: que Traccar acepte las peticiones que el cliente arma.
 
-**Última corrida: 2026-10-07 — 11/11 verificaciones OK** contra `traccar/traccar:6.15.3`,
+**Última corrida: 2026-10-08 — 23/23 verificaciones OK** contra `traccar/traccar:6.15.3`,
 la misma versión que producción (`GET https://mh.rudatrak.com/api/server` → `6.15.3`).
 El plan decía 6.14.5, pero el Dockerfile del frontend usa `traccar/traccar:latest` sin
 pinear, así que la versión desplegada es otra.
+
+El descartable corre con **`SERVER_BUFFERING_THRESHOLD=0`** y **`OSMAND_TIMEOUT=10`**
+(ver `docker-compose.smoke.yml`). Las dos existen para que el smoke mida lo que dice
+medir; sin ellas da falsos negativos — ver *"La ventana de revocación"*.
 
 ### Cómo se corre
 
@@ -67,6 +71,18 @@ producción — y el smoke crea usuarios, emite tokens y deshabilita cuentas.
 | 9 | Deshabilitar no borra los permisos del usuario | OK — los 4 flags siguen en `true` |
 | 10 | El usuario deshabilitado puede volver a habilitarse | OK |
 | 11 | ¿Un usuario con permisos mínimos puede crear un dispositivo? | **OBSERVACIÓN** — no |
+| (a) | El manager crea un dispositivo con `uniqueId` aleatorio | OK |
+| (b) | El manager vincula el dispositivo al usuario enrolado | OK — el usuario pasa a verlo |
+| (c) | El usuario enrolado ve **exactamente** su dispositivo y ningún otro | OK — ve `[14]`, no el ajeno `15` |
+| (d) | El usuario enrolado no puede modificar ni borrar su dispositivo | OK — `Write access denied` en ambos |
+| (e) | El manager no ve ni modifica un dispositivo del administrador | OK — `Device access denied` |
+| (f1) | El dispositivo habilitado reporta por una conexión nueva | OK — `200`, posición almacenada |
+| (f2) | Deshabilitado: la conexión **ya establecida** sigue reportando | OK — **mide la ventana**, ver abajo |
+| (f3) | Deshabilitado: una conexión **nueva** es rechazada | OK — conexión cerrada, posición no almacenada |
+| (f4) | Un `uniqueId` desconocido no crea dispositivo | OK — `400`, no aparece en `/api/devices?all=true` |
+| (g) | Compensación: qué queda creado y cómo se borra | OK — inventario + limpieza |
+| (h) | La ventana se acota: a los 10 s el servidor cierra la conexión | OK — cerrada; el reporte siguiente se rechaza |
+| (i) | Dos dispositivos por la **misma** conexión keep-alive | OK — cada posición cae en el dispositivo que la mandó |
 
 Salida de las tres que deciden el diseño:
 
@@ -102,6 +118,57 @@ mirar `deviceLimit`, así que `readonly` + `deviceReadonly` alcanzan para prohib
 **Consecuencia:** si los usuarios enrolados llevan `readonly` + `deviceReadonly`, el
 servicio tiene que crear el dispositivo al aprobar. El Plan 2 no puede dejarlo en manos
 de la app.
+
+### La ventana de revocación
+
+**Deshabilitar un dispositivo NO corta una conexión ya establecida.** Las verificaciones
+(f1)–(f3) y (h) lo miden: la (f2) comprueba que sigue reportando, la (h) que la ventana se
+cierra sola.
+
+El mecanismo, en el código de 6.15.3:
+
+- `ConnectionManager.getDeviceSession` busca primero en `sessionsByEndpoint`
+  (`Map<ConnectionKey, Map<uniqueId, DeviceSession>>`, con `ConnectionKey(channel,
+  remoteAddress)`). Si hay **acierto de caché, vuelve enseguida** — y
+  `device.checkDisabled()` solo se ejecuta en el camino de sesión nueva
+  (`ConnectionManager.java:119-155`). El gate de `disabled` no se consulta en cada mensaje.
+- `ConnectionManager` **no** implementa `CacheManager.CacheListener`: deshabilitar un
+  dispositivo no invalida la sesión viva. La sesión solo se limpia en `deviceDisconnected`,
+  que se llama desde `MainEventHandler.channelInactive`.
+- No hay endpoint para desconectar un dispositivo: `DeviceResource` solo expone
+  `{id}/accumulators` y `{id}/image`.
+
+**Lo que sí acota la ventana es el timeout de inactividad.** `BasePipelineFactory` resuelve
+`<protocolo>.timeout` (`Keys.PROTOCOL_TIMEOUT`, sufijo `.timeout`) y, si vale `0`, cae en
+`server.timeout` — **por defecto 1800 s** (`Keys.java:360`). Para OsmAnd la clave es
+`osmand.timeout`, en segundos. Con un valor > 0 y un transporte no-datagrama, agrega
+`IdleStateHandler(timeout, 0, 0)`; al expirar, `MainEventHandler.userEventTriggered` hace
+`closeChannel` → `channelInactive` → `deviceDisconnected` → la sesión cacheada se borra y el
+siguiente reporte vuelve a pasar por `checkDisabled()`.
+
+Medido en el descartable con `OSMAND_TIMEOUT=10`: a los 13 s de inactividad el servidor
+cerró la conexión, y un reporte posterior por ella y por una conexión nueva fueron
+rechazados, sin posición almacenada. **Con el ajuste, la ventana máxima es el timeout**; sin
+ajustarlo son los 1800 s por defecto, media hora de ingesta de un dispositivo ya revocado.
+
+**La revocación, entonces, son dos actos con dos latencias distintas:**
+
+| Acto | Qué corta | Cuándo |
+|------|-----------|--------|
+| Deshabilitar el **usuario** | El acceso a los datos (todos sus tokens pasan a 401) | Al instante — verificación 8 |
+| Deshabilitar el **dispositivo** | La ingesta de posiciones | Al cerrarse la conexión, acotado por `<protocolo>.timeout` |
+
+### Atribución en una conexión compartida (experimento para el Plan 2)
+
+Verificación (i): una sola conexión keep-alive reportando `rt-multi-a-…`, después
+`rt-multi-b-…`, después `rt-multi-a-…` otra vez. Las tres posiciones caen en el dispositivo
+que las mandó, según el `id` del reporte — **no** según la conexión. La conexión no fija un
+dueño.
+
+Consecuencia para el Plan 2: la `ConnectionKey` no sirve como identidad de dispositivo. Si
+el camino de reporte real (HTTPS con el `uniqueId` como credencial) llega a multiplexar
+dispositivos sobre una conexión, el control de acceso tiene que mirar el `id` de cada
+reporte, que es lo que hace el gate de `disabled` hoy.
 
 ### Tres cosas que el smoke obligó a cambiar en el diseño
 
@@ -140,6 +207,8 @@ cubrir la normalización.
 | `SMOKE_ADMIN_EMAIL` / `SMOKE_ADMIN_PASSWORD` | El administrador del descartable: solo para crear un usuario que el manager **no** creó (verificación 6) y borrarlo después |
 | `SMOKE_TRACCAR_URL` | Default `http://127.0.0.1:18082`; solo se aceptan hosts locales |
 | `SMOKE_EXPECTED_VERSION` | Default `6.15.3` |
+| `SMOKE_OSMAND_URL` | Default `http://127.0.0.1:15055`; el listener OsmAnd del descartable, por donde reportan los dispositivos |
+| `SMOKE_OSMAND_TIMEOUT` | Default `10`; **tiene que coincidir** con `OSMAND_TIMEOUT` del `docker-compose.smoke.yml`. Es lo que la verificación (h) espera para dar por cerrada la conexión |
 
 Las credenciales de las cuentas de servicio en producción van por variables de entorno,
 nunca en la línea de comandos, donde quedarían en el historial y en la lista de procesos.

@@ -16,8 +16,22 @@ services:
       # El primer usuario (el administrador) se crea igual, porque UserResource.add
       # hace administrador al primero cuando la base está vacía (UserUtil.isEmpty).
       - DATABASE_REGISTRATION=false
+      # Sin buffering: `server.buffering.threshold` retiene cada posición 3000 ms antes
+      # de pasarla al pipeline (BufferingManager). Con el rezago, cualquier verificación
+      # que espere menos que el umbral reporta un falso negativo — el smoke original
+      # esperaba 2000 ms y por eso afirmaba que la posición deshabilitada "no llegaba".
+      - SERVER_BUFFERING_THRESHOLD=0
+      # Timeout de inactividad por protocolo (`osmand.timeout`, en segundos). Sin esta
+      # entrada cae en `server.timeout`, que por defecto son 1800 s: la sesión cacheada
+      # de una conexión viva sobrevive media hora. Con 10 s el smoke puede medir la
+      # ventana y comprobar que al expirar la conexión el gate de `disabled` vuelve a
+      # aplicarse (IdleStateHandler → closeChannel → deviceDisconnected).
+      - OSMAND_TIMEOUT=10
     ports:
       - "127.0.0.1:18082:8082"
+      # OsmAnd (5055): por acá se reportan posiciones con GET /?id=..&lat=..&lon=.. para
+      # verificar de punta a punta que un dispositivo deshabilitado no guarda posiciones.
+      - "127.0.0.1:15055:5055"
     volumes:
       - smoke-traccar-data:/opt/traccar/data
 
