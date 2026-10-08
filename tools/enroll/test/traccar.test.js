@@ -228,3 +228,124 @@ test('una URL base con barra final no genera dobles barras', async () => {
   await traccar.serverInfo();
   assert.equal(calls[0].url, 'https://traccar.test/api/server');
 });
+
+test('createDevice manda el uniqueId y devuelve el id', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse({ id: 55, uniqueId: 'rt-abc' }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  const device = await traccar.createDevice({ name: 'Teléfono de Juan', uniqueId: 'rt-abc' });
+
+  assert.equal(device.id, 55);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, 'https://traccar.test/api/devices');
+  const payload = JSON.parse(calls[0].body);
+  assert.equal(payload.uniqueId, 'rt-abc');
+  assert.equal(payload.name, 'Teléfono de Juan');
+});
+
+test('getDevice pega en el endpoint del dispositivo', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse({ id: 55 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.getDevice(55);
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].url, 'https://traccar.test/api/devices/55');
+});
+
+test('updateDevice manda PUT con el dispositivo completo', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse({}));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.updateDevice({ id: 55, name: 'x', uniqueId: 'rt-abc' });
+  assert.equal(calls[0].method, 'PUT');
+  assert.equal(calls[0].url, 'https://traccar.test/api/devices/55');
+  assert.equal(JSON.parse(calls[0].body).uniqueId, 'rt-abc');
+});
+
+test('disableDevice manda el dispositivo completo con disabled en true', async () => {
+  const original = { id: 55, name: 'x', uniqueId: 'rt-abc', disabled: false };
+  const { fetch, calls } = recordingFetch((url, init) => (
+    init.method === 'PUT' ? jsonResponse({}) : jsonResponse(original)
+  ));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  await traccar.disableDevice(55);
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[1].method, 'PUT');
+  const payload = JSON.parse(calls[1].body);
+  assert.equal(payload.disabled, true);
+  assert.equal(payload.uniqueId, 'rt-abc');
+});
+
+test('deleteDevice pega en DELETE del dispositivo', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.deleteDevice(55);
+  assert.equal(calls[0].method, 'DELETE');
+  assert.equal(calls[0].url, 'https://traccar.test/api/devices/55');
+});
+
+test('linkDevice vincula usuario y dispositivo como JSON', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.linkDevice(7, 55);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, 'https://traccar.test/api/permissions');
+  const payload = JSON.parse(calls[0].body);
+  assert.equal(payload.userId, 7);
+  assert.equal(payload.deviceId, 55);
+});
+
+test('unlinkDevice borra el vínculo usuario-dispositivo', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.unlinkDevice(7, 55);
+  assert.equal(calls[0].method, 'DELETE');
+  assert.equal(calls[0].url, 'https://traccar.test/api/permissions');
+  assert.equal(JSON.parse(calls[0].body).deviceId, 55);
+});
+
+test('getDevices lista dispositivos y con all=true los de todos', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse([]));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.getDevices();
+  assert.equal(calls[0].url, 'https://traccar.test/api/devices');
+  await traccar.getDevices({ all: true });
+  assert.equal(calls[1].url, 'https://traccar.test/api/devices?all=true');
+});
+
+test('getPositions pide las posiciones del dispositivo', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse([]));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.getPositions(55);
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].url, 'https://traccar.test/api/positions?deviceId=55');
+});
+
+test('getPositions con rango pide el historial, no solo la última posición', async () => {
+  // Sin `from`/`to`, /api/positions devuelve una sola posición: la última conocida del
+  // dispositivo. Alcanza para "¿llegó?", no para "¿llegaron las dos?" — verificado contra
+  // 6.15.3, donde tres reportes consecutivos devolvían un único elemento.
+  const { fetch, calls } = recordingFetch(() => jsonResponse([]));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+
+  await traccar.getPositions(55, {
+    from: '2026-10-08T00:00:00.000Z',
+    to: '2026-10-08T01:00:00.000Z',
+  });
+
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, '/api/positions');
+  assert.equal(url.searchParams.get('deviceId'), '55');
+  assert.equal(url.searchParams.get('from'), '2026-10-08T00:00:00.000Z');
+  assert.equal(url.searchParams.get('to'), '2026-10-08T01:00:00.000Z');
+});
+
+test('getPositions sin rango no agrega parámetros vacíos', async () => {
+  const { fetch, calls } = recordingFetch(() => jsonResponse([]));
+  const traccar = createTraccarClient({ ...CONFIG, fetchImpl: fetch });
+  await traccar.getPositions(55, {});
+  assert.ok(!calls[0].url.includes('from='), `from no debe aparecer: ${calls[0].url}`);
+  assert.ok(!calls[0].url.includes('to='), `to no debe aparecer: ${calls[0].url}`);
+});

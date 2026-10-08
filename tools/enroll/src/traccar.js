@@ -212,6 +212,61 @@ export function createTraccarClient({
       await api(`/api/users/${id}`, { method: 'DELETE' });
     },
 
+    async createDevice(payload) {
+      return (await api('/api/devices', { method: 'POST', json: payload })).json();
+    },
+
+    async getDevice(id) {
+      return (await api(`/api/devices/${id}`)).json();
+    },
+
+    async updateDevice(device) {
+      return (await api(`/api/devices/${device.id}`, { method: 'PUT', json: device })).json();
+    },
+
+    /**
+     * Igual que `disableUser`: manda el objeto completo, no `{ id, disabled: true }`.
+     * `PUT /api/devices/{id}` escribe todas las columnas y un parche pisaría los atributos
+     * del dispositivo. La desactivación es la revocación del reporte: `Disableable.checkDisabled`
+     * hace caer los mensajes de protocolo (OsmAnd incluido) del dispositivo deshabilitado.
+     */
+    async disableDevice(id) {
+      const device = await this.getDevice(id);
+      return this.updateDevice({ ...device, disabled: true });
+    },
+
+    async deleteDevice(id) {
+      await api(`/api/devices/${id}`, { method: 'DELETE' });
+    },
+
+    async linkDevice(userId, deviceId) {
+      await api('/api/permissions', { method: 'POST', json: { userId, deviceId } });
+    },
+
+    async unlinkDevice(userId, deviceId) {
+      await api('/api/permissions', { method: 'DELETE', json: { userId, deviceId } });
+    },
+
+    async getDevices({ all = false } = {}) {
+      return (await api(`/api/devices${all ? '?all=true' : ''}`)).json();
+    },
+
+    /**
+     * Sin `from`/`to`, `/api/positions` devuelve una sola posición: la última conocida del
+     * dispositivo (verificado contra 6.15.3 — tres reportes seguidos devuelven un único
+     * elemento). Alcanza para "¿llegó la última?", no para "¿llegaron las dos?".
+     */
+    async getPositions(deviceId, { from, to } = {}) {
+      const params = new URLSearchParams({ deviceId: String(deviceId) });
+      if (from) {
+        params.set('from', new Date(from).toISOString());
+      }
+      if (to) {
+        params.set('to', new Date(to).toISOString());
+      }
+      return (await api(`/api/positions?${params}`)).json();
+    },
+
     /**
      * Emite un token a nombre de `userId` sin conocer su contraseña:
      *  1. GET /api/session/{id} con Basic → PermissionsService.checkUser autoriza a la
