@@ -136,15 +136,15 @@ El módulo `src/offline/` implementa la pantalla sin conexión (se muestra cuand
 
 Las zonas `.pmtiles` se recortan con el servicio **trak-mapas** (`tools/trak-mapas/`, ver su
 [`README`](tools/trak-mapas/README.md)) a partir de un único archivo base `BASE_PMTILES`. El
-base **en servicio** es **`sudamerica-20261003-z15.pmtiles`**: Sudamérica continental (los 12
+base **en servicio** es **`sudamerica-20261003-z15-v2.pmtiles`**: Sudamérica continental (los 12
 países continentales, AR/CL/UY/PY/BO/BR/PE/EC/CO/VE/GY/SR), z0–15, recortado del build diario
 de Protomaps (Planetiler) con los polígonos de **Natural Earth 50m** (`admin_0_countries`) y un
 **buffer de ~25 km** en Web Mercator (EPSG:3857).
 
 ```
-sudamerica-20261003-z15.pmtiles   8.501.666.385 bytes (7,92 GiB)
-sha256 76c2371916d0cab268293b75802da9a08fc3c99b64a210945b69e4afb8a02c9d
-minzoom 0 / maxzoom 15 — verify OK — 16/16 ciudades de referencia con tiles z0–15
+sudamerica-20261003-z15-v2.pmtiles   8.647.255.196 bytes (8,05 GiB)
+sha256 99d6949ab13fe379403852bd8fe4cd500dad16cc5084ecc06b141cb68f80eca8
+minzoom 0 / maxzoom 15 — bounds (-82, -56.5) (-34, 13) — clustered, mvt, gzip
 ```
 
 El **z14 (`sudamerica-20261003-z14.pmtiles`, 4,0 GB) queda como respaldo en la Pi**: para volver

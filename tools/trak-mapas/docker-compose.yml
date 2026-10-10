@@ -32,7 +32,7 @@ services:
       - TRACCAR_URL=http://rudatrak-traccar:8082
       # Archivo base del recorte. Se resuelve desde .env (ver .env.example); default =
       # Sudamérica continental. Para cambiar de base, ver el README de trak-mapas.
-      - BASE_PMTILES=${BASE_PMTILES:-/data/maps/sudamerica-20261003-z14.pmtiles}
+      - BASE_PMTILES=${BASE_PMTILES:-/data/maps/sudamerica-20261003-z15-v2.pmtiles}
       # Override EXCEPCIONAL de la versión del base (ver .env.example). Sin valor por
       # defecto a propósito: vacío ⇒ el servidor la calcula como <archivo>:<tamaño> al
       # arrancar. No fijarla salvo que el cálculo automático no alcance.

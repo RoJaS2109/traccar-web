@@ -175,7 +175,7 @@ docker build -t trak-mapas:latest .
 
 # Prueba local (sin Docker): node server.js con el binario y el archivo base locales
 PMTILES_BIN=/ruta/pmtiles \
-BASE_PMTILES=/ruta/sudamerica-20261003-z15.pmtiles \
+BASE_PMTILES=/ruta/sudamerica-20261003-z15-v2.pmtiles \
 OUTPUT_DIR=/tmp/trak-mapas-output \
 TRACCAR_URL=https://mh.rudatrak.com \
 node server.js
@@ -184,7 +184,7 @@ node server.js
 ## Archivo base y regeneración
 
 El recorte parte de un único archivo base `BASE_PMTILES`. El base en servicio es
-**`sudamerica-20261003-z15.pmtiles`**: Sudamérica continental (z0–15) recortada del build
+**`sudamerica-20261003-z15-v2.pmtiles`**: Sudamérica continental (z0–15) recortada del build
 diario de Protomaps (Planetiler).
 
 `pmtiles extract` acepta la zona de dos formas: `--bbox=minLon,minLat,maxLon,maxLat`
@@ -336,7 +336,7 @@ generado**, no solo contra el build público.
 ### Cambiar el base activo (sin regenerar)
 
 `BASE_PMTILES` se resuelve desde una variable de entorno con default en el
-`docker-compose.yml` (`${BASE_PMTILES:-/data/maps/sudamerica-20261003-z15.pmtiles}`). Para
+`docker-compose.yml` (`${BASE_PMTILES:-/data/maps/sudamerica-20261003-z15-v2.pmtiles}`). Para
 cambiar a otro base ya construido:
 
 1. Copiar el `.pmtiles` a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/` (en la Pi).
@@ -353,7 +353,7 @@ cambiar a otro base ya construido:
 
 ## Deploy en la Pi
 
-1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z15.pmtiles`.
+1. Copiar el archivo base a `/mnt/datos/servicios/rudatrak/trak-mapas/maps/sudamerica-20261003-z15-v2.pmtiles`.
 2. Crear `/mnt/datos/servicios/rudatrak/trak-mapas/output/`.
 3. `docker compose up -d --build` (o integrar el servicio en el stack de Portainer).
 4. En Nginx Proxy Manager, ruta `mh.rudatrak.com/maps/*` (o un subdominio) → `rudatrak-trak-mapas:3006`.
