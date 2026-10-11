@@ -4,6 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.rudatrak.app',
   appName: 'RudaTrak',
   webDir: 'build',
+  // Sin esto, el APK debug (DEBUGGABLE) vuelca a logcat lo que devuelven los plugins: el token de sesión que lee
+  // SecureStorage al arrancar y los KML de los POIs. Un APK release no es debuggable y ya no loguea; esto lo deja igual
+  // en los dos.
+  loggingBehavior: 'none',
   server: {
     androidScheme: 'https',
   },
