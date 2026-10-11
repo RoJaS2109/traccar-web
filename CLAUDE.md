@@ -385,6 +385,13 @@ Vive en `traccar-web/` (raíz de este repo). Usa `build:` con contextos relativo
 - `carga-poi`: `build: ./tools/carga-poi` + `image: carga-poi:latest`, puerto `3007`, volumen para el KML general
 - `pull_policy: never` — nunca descargar de registry, siempre usar imagen local
 
+**Producción no sale de este archivo.** RudaTrak corre en la Pi desde el **stack de Portainer** (en el host:
+`/data/compose/10/docker-compose.yml`, dentro del volumen de datos de Portainer), no del `docker-compose.yml` del repo ni del
+checkout de `/mnt/datos/RudaTrak-web`. Un `git pull` en la Pi no cambia lo que corre; para cambiarlo hay que redeployar el
+stack desde Portainer. Los dos pueden diferir: el 11/10/2026 el stack publicaba `5031/tcp+udp` y `5055/tcp+udp` mientras el
+compose del repo solo tenía `5031/udp` (el repo se alineó después, commits del 1/9 de `origin/master`). Ante la duda, lo real
+es `docker ps` y `docker inspect rudatrak-traccar`.
+
 ### Gotchas de deploy
 
 - **Contenedor no se actualiza:** `docker compose up -d` sin `--force-recreate` no recrea contenedores si el compose file no cambió, aunque la imagen sí haya cambiado. Solución: usar Portainer API (redeploy del stack) o `docker compose up -d --force-recreate`.
