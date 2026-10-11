@@ -23,6 +23,17 @@ const PMTILES_BIN = process.env.PMTILES_BIN || 'pmtiles';
 const BASE_PMTILES = process.env.BASE_PMTILES || '/data/maps/base.pmtiles';
 const OUTPUT_DIR = process.env.OUTPUT_DIR || '/data/output';
 const TRACCAR_URL = (process.env.TRACCAR_URL || 'http://rudatrak:8082').replace(/\/+$/, '');
+// Quién valida el Bearer: `traccar` (default, la instancia de RudaTrak) o `mytrip`
+// (GET {MYTRIP_URL}/v1/yo). Un valor desconocido no arranca: caer al default dejaría
+// validando contra otro sistema de identidad sin que nadie se entere.
+const AUTH_BACKEND = process.env.AUTH_BACKEND || 'traccar';
+if (AUTH_BACKEND !== 'traccar' && AUTH_BACKEND !== 'mytrip') {
+  throw new Error(`AUTH_BACKEND inválido: "${AUTH_BACKEND}" (traccar|mytrip)`);
+}
+const MYTRIP_URL = (process.env.MYTRIP_URL || '').replace(/\/+$/, '');
+if (AUTH_BACKEND === 'mytrip' && !MYTRIP_URL) {
+  throw new Error('AUTH_BACKEND=mytrip requiere MYTRIP_URL');
+}
 const TOKEN_CACHE_TTL_MS = parseInt(process.env.TOKEN_CACHE_TTL_MS || '300000', 10);
 const MAX_ZONE_BYTES = parseInt(process.env.MAX_ZONE_BYTES || String(300 * 1024 * 1024), 10);
 const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '1800000', 10);
@@ -254,8 +265,32 @@ function releaseStreams(keys) {
 }
 
 // ---------------------------------------------------------------------------
-// Autenticación contra Traccar
+// Autenticación (Traccar o mytrip, según AUTH_BACKEND)
 // ---------------------------------------------------------------------------
+// Cada backend dice cómo preguntar y cómo leer el id; la caché y el manejo de errores
+// son comunes. `fetchIdentidad` devuelve la Response, o lanza si el servicio no responde.
+const BACKENDS = {
+  traccar: {
+    nombre: 'traccar',
+    fetchIdentidad: (token) =>
+      fetch(`${TRACCAR_URL}/api/session?token=${encodeURIComponent(token)}`, {
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      }),
+    // 401 (revocado) o 400 (malformado): definitivo.
+    rechazos: [400, 401],
+  },
+  mytrip: {
+    nombre: 'mytrip',
+    fetchIdentidad: (token) =>
+      fetch(`${MYTRIP_URL}/v1/yo`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      }),
+    rechazos: [401],
+  },
+};
+const backend = BACKENDS[AUTH_BACKEND];
+
 async function validateToken(token) {
   const cached = tokenCache.get(token);
   if (cached && Date.now() - cached.at < TOKEN_CACHE_TTL_MS) {
@@ -263,12 +298,10 @@ async function validateToken(token) {
   }
   let res;
   try {
-    res = await fetch(`${TRACCAR_URL}/api/session?token=${encodeURIComponent(token)}`, {
-      signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
-    });
+    res = await backend.fetchIdentidad(token);
   } catch {
-    // Traccar caído o lento: fallar cerrado, sin cachear (transitorio).
-    log('auth: traccar inalcanzable o timeout');
+    // Servicio de identidad caído o lento: fallar cerrado, sin cachear (transitorio).
+    log(`auth: ${backend.nombre} inalcanzable o timeout`);
     return { valid: false, userId: null, unavailable: true };
   }
   if (res.ok) {
@@ -277,14 +310,14 @@ async function validateToken(token) {
     tokenCache.set(token, { ...result, at: Date.now() });
     return result;
   }
-  if (res.status === 401 || res.status === 400) {
-    // Token inválido/revocado (401) o malformado (400): definitivo, cacheable.
+  if (backend.rechazos.includes(res.status)) {
+    // Token inválido o revocado: definitivo, cacheable.
     const result = { valid: false, userId: null, unavailable: false };
     tokenCache.set(token, { ...result, at: Date.now() });
     return result;
   }
-  // Cualquier otra respuesta (5xx, etc.): Traccar con problemas, no cachear.
-  log('auth: traccar respondió', res.status);
+  // Cualquier otra respuesta (5xx, etc.): el servicio tiene problemas, no cachear.
+  log(`auth: ${backend.nombre} respondió`, res.status);
   return { valid: false, userId: null, unavailable: true };
 }
 
@@ -809,6 +842,7 @@ async function start() {
   server.listen(PORT, () => {
     log('trak-mapas escuchando en :' + PORT);
     log(`base=${BASE_PMTILES} baseVersion=${BASE_VERSION} traccar=${TRACCAR_URL} maxBytes=${MAX_ZONE_BYTES}`);
+    log(`auth=${AUTH_BACKEND}` + (AUTH_BACKEND === 'mytrip' ? ` mytrip=${MYTRIP_URL}` : ''));
     log(`trustedProxyCidrs=${TRUSTED_PROXY_CIDRS.join(',')}`);
   });
 }

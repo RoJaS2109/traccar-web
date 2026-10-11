@@ -23,6 +23,12 @@ y `400` (token malformado) devuelven `401`, y si Traccar no responde, tarda o de
 se devuelve `503`. Cada job se asocia al `userId` que devuelve Traccar: `job` y `download`
 de otro usuario devuelven `404`.
 
+**Backend de identidad (`AUTH_BACKEND`).** Por defecto es `traccar`, como arriba. Con
+`AUTH_BACKEND=mytrip` el token se valida con `GET {MYTRIP_URL}/v1/yo` y el mismo `Bearer`
+(`MYTRIP_URL` es obligatoria y apunta a la API por la red Docker interna): misma caché,
+`401` si la API rechaza el token (`401`), `503` si no responde o devuelve `5xx`. Un valor
+desconocido de `AUTH_BACKEND` hace que el servicio no arranque.
+
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | `POST` | `/maps/zone/estimate` | Estima (síncrono) tiles + bytes vía `--dry-run`. `413` si excede el límite. |
@@ -132,6 +138,8 @@ entra en la ruta de archivo.
 | `BASE_VERSION` | `<archivo>:<tamaño>` del base, calculado al arrancar | Identidad del base, publicada en `GET /maps/version`. Override excepcional: si se fija a mano y se olvida actualizarla, las zonas quedan mal etiquetadas. |
 | `OUTPUT_DIR` | `/data/output` | Directorio de zonas extraídas. |
 | `TRACCAR_URL` | `http://rudatrak:8082` | Base URL de Traccar para validar tokens. |
+| `AUTH_BACKEND` | `traccar` | Quién valida el `Bearer`: `traccar` o `mytrip`. |
+| `MYTRIP_URL` | — | Con `AUTH_BACKEND=mytrip`: base URL de la API de mytrip (`/v1/yo`). |
 | `TOKEN_CACHE_TTL_MS` | `300000` | TTL de la caché de tokens (5 min). |
 | `MAX_ZONE_BYTES` | `314572800` | Tope de tamaño por zona (300 MiB). |
 | `MAX_ZOOM` | `15` | Tope de zoom de las extracciones (`[0, MAX_ZOOM]`). Bajar a `14` para volver al base z14 sin tocar el código. |

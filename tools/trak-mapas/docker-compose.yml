@@ -30,6 +30,9 @@ services:
     environment:
       - TZ=America/Argentina/Buenos_Aires
       - TRACCAR_URL=http://rudatrak-traccar:8082
+      # Quién valida el Bearer: traccar (default) o mytrip (GET ${MYTRIP_URL}/v1/yo).
+      - AUTH_BACKEND=${AUTH_BACKEND:-traccar}
+      - MYTRIP_URL=${MYTRIP_URL:-}
       # Archivo base del recorte. Se resuelve desde .env (ver .env.example); default =
       # Sudamérica continental. Para cambiar de base, ver el README de trak-mapas.
       - BASE_PMTILES=${BASE_PMTILES:-/data/maps/sudamerica-20261003-z14.pmtiles}
