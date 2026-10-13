@@ -6,9 +6,9 @@
 // y se abre en un puerto efímero. Traccar se mockea interceptando fetch únicamente
 // para su URL: el resto de los pedidos (los del test contra el servidor local) pasan
 // al fetch real.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -54,6 +54,9 @@ beforeAll(async () => {
   process.env.BASE_PMTILES = baseFile;
   process.env.TRACCAR_URL = TRACCAR;
   delete process.env.BASE_VERSION; // forzar el cálculo automático
+  // Topes bajos para provocar 429 de verdad en «registros sin datos personales» (los demás tests hacen 1 o 2 pedidos).
+  process.env.RATE_LIMIT_VERSION = '5';
+  process.env.RATE_LIMIT_TILES = '5';
 
   fetchReal = globalThis.fetch;
   globalThis.fetch = (input, init) => {
@@ -145,5 +148,46 @@ describe('/maps/base', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('x-base-version')).toBeNull();
     expect(Number(res.headers.get('content-length'))).toBe(4096);
+  });
+});
+
+// Los registros técnicos no guardan datos personales (privacidad de mytrip, punto 6): un 429 se registra, pero sin la IP
+// ni el usuario. Esos registros los guarda Docker por tamaño, no por tiempo, y podrían vivir más de 30 días.
+describe('registros sin datos personales', () => {
+  const PERSONALES = [/\bip=/, /\busuario=/, /127\.0\.0\.1/, /\bu7\b/];
+
+  async function hasta429(ruta, opciones) {
+    for (let i = 0; i < 20; i += 1) {
+      const res = await pedir(ruta, opciones);
+      if (res.status === 429) return;
+    }
+    throw new Error(`${ruta} nunca respondió 429`);
+  }
+
+  for (const [nombre, ruta, opciones] of [
+    ['el 429 de /maps/version', '/maps/version', {}],
+    ['el 429 de /maps/base', '/maps/base', { method: 'HEAD' }],
+  ]) {
+    it(`${nombre} se registra sin IP ni usuario`, async () => {
+      const espia = vi.spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        await hasta429(ruta, opciones);
+        const lineas = espia.mock.calls.map((args) => args.join(' '));
+        const del429 = lineas.filter((l) => l.includes('429'));
+        expect(del429.length, `esperaba una línea de 429; recibí: ${lineas.join(' | ')}`).toBeGreaterThan(0);
+        for (const linea of del429) {
+          for (const patron of PERSONALES) expect(linea, `la línea «${linea}» lleva ${patron}`).not.toMatch(patron);
+        }
+      } finally {
+        espia.mockRestore();
+      }
+    });
+  }
+
+  // Los 429 que no se provocan acá (estimate, extract y streams concurrentes): ninguna llamada a `log` arma `ip=` ni `usuario=`.
+  it('ninguna llamada a log de server.js escribe ip= ni usuario=', async () => {
+    const fuente = await readFile(new URL('./server.js', import.meta.url), 'utf8');
+    const conDatos = fuente.split('\n').filter((l) => /\blog\(/.test(l) && /\bip=|\busuario=/.test(l));
+    expect(conDatos, `líneas con datos personales: ${conDatos.join(' | ')}`).toEqual([]);
   });
 });

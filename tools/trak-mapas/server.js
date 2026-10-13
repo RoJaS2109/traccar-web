@@ -102,7 +102,8 @@ const activeStreams = new Map(); // clave -> streams de /maps/base actualmente a
 // Utilidades
 // ---------------------------------------------------------------------------
 function log(...args) {
-  // Nunca se loguean tokens: solo se llama con datos seguros (jobId, bbox, estado).
+  // Nunca se loguean tokens: solo se llama con datos seguros (jobId, bbox, estado). Tampoco IP ni usuario: Docker guarda
+  // estos registros por tamaño y no por tiempo, y la privacidad de mytrip promete hasta 30 días (los 429 se cuentan igual).
   console.log(new Date().toISOString(), ...args);
 }
 
@@ -559,7 +560,7 @@ async function cleanup(removeAll) {
 async function handleVersion(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':version', RATE_LIMIT_VERSION);
   if (retryAfter) {
-    log('429 version usuario=' + userKey(user));
+    log('429 version');
     return sendRateLimited(res, 'Demasiados pedidos', retryAfter);
   }
   sendJson(res, 200, { ok: true, baseVersion: BASE_VERSION });
@@ -568,7 +569,7 @@ async function handleVersion(req, res, user) {
 async function handleEstimate(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':estimate', RATE_LIMIT_ESTIMATE);
   if (retryAfter) {
-    log('429 estimate usuario=' + userKey(user));
+    log('429 estimate');
     return sendRateLimited(res, 'Demasiados pedidos de estimación', retryAfter);
   }
   const zone = await readZone(req, res);
@@ -595,7 +596,7 @@ async function handleEstimate(req, res, user) {
 async function handleExtract(req, res, user) {
   const retryAfter = checkRateLimit(userKey(user) + ':extract', RATE_LIMIT_EXTRACT);
   if (retryAfter) {
-    log('429 extract usuario=' + userKey(user));
+    log('429 extract');
     return sendRateLimited(res, 'Demasiados pedidos de extracción', retryAfter);
   }
   const zone = await readZone(req, res);
@@ -687,7 +688,7 @@ async function handleBase(req, res, user) {
 
   const retryAfter = checkRateLimit(`ip:${ip}`, RATE_LIMIT_TILES);
   if (retryAfter) {
-    log(`429 /maps/base rate-limit ip=${ip}`);
+    log('429 /maps/base rate-limit');
     return sendRateLimited(res, 'Demasiados pedidos de tiles', retryAfter);
   }
 
@@ -720,7 +721,7 @@ async function handleBase(req, res, user) {
 
   const keys = [`ip:${ip}`, `user:${userKey(user)}`];
   if (!tryAcquireStreams(keys)) {
-    log(`429 /maps/base streams ip=${ip} usuario=${userKey(user)}`);
+    log('429 /maps/base streams');
     return sendRateLimited(res, 'Demasiados streams concurrentes', RETRY_AFTER_SECONDS);
   }
   let released = false;

@@ -125,8 +125,9 @@ entra en la ruta de archivo.
   (`CLEANUP_INTERVAL_MS`, retención `OUTPUT_RETENTION_MS`).
 - **Timeout por job:** `JOB_TIMEOUT_MS` (default 30 min); al vencer se mata el proceso y
   el job queda `failed` con error `timeout`.
-- **Logs sin tokens:** nunca se loguea la cabecera `Authorization` ni el token. Cada
-  `429` se loguea con su clave (IP o usuario, nunca el token) para diagnóstico.
+- **Logs sin datos personales:** nunca se loguea la cabecera `Authorization` ni el token.
+  Cada `429` se loguea con qué límite saltó, **sin la IP ni el usuario**: Docker guarda los
+  logs por tamaño y no por tiempo, y la privacidad de mytrip promete hasta 30 días.
 
 ## Variables de entorno
 
