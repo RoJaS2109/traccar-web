@@ -12,7 +12,12 @@ const useStyles = makeStyles()((theme) => ({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    background: theme.palette.primary.main,
+    // Asfalto con la línea de demarcación de la ruta, como la portada del sitio web.
+    backgroundColor: theme.palette.alwaysDark.main,
+    backgroundImage: `repeating-linear-gradient(to bottom, ${theme.palette.primary.main} 0 28px, transparent 28px 52px)`,
+    backgroundSize: '4px 100%',
+    backgroundPosition: 'right 12px top',
+    backgroundRepeat: 'no-repeat',
     paddingBottom: theme.spacing(5),
     width: theme.dimensions.sidebarWidth,
     [theme.breakpoints.down('lg')]: {
@@ -28,6 +33,7 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: 'center',
     alignItems: 'center',
     flex: 1,
+    borderRadius: 0,
     boxShadow: '-2px 0px 16px rgba(0, 0, 0, 0.25)',
     [theme.breakpoints.up('lg')]: {
       padding: theme.spacing(0, 25, 0, 0),

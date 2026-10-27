@@ -1,4 +1,9 @@
+import { fontFaces } from './fonts';
+
 export default {
+  MuiCssBaseline: {
+    styleOverrides: fontFaces,
+  },
   MuiUseMediaQuery: {
     defaultProps: {
       noSsr: true,
