@@ -109,6 +109,13 @@ const PoiMap = () => {
         new Promise((resolve) => {
           const name = url.split('/').pop();
 
+          // Las imágenes quedan en el mapa aunque se rehaga la fuente: al llegar otro KML
+          // no se vuelven a descargar.
+          if (map.hasImage(url)) {
+            resolve();
+            return;
+          }
+
           const register = (img) => {
             if (!map.hasImage(url)) {
               map.addImage(url, img, { sdf: name.endsWith('.sdf.png') });

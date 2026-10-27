@@ -65,7 +65,7 @@ Docker compose lee este `.env` para interpolar `${POSTGRES_PASSWORD}`. Se hace u
 Esto ejecuta:
 1. `git pull origin master`
 2. `docker build -t rudatrak:latest .` (Dockerfile multi-stage self-contained: compila el frontend y parchea el backend)
-3. Copia de KMLs a `/mnt/datos/servicios/rudatrak/trak-poi/` y de `traccar.xml` a `/mnt/datos/servicios/rudatrak/trak-conf/` (solo si no existe)
+3. Copia de KMLs a `/mnt/datos/servicios/rudatrak/trak-poi/` (`general.kml` solo si no existe: en la Pi lo edita carga-poi) y de `traccar.xml` a `/mnt/datos/servicios/rudatrak/trak-conf/` (solo si no existe)
 4. `docker build -t carga-poi:latest ./tools/carga-poi`
 5. `docker compose up -d` (redeploy del stack)
 
