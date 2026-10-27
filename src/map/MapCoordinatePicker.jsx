@@ -20,7 +20,17 @@ const MapCoordinatePicker = () => {
           [x - 10, y - 10],
           [x + 10, y + 10],
         ],
-        { layers: ['poi-point', 'poi-circle', 'poi-title', 'poi-fill', 'poi-line'] },
+        {
+          layers: [
+            'poi-point',
+            'poi-circle',
+            'poi-title',
+            'poi-fill',
+            'poi-line',
+            'poi-cluster',
+            'poi-cluster-count',
+          ],
+        },
       );
       if (nearbyFeatures.length > 0) return;
 

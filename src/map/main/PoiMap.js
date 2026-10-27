@@ -76,9 +76,13 @@ const PoiMap = () => {
           ? gcoord.transform(structuredClone(data), gcoord.WGS84, gcoord.GCJ02)
           : data;
 
+      // Los puntos cercanos se agrupan al alejar el mapa; las líneas y polígonos no.
       map.addSource(id, {
         type: 'geojson',
         data: geoData,
+        cluster: true,
+        clusterMaxZoom: 11,
+        clusterRadius: 50,
       });
 
       map.addLayer({
@@ -155,11 +159,20 @@ const PoiMap = () => {
             source: id,
             id: 'poi-point',
             type: 'symbol',
-            filter: ['all', ['==', '$type', 'Point'], ['has', 'icon']],
+            filter: ['all', ['==', '$type', 'Point'], ['has', 'icon'], ['!has', 'point_count']],
             metadata: { 'traccar:title': t('mapPoiLayer') },
             layout: {
               'icon-image': ['get', 'icon'],
-              'icon-size': ['coalesce', ['get', 'icon-scale'], 0.1],
+              // Más chicos en los zooms intermedios, donde ya se separaron pero todavía son muchos.
+              'icon-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                8,
+                ['*', 0.6, ['coalesce', ['get', 'icon-scale'], 0.1]],
+                13,
+                ['coalesce', ['get', 'icon-scale'], 0.1],
+              ],
               'icon-allow-overlap': true,
               'text-field': ['get', 'name'],
               'text-allow-overlap': false,
@@ -182,7 +195,7 @@ const PoiMap = () => {
         source: id,
         id: 'poi-circle',
         type: 'circle',
-        filter: ['all', ['==', '$type', 'Point'], ['!has', 'icon']],
+        filter: ['all', ['==', '$type', 'Point'], ['!has', 'icon'], ['!has', 'point_count']],
         metadata: { 'traccar:title': t('mapPoiLayer') },
         paint: {
           'circle-radius': 5,
@@ -206,6 +219,7 @@ const PoiMap = () => {
         source: id,
         id: 'poi-title',
         type: 'symbol',
+        filter: ['!has', 'point_count'],
         metadata: { 'traccar:title': t('mapPoiLayer') },
         layout: {
           'text-field': '{name}',
@@ -219,6 +233,52 @@ const PoiMap = () => {
           'text-halo-width': 1,
         },
       });
+
+      map.addLayer({
+        source: id,
+        id: 'poi-cluster',
+        type: 'circle',
+        filter: ['has', 'point_count'],
+        metadata: { 'traccar:title': t('mapPoiLayer') },
+        paint: {
+          'circle-color': theme.palette.primary.main,
+          'circle-radius': ['step', ['get', 'point_count'], 14, 50, 18, 500, 24],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+
+      map.addLayer({
+        source: id,
+        id: 'poi-cluster-count',
+        type: 'symbol',
+        filter: ['has', 'point_count'],
+        metadata: { 'traccar:title': t('mapPoiLayer') },
+        layout: {
+          'text-field': '{point_count_abbreviated}',
+          'text-font': findFonts(map),
+          'text-size': 13,
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': theme.palette.primary.contrastText,
+        },
+      });
+
+      // Al tocar un grupo, el mapa se acerca hasta el zoom en que se separa.
+      const onClusterClick = async (event) => {
+        event.preventDefault();
+        const feature = event.features?.[0];
+        if (!feature) return;
+        const zoom = await map.getSource(id).getClusterExpansionZoom(feature.properties.cluster_id);
+        map.easeTo({ center: feature.geometry.coordinates, zoom });
+      };
+      const onClusterEnter = () => {
+        map.getCanvas().style.cursor = 'pointer';
+      };
+      const onClusterLeave = () => {
+        map.getCanvas().style.cursor = '';
+      };
 
       const popup = new maplibregl.Popup({
         maxWidth: '400px',
@@ -263,6 +323,9 @@ const PoiMap = () => {
       map.on('click', 'poi-title', onPoiClick);
       map.on('click', 'poi-fill', onPoiClick);
       map.on('click', 'poi-line', onPoiClick);
+      map.on('click', 'poi-cluster', onClusterClick);
+      map.on('mouseenter', 'poi-cluster', onClusterEnter);
+      map.on('mouseleave', 'poi-cluster', onClusterLeave);
 
       return () => {
         popup.remove();
@@ -272,6 +335,16 @@ const PoiMap = () => {
         map.off('click', 'poi-title', onPoiClick);
         map.off('click', 'poi-fill', onPoiClick);
         map.off('click', 'poi-line', onPoiClick);
+        map.off('click', 'poi-cluster', onClusterClick);
+        map.off('mouseenter', 'poi-cluster', onClusterEnter);
+        map.off('mouseleave', 'poi-cluster', onClusterLeave);
+
+        if (map.getLayer('poi-cluster-count')) {
+          map.removeLayer('poi-cluster-count');
+        }
+        if (map.getLayer('poi-cluster')) {
+          map.removeLayer('poi-cluster');
+        }
 
         if (map.getLayer('poi-title')) {
           map.removeLayer('poi-title');
@@ -294,7 +367,14 @@ const PoiMap = () => {
       };
     }
     return () => {};
-  }, [data, id, t, theme.palette.geometry.main]);
+  }, [
+    data,
+    id,
+    t,
+    theme.palette.geometry.main,
+    theme.palette.primary.main,
+    theme.palette.primary.contrastText,
+  ]);
 
   return null;
 };
