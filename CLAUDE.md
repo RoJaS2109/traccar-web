@@ -301,7 +301,7 @@ Renderiza puntos de interés desde uno o varios KML. La lista se configura en el
 
 Con más de un KML aparece el botón `MapPoiSelector` (pin) en el mapa, con una casilla por KML. Los ocultos se guardan por dispositivo en `localStorage` (`hiddenPoiLayers`), así que un KML nuevo aparece activado. Los KML activados se unen en **una sola fuente GeoJSON**, con clustering (radio 50 px, hasta zoom 11). Offline, cada KML se cachea en su propio archivo (`src/offline/poiKmlStore.js`).
 
-Un CSV de POIs (`Tipo de POIs,Latitud,Longitud,Razón Social`) se convierte a KML con `node tools/csv-a-kml.mjs <csv> <kml> "<Nombre>" <ícono>` (así se generó `data/estaciones_de_servicio.kml`).
+Un CSV de POIs (`Tipo de POIs,Latitud,Longitud,Razón Social`) se convierte a KML con `node tools/csv-a-kml.mjs <csv> <kml> "<Nombre>" <ícono>` (así se generaron `data/estaciones_de_servicio.kml` y `data/estaciones_gnv.kml`). El CSV de GNV sale del servicio ArcGIS público de ENARGAS (`sig.enargas.gov.ar/arcgis/rest/services/Enargas_ext/Gas_Natural_Vehicular/MapServer/0/query`), filtrando `Estado = 'A'` (activas); el tipo es `GNV - <Bandera>`.
 
 ### Capas (en orden de renderizado)
 
