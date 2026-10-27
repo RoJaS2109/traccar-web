@@ -1,12 +1,13 @@
 import { useTheme, useMediaQuery } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
-import defaultLogo from '../resources/images/logo.png';
+import logoLightBackground from '../resources/images/logo-fondo-claro.png';
+import logoDarkBackground from '../resources/images/logo-fondo-oscuro.png';
 
 const useStyles = makeStyles()((theme) => ({
   image: {
     alignSelf: 'center',
-    maxWidth: '420px',
+    maxWidth: 'min(420px, 80%)',
     maxHeight: '210px',
     width: 'auto',
     height: 'auto',
@@ -29,7 +30,15 @@ const LogoImage = () => {
     }
     return <img className={classes.image} src={logo} alt="" />;
   }
-  return <img className={classes.image} src={defaultLogo} alt="" />;
+  // Expandido, el logo va sobre la barra lateral de asfalto.
+  const darkBackground = expanded || theme.palette.mode === 'dark';
+  return (
+    <img
+      className={classes.image}
+      src={darkBackground ? logoDarkBackground : logoLightBackground}
+      alt=""
+    />
+  );
 };
 
 export default LogoImage;
