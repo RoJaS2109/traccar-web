@@ -8,8 +8,9 @@
 # Qué hace:
 #   1. git pull origin master
 #   2. docker build -t rudatrak:latest  (self-contained: frontend + backend)
-#   3. Copia KMLs e íconos a /mnt/datos/servicios/rudatrak/trak-poi/
-#      y traccar.xml a /mnt/datos/servicios/rudatrak/trak-conf/ (solo si no existe)
+#   3. Copia KMLs e íconos a /mnt/datos/servicios/rudatrak/trak-poi/ (general.kml solo
+#      si no existe: en la Pi lo edita carga-poi) y traccar.xml a
+#      /mnt/datos/servicios/rudatrak/trak-conf/ (solo si no existe)
 #   4. docker build -t carga-poi:latest (herramienta de POIs)
 #   5. docker compose up -d (redeploy del stack)
 
@@ -61,11 +62,14 @@ fi
 
 # ── 3. Copiar KMLs e íconos ────────────────────────────────
 echo "[3/5] Copiando KMLs e íconos a $KML_DIR..."
+# general.kml lo edita carga-poi en la Pi: la copia del repo queda atrás y no debe pisarlo.
 if [ -n "$TARGET" ]; then
-  rsync -avz "$SCRIPT_DIR/data/"*.kml "$TARGET:$KML_DIR/"
+  rsync -avz --exclude general.kml "$SCRIPT_DIR/data/"*.kml "$TARGET:$KML_DIR/"
+  rsync -avz --ignore-existing "$SCRIPT_DIR/data/general.kml" "$TARGET:$KML_DIR/"
   rsync -avz "$SCRIPT_DIR/data/iconos/" "$TARGET:$KML_DIR/icons/"
 else
-  sudo rsync -av "$SCRIPT_DIR/data/"*.kml "$KML_DIR/"
+  sudo rsync -av --exclude general.kml "$SCRIPT_DIR/data/"*.kml "$KML_DIR/"
+  sudo rsync -av --ignore-existing "$SCRIPT_DIR/data/general.kml" "$KML_DIR/"
   sudo rsync -av "$SCRIPT_DIR/data/iconos/" "$KML_DIR/icons/"
 fi
 

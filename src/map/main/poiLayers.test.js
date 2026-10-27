@@ -11,6 +11,13 @@ describe('parsePoiLayers', () => {
     ]);
   });
 
+  it('acepta ; como separador (campo de una sola línea)', () => {
+    expect(parsePoiLayers('A|poi/a.kml; B|poi/b.kml;')).toEqual([
+      { name: 'A', url: 'poi/a.kml' },
+      { name: 'B', url: 'poi/b.kml' },
+    ]);
+  });
+
   it('sin nombre usa el del archivo', () => {
     expect(parsePoiLayers('poi/general.kml')).toEqual([
       { name: 'general', url: 'poi/general.kml' },

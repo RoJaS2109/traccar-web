@@ -1,9 +1,10 @@
 // Lista de KML de POIs disponibles en el selector del mapa.
 //
-// Se configura en el atributo `poiLayers` del servidor (o del usuario), una línea por
-// KML con el formato `Nombre|ruta`. Sin nombre, se usa el del archivo. Si el atributo no
-// está, se usa la preferencia `poiLayer` de siempre (un único KML), que además es la que
-// leen las APK anteriores al selector.
+// Se configura en el atributo `poiLayers` del servidor (o del usuario), una entrada por
+// KML con el formato `Nombre|ruta`, separadas por `;` o por salto de línea. El `;` es el
+// que sirve desde la pantalla de atributos, cuyo campo es de una sola línea. Sin nombre,
+// se usa el del archivo. Si el atributo no está, se usa la preferencia `poiLayer` de
+// siempre (un único KML), que además es la que leen las APK anteriores al selector.
 
 const fileName = (url) => {
   const last = url.split('?')[0].split('/').pop() || url;
@@ -28,7 +29,7 @@ const encodeUrl = (url) => {
 
 export const parsePoiLayers = (poiLayers, poiLayer) => {
   const layers = [];
-  (poiLayers || '').split(/\r?\n/).forEach((line) => {
+  (poiLayers || '').split(/[\r\n;]+/).forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed) return;
     const separator = trimmed.indexOf('|');
