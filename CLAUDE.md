@@ -297,7 +297,9 @@ El KML se monta desde `/data/compose/rudatrak/trak-poi/general.kml`. La URL púb
 
 ### POI Map
 
-Renderiza puntos de interés desde un archivo KML. La URL del KML se configura en la preferencia `poiLayer` (por servidor o usuario).
+Renderiza puntos de interés desde uno o varios KML. La lista se configura en el atributo `poiLayers` (servidor o usuario), una línea por KML con el formato `Nombre|ruta` (ver `src/map/main/poiLayers.js`). Sin ese atributo se usa la preferencia `poiLayer` (un único KML), que **debe seguir configurada**: es la que leen las APK anteriores al selector.
+
+Con más de un KML aparece el botón `MapPoiSelector` (pin) en el mapa, con una casilla por KML. Los ocultos se guardan por dispositivo en `localStorage` (`hiddenPoiLayers`), así que un KML nuevo aparece activado. Los KML activados se unen en **una sola fuente GeoJSON**, con clustering (radio 50 px, hasta zoom 11). Offline, cada KML se cachea en su propio archivo (`src/offline/poiKmlStore.js`).
 
 ### Capas (en orden de renderizado)
 
@@ -308,6 +310,7 @@ Renderiza puntos de interés desde un archivo KML. La URL del KML se configura e
 | `poi-circle` | circle | Point + sin icono | ✅ |
 | `poi-line` | line | LineString | ✅ |
 | `poi-title` | symbol | todos (texto) | ✅ |
+| `poi-cluster` / `poi-cluster-count` | circle / symbol | grupos (`point_count`) | acerca el mapa |
 
 **IMPORTANTE:** `poi-point` se agrega **asincrónicamente** (dentro de `Promise.all` para cargar iconos). Las otras capas son sincrónicas. Todos los click handlers se registran juntos al final del `useEffect`.
 

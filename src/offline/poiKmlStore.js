@@ -1,51 +1,35 @@
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 
-const KML_PATH = 'poi/general.kml';
-const KML_TMP_PATH = 'poi/general.kml.tmp';
-const META_KEY = 'poiKmlMeta';
-const POI_LAYER_KEY = 'poiLayer';
+// Antes del selector de KML se cacheaba un único KML en estas claves; se siguen
+// leyendo para no perder el caché de las instalaciones existentes.
+const LEGACY_KML_PATH = 'poi/general.kml';
+const LEGACY_META_KEY = 'poiKmlMeta';
+const LEGACY_POI_LAYER_KEY = 'poiLayer';
+const POI_LAYERS_KEY = 'poiLayers';
 
-// --- poiLayer persistido ---
-// El valor resuelto de `poiLayer` depende de preferencias de usuario/servidor
-// que no están disponibles offline. Se persiste para poder cargar el KML
-// cacheado cuando la preferencia no resuelve (arranque en frío sin red).
+// --- lista de KML persistida ---
+// La lista depende de preferencias de usuario/servidor que no están disponibles
+// offline. Se persiste para poder cargar los KML cacheados cuando la preferencia
+// no resuelve (arranque en frío sin red).
 
-export const cachePoiLayer = async (url) => {
+export const cachePoiLayers = async (layers) => {
   try {
-    await Preferences.set({ key: POI_LAYER_KEY, value: url });
+    await Preferences.set({ key: POI_LAYERS_KEY, value: JSON.stringify(layers) });
   } catch (error) {
-    console.warn('No se pudo persistir poiLayer', error);
+    console.warn('No se pudo persistir la lista de KML', error);
   }
 };
 
-export const getCachedPoiLayer = async () => {
+export const getCachedPoiLayers = async () => {
   try {
-    const { value } = await Preferences.get({ key: POI_LAYER_KEY });
-    return value || null;
+    const { value } = await Preferences.get({ key: POI_LAYERS_KEY });
+    if (value) return JSON.parse(value);
+    const legacy = await Preferences.get({ key: LEGACY_POI_LAYER_KEY });
+    return legacy.value ? [{ name: '', url: legacy.value }] : [];
   } catch (error) {
-    console.warn('No se pudo leer poiLayer persistido', error);
-    return null;
-  }
-};
-
-// --- metadata del caché (Preferences) ---
-
-const getCachedMeta = async () => {
-  try {
-    const { value } = await Preferences.get({ key: META_KEY });
-    return value ? JSON.parse(value) : null;
-  } catch (error) {
-    console.warn('No se pudo leer la metadata del KML cacheado', error);
-    return null;
-  }
-};
-
-const cacheMeta = async (meta) => {
-  try {
-    await Preferences.set({ key: META_KEY, value: JSON.stringify(meta) });
-  } catch (error) {
-    console.warn('No se pudo guardar la metadata del KML', error);
+    console.warn('No se pudo leer la lista de KML persistida', error);
+    return [];
   }
 };
 
@@ -61,6 +45,33 @@ const hashString = (str) => {
   return (hash >>> 0).toString(16);
 };
 
+// Cada KML se cachea en su propio archivo y su propia metadata, según su URL.
+const kmlPath = (url) => `poi/${hashString(url)}.kml`;
+const metaKey = (url) => `poiKmlMeta:${hashString(url)}`;
+
+// --- metadata del caché (Preferences) ---
+
+const getCachedMeta = async (url) => {
+  try {
+    const { value } = await Preferences.get({ key: metaKey(url) });
+    if (value) return JSON.parse(value);
+    const legacy = await Preferences.get({ key: LEGACY_META_KEY });
+    const legacyMeta = legacy.value ? JSON.parse(legacy.value) : null;
+    return legacyMeta?.url === url ? { ...legacyMeta, path: LEGACY_KML_PATH } : null;
+  } catch (error) {
+    console.warn('No se pudo leer la metadata del KML cacheado', error);
+    return null;
+  }
+};
+
+const cacheMeta = async (url, meta) => {
+  try {
+    await Preferences.set({ key: metaKey(url), value: JSON.stringify(meta) });
+  } catch (error) {
+    console.warn('No se pudo guardar la metadata del KML', error);
+  }
+};
+
 // KML válido: raíz <kml> y que el parser no reporte errores.
 const isValidKml = (text) => {
   if (typeof text !== 'string' || !/<kml[\s>]/i.test(text)) return false;
@@ -71,15 +82,16 @@ const isValidKml = (text) => {
 // Escritura atómica: primero a un archivo temporal y luego rename. Un cierre a
 // mitad de escritura deja el temporal corrupto pero el caché anterior intacto.
 const writeAtomicText = async (path, text) => {
+  const tmpPath = `${path}.tmp`;
   await Filesystem.writeFile({
-    path: KML_TMP_PATH,
+    path: tmpPath,
     data: text,
     encoding: Encoding.UTF8,
     directory: Directory.Data,
     recursive: true,
   });
   await Filesystem.rename({
-    from: KML_TMP_PATH,
+    from: tmpPath,
     to: path,
     directory: Directory.Data,
   });
@@ -89,10 +101,10 @@ const writeAtomicText = async (path, text) => {
 
 export const getCachedKml = async (url) => {
   try {
-    const meta = await getCachedMeta();
+    const meta = await getCachedMeta(url);
     if (meta?.url !== url) return null;
     const result = await Filesystem.readFile({
-      path: KML_PATH,
+      path: meta.path,
       directory: Directory.Data,
       encoding: Encoding.UTF8,
     });
@@ -109,7 +121,7 @@ export const getCachedKml = async (url) => {
 
 export const fetchAndCacheKml = async (url, { signal }) => {
   const cached = await getCachedKml(url);
-  const meta = await getCachedMeta();
+  const meta = await getCachedMeta(url);
   const lastModified = meta?.url === url ? meta.lastModified : null;
 
   const doFetch = async (ifModifiedSince, retrying = false) => {
@@ -141,6 +153,7 @@ export const fetchAndCacheKml = async (url, { signal }) => {
     const responseLastModified = response.headers.get('Last-Modified');
     const newMeta = {
       url,
+      path: kmlPath(url),
       lastModified: responseLastModified ?? meta?.lastModified ?? null,
       size: text.length,
       hash: hashString(text),
@@ -151,13 +164,13 @@ export const fetchAndCacheKml = async (url, { signal }) => {
     // cambió, no hace falta reescribir el archivo.
     const unchangedBySizeHash =
       !responseLastModified &&
-      meta?.url === url &&
+      meta?.path === newMeta.path &&
       meta?.size === newMeta.size &&
       meta?.hash === newMeta.hash;
 
     if (!unchangedBySizeHash) {
-      await writeAtomicText(KML_PATH, text);
-      await cacheMeta(newMeta);
+      await writeAtomicText(newMeta.path, text);
+      await cacheMeta(url, newMeta);
     }
 
     return { text, fromCache: false };

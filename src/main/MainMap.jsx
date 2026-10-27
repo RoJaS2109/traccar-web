@@ -8,6 +8,7 @@ import MapAccuracy from '../map/main/MapAccuracy';
 import MapGeofence from '../map/MapGeofence';
 import MapCurrentLocation from '../map/MapCurrentLocation';
 import PoiMap from '../map/main/PoiMap';
+import MapPoiSelector from '../map/control/MapPoiSelector';
 import MapPadding from '../map/MapPadding';
 import { devicesActions } from '../store';
 import MapDefaultCamera from '../map/main/MapDefaultCamera';
@@ -57,6 +58,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapDefaultCamera filteredPositions={filteredPositions} />
         <MapSelectedDevice />
         <PoiMap />
+        <MapPoiSelector />
         <MapRuler positions={filteredPositions} onActiveChange={setRulerActive} />
         <MapCoordinatePicker />
         {!features.disableEvents && (

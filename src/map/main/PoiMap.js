@@ -1,21 +1,16 @@
-import { useId, useEffect, useState } from 'react';
+import { useId, useEffect, useMemo, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { kml } from '@tmcw/togeojson';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/MapView';
 import { useAsyncTask } from '../../reactHelper';
-import { usePreference } from '../../common/util/preferences';
 import gcoord from 'gcoord';
 import { findFonts } from '../core/mapUtil';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { isNative } from '../../offline/nativeBootstrap';
 import { useOnlineStatus } from '../../offline/useOnlineStatus';
-import {
-  cachePoiLayer,
-  fetchAndCacheKml,
-  getCachedKml,
-  getCachedPoiLayer,
-} from '../../offline/poiKmlStore';
+import { fetchAndCacheKml, getCachedKml } from '../../offline/poiKmlStore';
+import usePoiLayers from './usePoiLayers';
 
 const PoiMap = () => {
   const id = useId();
@@ -24,50 +19,56 @@ const PoiMap = () => {
   const t = useTranslation();
 
   const online = useOnlineStatus();
-  const poiLayerPref = usePreference('poiLayer');
+  const { layers, hidden } = usePoiLayers();
+  const urls = useMemo(
+    () => layers.map((layer) => layer.url).filter((url) => !hidden.includes(url)),
+    [layers, hidden],
+  );
 
-  const [poiLayer, setPoiLayer] = useState(poiLayerPref);
-  const [data, setData] = useState(null);
-
-  // Resolver poiLayer: la preferencia manda cuando está presente (online); si
-  // no (offline), se usa el valor persistido en Preferences para poder cargar
-  // el KML cacheado.
-  useEffect(() => {
-    if (poiLayerPref) {
-      setPoiLayer(poiLayerPref);
-      cachePoiLayer(poiLayerPref);
-      return undefined;
-    }
-    let cancelled = false;
-    getCachedPoiLayer().then((cached) => {
-      if (!cancelled && cached) setPoiLayer(cached);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [poiLayerPref]);
+  // GeoJSON de cada KML ya cargado, por URL.
+  const [kmls, setKmls] = useState({});
 
   useAsyncTask(
     async ({ signal }) => {
-      if (!poiLayer) return null;
+      const parse = (text) => {
+        const geo = kml(new DOMParser().parseFromString(text, 'text/xml'));
+        // Las descripciones HTML de My Maps llegan como { '@type': 'html', value }.
+        geo.features.forEach((feature) => {
+          const description = feature.properties?.description;
+          if (description && typeof description === 'object') {
+            feature.properties.description = description.value ?? '';
+          }
+        });
+        return geo;
+      };
+      const store = (url, text) => setKmls((previous) => ({ ...previous, [url]: parse(text) }));
 
-      const parse = (text) => kml(new DOMParser().parseFromString(text, 'text/xml'));
+      await Promise.all(
+        urls.map(async (url) => {
+          // 1) Render inmediato del KML cacheado (no bloquea con la red).
+          const cached = await getCachedKml(url);
+          if (cached) store(url, cached);
 
-      // 1) Render inmediato del KML cacheado (no bloquea con la red).
-      const cached = await getCachedKml(poiLayer);
-      if (cached) setData(parse(cached));
-
-      // 2) Refresh condicional (solo con red): 304 reutiliza caché; 200 con
-      // contenido válido lo cachea y actualiza el mapa.
-      if (!online) return null;
-      const result = await fetchAndCacheKml(poiLayer, { signal });
-      if (result?.text && !result.fromCache) {
-        setData(parse(result.text));
-      }
+          // 2) Refresh condicional (solo con red): 304 reutiliza caché; 200 con
+          // contenido válido lo cachea y actualiza el mapa.
+          if (!online) return;
+          const result = await fetchAndCacheKml(url, { signal });
+          if (result?.text && !result.fromCache) {
+            store(url, result.text);
+          }
+        }),
+      );
       return null;
     },
-    [poiLayer, online],
+    [urls, online],
   );
+
+  // Los KML activados se dibujan como una sola fuente, así se agrupan juntos.
+  const data = useMemo(() => {
+    const loaded = urls.map((url) => kmls[url]).filter(Boolean);
+    if (loaded.length === 0) return null;
+    return { type: 'FeatureCollection', features: loaded.flatMap((geo) => geo.features) };
+  }, [urls, kmls]);
 
   useEffect(() => {
     if (data) {
@@ -153,8 +154,12 @@ const PoiMap = () => {
           }
         });
 
+      // La capa de íconos se agrega cuando terminan de cargar las imágenes. Si para entonces
+      // los datos ya cambiaron (llegó otro KML) y esta fuente se quitó, no se agrega.
+      let removed = false;
       if (uniqueIcons.length > 0) {
         Promise.all(uniqueIcons.map(loadIcon)).then(() => {
+          if (removed || !map.getSource(id) || map.getLayer('poi-point')) return;
           map.addLayer({
             source: id,
             id: 'poi-point',
@@ -328,6 +333,7 @@ const PoiMap = () => {
       map.on('mouseleave', 'poi-cluster', onClusterLeave);
 
       return () => {
+        removed = true;
         popup.remove();
 
         map.off('click', 'poi-point', onPoiClick);
